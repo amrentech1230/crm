@@ -1,0 +1,682 @@
+ 
+        @foreach($invoiced as $i => $invoice)
+            @php
+                $shipperAppointment = json_decode($invoice->load_shipper_appointment, true);
+                $firstAppointment = '';
+
+                if (is_array($shipperAppointment) && !empty($shipperAppointment)) {
+                reset($shipperAppointment);
+                $firstItem = current($shipperAppointment);
+
+                if (is_array($firstItem)) {
+                // If first item is an array, get the first string value or a key like 'date'
+                if (isset($firstItem['date'])) {
+                $firstAppointment = $firstItem['date'];
+                } else {
+                // fallback: get first value of the array
+                $firstAppointment = reset($firstItem);
+                }
+                } elseif (is_string($firstItem)) {
+                // If first item is a string directly
+                $firstAppointment = $firstItem;
+                }
+                }
+            @endphp
+
+            @php
+                $consigneeAppointment = json_decode($invoice->load_consignee_appointment, true);
+                $lastAppointment = '';
+
+                if (is_array($consigneeAppointment) && !empty($consigneeAppointment)) {
+                    $lastItem = end($consigneeAppointment);
+
+                    if (is_array($lastItem)) {
+                        // If last item is an array, try to get 'date' key or first value
+                        if (isset($lastItem['date'])) {
+                            $lastAppointment = $lastItem['date'];
+                        } else {
+                            $lastAppointment = reset($lastItem);
+                        }
+                    } elseif (is_string($lastItem)) {
+                        $lastAppointment = $lastItem;
+                    }
+                }
+            @endphp
+            <tr>
+                <td>{{ $i + 1 }}</td>
+                <td>{{ $invoice->load_number }}</td>
+                <td>{{ $invoice->invoice_number }}</td>
+                <td>
+                    <a id="markAsPaidRecordBtn_{{ $invoice->id }}" title="Approved"
+                        class="{{ $invoice->invoice_status === 'Paid Record' ? 'success' : 'danger' }} btn btn-primary btn-sm"
+                        onclick="markAsPaidRecord({{ $invoice->id }})" ><i class=" fas fa-check"></i></a>
+
+                    <a class="btn btn-primary btn-sm" onclick="openUploadWindow('{{route('load.edit', $invoice->id)}}')"><i class=" fas fa-edit"></i></a>
+
+                    <a href="#" onclick="markAsBackDeliveredRecord({{ $invoice->id }})" title="Back" class="btn btn-primary btn-sm"><i class=" fas fa-reply"></i></a>
+
+                    <span data-bs-toggle="modal" class="btn btn-primary btn-sm" style="color: #ffffffff; cursor:pointer" data-bs-target="#view-mail-{{ $invoice->id }}"><i class=" fas fa-envelope-open"></i></span>
+
+                    <a href="javascript:void(0);" onclick="printPreInvoice({{ $invoice->id }})" title="Print invoice" class="btn btn-primary btn-sm"><i class=" fas fa-print"></i></a>
+					
+					<a href="{{route('CompletedPublicDoc',$invoice->id)}}" title="public file" class="btn btn-primary btn-sm" target="_blank" rel="noopener noreferrer"> <i class="fas fa-file"></i></a>
+					
+					<a href="{{ route('shipper.download.pdf', $invoice->id) }}" class="btn btn-primary btn-sm" title="Shipper RC" target="_blank">
+						<i class="fas fa-file-pdf dynamic-data"></i> 
+					</a>
+						
+					<a href="{{route('rc.download.pdf', $invoice->load_number)}}" target="_blank" class="btn btn-primary btn-sm" title="Carrier RC">
+                        <i class="fas fa-file-pdf dynamic-data"></i>
+                    </a>
+
+					
+					<div class="modal fade mymodal modal-xl" id="view-mail-{{ $invoice->id }}" tabindex="-1" data-bs-backdrop="true" aria-labelledby="view-mail" aria-hidden="false">
+						<div class="modal-dialog modal-xl">
+								<div class="modal-content">
+									<!-- Modal Header -->
+									<div class="modal-header" style="padding-left: 14px;">
+									<h4 class="modal-title">Send Mail</h4>
+									<button type="button" class="close" data-bs-dismiss="modal">&times;</button>
+									</div>
+
+
+									<div class="modal-body">                           
+										<form class="sendemailfunction" method="POST">
+											@csrf
+											<label>Email:</label>
+											<input type="text" class="form-control" id="email" name="email" value="{{$invoice->customer?->customer_email}}" required><br><br> 
+											<label>CC Email:</label>
+											<input type="text" class="form-control" id="ccemail" name="ccemail" value="ar@cargoconvoy.co"><br><br>
+											<input type="hidden" id="load_no" name="load_no" value="{{$invoice->load_number}}">
+											<input type="hidden" name="refrance_no" value="{{$invoice->load_workorder}}">
+											<input type="hidden" name="invoice_no" value="{{$invoice->invoice_number}}">
+											
+											<strong>Upload new documents:</strong><br><br>
+											<input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}"  onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" multiple>
+											<div id="uploadStatus{{ $invoice->load_number }}"></div>
+											<div id="uploadedDocsAccordion{{ $invoice->load_number }}" class="accordion mt-3"></div>
+
+											<strong>Select documents to attach:</strong><br><br>
+
+											@php
+												$docs = json_decode($invoice->load_delivery_do_file, true);
+												
+											@endphp
+
+											@if(empty($docs))
+												<p>No documents found.</p>
+											@else
+												<div class="accordion" id="accordionExample">
+													@foreach($docs as $key => $file)
+														@php
+														
+															$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+														@endphp
+														@php
+															$fileName = basename($file);
+														@endphp
+
+														<div class="accordion-item">
+															<input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice')) checked @endif>
+															<h2 class="accordion-header" id="heading{{ $key }}">
+																<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ $key }}" aria-expanded="false" aria-controls="collapse{{ $key }}">
+																	View document #{{ $key + 1 }}  ({{basename($file)}})
+																</button>
+															</h2>
+															<div id="collapse{{ $key }}" class="accordion-collapse collapse" aria-labelledby="heading{{ $key }}" data-bs-parent="#accordionExample">
+																<div class="accordion-body">
+																	@if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
+																		<a href="{{ asset('public/'.$file) }}" target="_blank"><img src="{{ asset('public/'.$file) }}" alt="Image" style="max-width: 500px;"></a>
+																	@elseif($extension === 'pdf')
+																		<a href="{{ asset('public/'.$file) }}" target="_blank"><embed src="{{ asset('public/'.$file) }}" type="application/pdf" width="600" height="400"></a>
+																	@elseif(in_array($extension, ['doc', 'docx']))
+																		<iframe src="https://docs.google.com/gview?url={{ urlencode(asset('public/'.$file)) }}&embedded=true" 
+																				style="width:600px; height:500px;" frameborder="0"></iframe>
+																		<br><a href="{{ asset('storage/'.$file) }}" target="_blank">Download Word Document</a>
+																	@else
+																		<p>Unsupported file type.</p>
+																	@endif
+																</div>
+															</div>
+														</div>
+													@endforeach
+												</div>
+											@endif
+
+											<button type="submit"class="btn btn-primary waves-effect waves-light mb-3" onclick="sendemailfunction(this, '{{ $invoice->id }}')" data-id ="{{$invoice->id}}" >Send Email</button>
+										</form>
+								
+									</div>
+								</div>
+						</div>
+					</div>
+                    <a href="{{ route('accounts.view_loads_detail', $invoice->id) }}" class="btn btn-primary btn-sm" title="logs"> <i class="fas fa-eye"></i></a>
+                </td> 
+                <td class="dynamic-data">
+                    {{ $invoice->load_workorder }}</td>
+                <td class="dynamic-data">
+                    {{ $invoice->load_bill_to }}</td>
+                
+                <td>{{ !empty($invoice->paper_work_date) ? \Carbon\Carbon::parse($invoice->paper_work_date)->format('m-d-Y') : '' }}</td>
+             
+                <td>
+                    <input type="date" class="form-control paymentreceivingdate_{{$invoice->id}}"
+                        name="payment_receiving_date"
+                        value="{{ !empty($invoice->payment_receiving_date) ? \Carbon\Carbon::parse($invoice->payment_receiving_date)->format('Y-m-d') : '' }}">
+
+                </td>
+
+                <td class="dynamic-data">{{ $invoice->shipper_load_final_rate }}</td>
+                <!------<td class="dynamic-data">
+                    <input type="number" class="form-control receiving_amount"
+                        name="receiving_amount" data-invoice-id="{{ $invoice->id }}"
+                        data-shipper-load-final-rate="{{ $invoice->shipper_load_final_rate }}"
+                        id="receiving_amount_{{ $invoice->id }}"
+                        value="{{ $invoice->receiving_amount }}">
+                </td>---------->
+				<td class="dynamic-data">
+                    <input type="text" class="form-control adv_receiving_amount" name="load_advance_rec_amount" data-invoice-id="{{ $invoice->id }}" data-shipper-load-final-rate="{{ $invoice->shipper_load_final_rate }}"
+                        id="receiving_amount_{{ $invoice->id }}" onkeyup="saveadvanceReceivingAmount(this)" value="{{ $invoice->load_advance_rec_amount }}">
+                </td>
+                @php
+                $shipperLoadFinalRate = floatval($invoice->shipper_load_final_rate);
+                $receivingAmount = floatval($invoice->receiving_amount);
+                $remaining = max($shipperLoadFinalRate - $receivingAmount, 0);
+                @endphp
+                <td class="dynamic-data">
+                  
+                       <textarea name="invoice_internal_value" onkeyup="RemainingAmount(this)" row="10" col="5" style="width: 450px !important;height: 50px;"   data-invoice-id="{{ $invoice->id }}" class="invoice_internal_value" placeholder="Enter additional notes...">{{ $invoice->invoice_internal_value }}</textarea>
+
+                </td>
+                
+                <td class="dynamic-data">
+                    @if(!empty($invoice->invoice_date) && $invoice->invoice_date !== '0000-00-00')
+    {{ \Carbon\Carbon::parse($invoice->invoice_date)->format('m-d-Y') }}
+@elseif(!empty($invoice->invoice_status_date) && $invoice->invoice_status_date !== '0000-00-00')
+    {{ \Carbon\Carbon::parse($invoice->invoice_status_date)->format('m-d-Y') }}
+@else
+    -
+@endif
+
+                </td>
+                
+                <td class="dynamic-data">
+                @if($invoice->user) {{ $invoice->user->name }} @endif
+                </td>
+
+
+                <td class="dynamic-data">
+                @if($invoice->user)  {{ $invoice->user->officedata?->office_name }} @endif</td>
+                <td class="dynamic-data">
+                @if($invoice->user) {{ $invoice->user->teamLeaderInfo?->tl}} @endif</td>
+                <td class="dynamic-data">
+                @if($invoice->user)  {{ $invoice->user->managerInfo?->manager }} @endif</td>
+                <td class="dynamic-data">
+                {{ $invoice->created_at->format('m-d-Y') }}
+                </td>
+                @php
+                $shipper_appointment =
+                json_decode($invoice->load_shipper_appointment,true);
+                @endphp
+                <td class="dynamic-data">
+                    {{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}
+                </td>
+                @php
+                $consignee_appointment =
+                json_decode($invoice->load_consignee_appointment,true);
+                @endphp
+                <td class="dynamic-data">
+                    {{ isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '' }}
+                </td>
+                <td class="dynamic-data">
+                {{ \Carbon\Carbon::parse($invoice->load_actual_delivery_date)->format('m-d-Y') }}
+                </td>
+                <td class="dynamic-data">{{ $invoice->load_carrier }}</td>
+				<td class="dynamic-data">{{ $invoice->carrier?->carrier_mc_ff_input }}</td> 
+                <td class="dynamic-data">{{ $invoice->load_final_carrier_fee }}</td>
+                @php
+                $shipper_location = json_decode($invoice->load_shipper_location,
+                true);
+                @endphp
+                <td class="dynamic-data tooltip-container" onclick="copyToClipboard(this)">
+                    {{ \Illuminate\Support\Str::words($shipper_location[0]['location'] ?? '', 3, '...') }}
+                    <span class="tooltip-text">{{ $shipper_location[0]['location'] ?? '' }}</span>
+                </td>
+
+                @php
+                $consignee_loaction = json_decode($invoice->load_consignee_location,
+                true);
+                @endphp
+                <td class="dynamic-data tooltip-container" onclick="copyToClipboard(this)">
+                    {{ \Illuminate\Support\Str::words($consignee_loaction[0]['location'] ?? '', 3, '...') }}
+                    <span class="tooltip-text">{{ $consignee_loaction[0]['location'] ?? '' }}</span>
+                </td>
+                <td class="dynamic-data">
+                    
+                   {{ $invoice->load_status }}
+
+                </td>
+                <td class="dynamic-data">
+                    @if($invoice->invoice_status == 'Paid')
+                        Invoiced
+                    @else
+                        {{  $invoice->invoice_status }}
+                    @endif
+                </td>
+
+<td class="dynamic-data">
+@php
+    $invoiceDate = \Carbon\Carbon::parse($invoice->invoice_date)->addHours(24);
+    $now = \Carbon\Carbon::now();
+
+    $agingDays = 0;
+
+    if ($now->greaterThan($invoiceDate)) {
+        $hours = $invoiceDate->diffInHours($now);
+        $agingDays = ceil($hours / 24);
+    }
+@endphp
+
+{{ $agingDays }} Days
+</td>
+            </tr>
+			
+        @endforeach
+		
+<script>
+   function sendemailfunction(inputElement, invoiceno) {
+    // Get the closest form element
+    let form = $(inputElement).closest('form');
+    let formData = new FormData(form[0]); // Pass native DOM element
+
+    // Get CSRF token
+    let csrfToken = $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val();
+
+    // Disable submit button
+    let submitButton = form.find('button[type="submit"]');
+    submitButton.prop('disabled', true).text('Sending...');
+
+    $.ajax({
+        url: "{{ route('send.mail') }}",
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRF-TOKEN': csrfToken
+        },
+        success: function (response) {
+            console.log('Success:', response);
+
+            $('#mc-success-message').text(response.message).fadeIn();
+            $('.mymodal').modal('hide');
+
+            setTimeout(function () {
+                $('#mc-success-message').text('').fadeOut();
+            }, 10000);
+
+            submitButton.prop('disabled', false).text('Send Email');
+        },
+        error: function (response) {
+            console.error('Error:', response);
+            let errorMessage = response.responseJSON?.message || 'An error occurred';
+            $('#mc-error-message').text(errorMessage).fadeIn();
+
+            setTimeout(function () {
+                $('#mc-error-message').text('').fadeOut();
+            }, 10000);
+
+            submitButton.prop('disabled', false).text('Send Email');
+        }
+    });
+}
+</script>
+<script>
+    function openUploadWindow(url) {
+        // Define the size of the new window
+        var width = 1500;   // Width of the new window
+        var height = 800;  // Height of the new window
+
+        // Calculate the position to center the window
+        var left = screen.width / 2 - width / 2;   // Center horizontally
+        var top = screen.height / 2 - height / 2;  // Center vertically
+
+        // Open the new window with the specified URL and properties
+        var newWindow = window.open(url, 'UploadWindow', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',resizable=yes,scrollbars=yes');
+        
+        // Focus on the new window, if it was successfully opened
+        if (newWindow) {
+            newWindow.focus();
+        }
+    }
+</script>
+<script>
+function maildocumetupload(inputElement, invoiceno) {
+    const files = inputElement.files;
+    const load_no = $(inputElement).data('id');
+
+    if (!files.length) return;
+
+    const $status = $('#uploadStatus' + load_no);
+    const $uploadedDocsContainer = $('#uploadedDocsAccordion' + load_no);
+
+    if (!$status.length || !$uploadedDocsContainer.length) {
+        console.error('Missing status or accordion container for load_no:', load_no);
+        return;
+    }
+
+    const formData = new FormData();
+    $.each(files, function (i, file) {
+        formData.append('document[]', file);
+    });
+
+    formData.append('load_no', load_no);
+    formData.append('_token', '{{ csrf_token() }}');
+
+    $status.html(`Uploading ${files.length} file(s)...`);
+
+    $.ajax({
+        url: '{{ route("mail.upload.document") }}',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (data) {
+            if (data.files && data.files.length > 0) {
+                $status.html(`<span class="text-success">Uploaded ${data.files.length} file(s) successfully.</span>`);
+
+                data.files.forEach(function (filePath) {
+                    const fileName = filePath.split('/').pop();
+                    const extension = fileName.split('.').pop().toLowerCase();
+                    const fileUrl = `{{ url('/') }}/public/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+
+                    let previewHTML = '';
+
+                    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                        previewHTML = `<img src="${fileUrl}" style="max-width: 500px;">`;
+                    } else if (extension === 'pdf') {
+                        previewHTML = `<embed src="${fileUrl}" type="application/pdf" width="600" height="400">`;
+                    } else if (['doc', 'docx'].includes(extension)) {
+                        previewHTML = `
+                            <iframe src="https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true"
+                                    style="width:600px; height:500px;" frameborder="0"></iframe>
+                            <br><a href="${fileUrl}" target="_blank">Download Word Document</a>
+                        `;
+                    } else {
+                        previewHTML = `<a href="${fileUrl}" target="_blank">Download File</a>`;
+                    }
+
+                    const uniqueId = 'uploaded_' + Math.floor(Math.random() * 100000);
+
+                    const accordionItem = `
+                        <div class="accordion-item">
+                            <input type="checkbox" name="documents[]" value="${filePath}" checked>
+                            <h2 class="accordion-header" id="heading${uniqueId}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapse${uniqueId}" aria-expanded="false"
+                                        aria-controls="collapse${uniqueId}">
+                                    Uploaded: ${fileName}
+                                </button>
+                            </h2>
+                            <div id="collapse${uniqueId}" class="accordion-collapse collapse"
+                                 aria-labelledby="heading${uniqueId}">
+                                <div class="accordion-body">
+                                    ${previewHTML}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    $uploadedDocsContainer.append(accordionItem);
+                });
+            } else {
+                $status.html(`<span class="text-danger">Upload failed.</span>`);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error(error);
+            $status.html(`<span class="text-danger">Upload error.</span>`);
+        }
+    });
+}
+
+
+</script>
+
+<script>
+
+function printPreInvoice(id) {
+        var printWindow = window.open('/account/print-invoice/' + id, '_blank', 'width=800,height=600');
+        printWindow.focus();
+        printWindow.onload = function () {
+            printWindow.print();
+        };
+    }
+    
+function markAsPaidRecord(loadId) {
+   
+    const paymentReceivingDate = $(`.paymentreceivingdate_${loadId}`).val();
+
+    if (paymentReceivingDate === '') {
+         $('#mc-error-message').text('Please select the payment receiving date').fadeIn();
+         setTimeout(function() {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 2000);
+        return;
+    }
+
+
+$.ajax({
+        url: "{{ route('update.invoice.status.as.paid.record', ':id') }}".replace(':id', loadId),
+        method: 'POST',
+        data: {
+            payment_receiving_date: paymentReceivingDate
+        },
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            const $row = $(`#markAsPaidRecordBtn_${loadId}`).closest('tr');
+            if ($row.length) {
+                $row.remove();
+            }
+            $('#mc-success-message').text(response.message).fadeIn();
+            setTimeout(() => $('#mc-success-message').text('').fadeOut(), 2000);
+        },
+        error: function(xhr) {
+            $('#mc-error-message').text('Failed to Mark as Invoice').fadeIn();
+            setTimeout(() => $('#mc-error-message').text('').fadeOut(), 2000);
+        }
+        });
+}
+
+function markAsBackDeliveredRecord(loadId) {
+    if (confirm('Are you sure you want to back this record in Completed?')) {
+        $.ajax({
+            url: `/account/update-invoice-status-as-back-complete/${loadId}`,
+            method: 'PUT',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') // Laravel CSRF token
+            },
+            success: function(response) {
+                console.log('AJAX request successful:', response);
+                location.reload(); // Reload the page after successful update
+            },
+            error: function(xhr, status, error) {
+                console.error('Error marking as Back to Deliver:', error);
+                alert('Failed to back in deliver.');
+            }
+        });
+    }
+}
+
+
+        function updateRemainingAmount(invoiceId, receiving_amount) {
+            
+            var shipperLoadFinalRate = parseFloat($('#receiving_amount_' + invoiceId).data(
+                'shipper-load-final-rate'));
+            var receivingAmount = parseFloat(receiving_amount) || 0;
+              
+            if(receivingAmount > shipperLoadFinalRate){
+                
+                $('#mc-error-message').text('Receiving amount should not be greater than the shipper final rate.').fadeIn();
+                setTimeout(function() {
+                        $('#mc-error-message').text('').fadeOut();
+                    }, 2000);
+                    $('#receiving_amount_' + invoiceId).val(0);
+            }else{
+
+               
+                var remainingAmount = shipperLoadFinalRate - receivingAmount;
+
+                // Ensure remaining amount is not negative
+                remainingAmount = Math.max(remainingAmount, 0);
+                // Display remaining amount, limiting to 2 decimal places
+                
+                $('.remaining_amount_' + invoiceId).val(remainingAmount.toFixed(2));
+            }
+            
+        }
+
+    function saveReceivingAmount(invoiceId, receiving_amount) {
+        var receivingAmount = receiving_amount;
+        var remainingAmount = parseFloat($('.remaining_amount_' + invoiceId).val()) || 0;
+
+        $.ajax({
+            url: '{{ route("load.updateReceivingAmount") }}',
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                load_id: invoiceId,
+                receiving_amount: receivingAmount,
+                remaining_amount: remainingAmount
+            },
+            success: function (response) {
+                if (response.success) {
+                    $('.remaining_amount_' + invoiceId).val(response.remaining_amount);
+                } else {
+                    $('#mc-error-message').text('Failed to update receiving amount').fadeIn();
+             setTimeout(function() {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 2000);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+                
+                $('#mc-error-message').text('An error occurred while updating the receiving amount').fadeIn();
+             setTimeout(function() {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 2000);
+            }
+        });
+    }
+	
+	function saveadvanceReceivingAmount(element) {
+        var invoiceId = $(element).data('invoice-id');
+        var receivingAmount = $(element).val();
+
+        $.ajax({
+            url: '{{ route("load.updateadvReceivingAmount") }}',
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                load_id: invoiceId,
+                adv_receiving_amount: receivingAmount
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Optionally update all fields with the same class for this invoice
+                    $('.adv_receiving_amount[data-invoice-id="' + invoiceId + '"]').val(receivingAmount);
+                } else {
+                    $('#mc-error-message').text('Failed to update receiving amount').fadeIn();
+                    setTimeout(function () {
+                        $('#mc-error-message').text('').fadeOut();
+                    }, 2000);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+                $('#mc-error-message').text('An error occurred while updating the Advance receiving amount').fadeIn();
+                setTimeout(function () {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 2000);
+            }
+        });
+    }
+	
+	function RemainingAmount(inputElement) {
+			var invoiceId = $(inputElement).data('invoice-id'); // get invoice ID from data attribute
+			var invoice_internal_value = $(inputElement).val(); // get current value of input
+
+			$.ajax({
+				url: '{{ route("load.updateRemainingAmount") }}',
+				type: 'POST',
+				data: {
+					_token: '{{ csrf_token() }}',
+					load_id: invoiceId,
+					invoice_internal_value: invoice_internal_value
+				},
+				success: function (response) {
+					if (response.success) {
+						//$('.adv_receiving_amount_' + invoiceId).val(receivingAmount);
+					} else {
+						$('#mc-error-message').text('Failed to update receiving amount').fadeIn();
+						setTimeout(function () {
+							$('#mc-error-message').text('').fadeOut();
+						}, 2000);
+					}
+				},
+				error: function (xhr, status, error) {
+					console.error(error);
+
+					$('#mc-error-message').text('An error occurred while updating the Advance receiving amount').fadeIn();
+					setTimeout(function () {
+						$('#mc-error-message').text('').fadeOut();
+					}, 2000);
+				}
+			});
+		}
+
+
+    $(document).on('input', '.receiving_amount', function () {
+        var invoiceId = $(this).data('invoice-id');
+        var receiving_amount = $(this).val();
+        updateRemainingAmount(invoiceId, receiving_amount);
+        saveReceivingAmount(invoiceId, receiving_amount);
+    });
+
+    $(document).on('change', '.receiving_amount', function () {
+         var invoiceId = $(this).data('invoice-id');
+          var receiving_amount = $(this).val();
+         updateRemainingAmount(invoiceId, receiving_amount);
+         saveReceivingAmount(invoiceId, receiving_amount);
+     });
+	 
+	//  $(document).on('input', '.adv_receiving_amount', function () {
+    //     var invoiceId = $(this).data('invoice-id');
+    //     var adv_receiving_amount = $(this).val();
+    //     saveadvanceReceivingAmount(invoiceId, adv_receiving_amount);
+    // });
+
+    // $(document).on('change', '.adv_receiving_amount', function () {
+    //      var invoiceId = $(this).data('invoice-id');
+    //       var adv_receiving_amount = $(this).val();
+    //      saveadvanceReceivingAmount(invoiceId, adv_receiving_amount);
+    //  });
+	 
+	 // $(document).on('input', '.remaining_amount', function () {
+        // var invoiceId = $(this).data('invoice-id');
+        // var remaining_amount = $(this).val();
+        // RemainingAmount(invoiceId, remaining_amount);
+    // });
+
+    // $(document).on('change', '.remaining_amount', function () {
+         // var invoiceId = $(this).data('invoice-id');
+          // var remaining_amount = $(this).val();
+         // RemainingAmount(invoiceId, remaining_amount);
+     // });
+
+
+
+</script>

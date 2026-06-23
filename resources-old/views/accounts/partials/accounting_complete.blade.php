@@ -1,0 +1,185 @@
+
+    @php $i = 1; @endphp
+        @foreach($complete as $completes)
+            @php
+                $shipperAppointment = json_decode($completes->load_shipper_appointment, true);
+                $firstAppointment = '';
+
+                if (is_array($shipperAppointment) && !empty($shipperAppointment)) {
+                reset($shipperAppointment);
+                $firstItem = current($shipperAppointment);
+
+                if (is_array($firstItem)) {
+                // If first item is an array, get the first string value or a key like 'date'
+                if (isset($firstItem['date'])) {
+                $firstAppointment = $firstItem['date'];
+                } else {
+                // fallback: get first value of the array
+                $firstAppointment = reset($firstItem);
+                }
+                } elseif (is_string($firstItem)) {
+                // If first item is a string directly
+                $firstAppointment = $firstItem;
+                }
+                }
+            @endphp
+
+            @php
+                $consigneeAppointment = json_decode($completes->load_consignee_appointment, true);
+                $lastAppointment = '';
+
+                if (is_array($consigneeAppointment) && !empty($consigneeAppointment)) {
+                    $lastItem = end($consigneeAppointment);
+
+                    if (is_array($lastItem)) {
+                        // If last item is an array, try to get 'date' key or first value
+                        if (isset($lastItem['date'])) {
+                            $lastAppointment = $lastItem['date'];
+                        } else {
+                            $lastAppointment = reset($lastItem);
+                        }
+                    } elseif (is_string($lastItem)) {
+                        $lastAppointment = $lastItem;
+                    }
+                }
+            @endphp
+            <tr>
+                <td>{{ $i++ }}</td>
+                <td>
+                    <a id="markAsPaidBtn_{{ $completes->id }}" title="Approved"
+                    class="text-left {{ $completes->invoice_status === 'Paid' ? 'success' : 'danger' }} btn btn-primary btn-sm"
+                    onclick="markAsPaid({{ $completes->id }})"><i class=" fas fa-check"></i></a>
+
+                    <a href="{{ route('load.edit', $completes->id) }}" class="btn btn-primary btn-sm"><i class=" fas fa-edit"></i></a>
+                    <a href="{{ route('accounts.view_loads_detail', $completes->id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                
+                    @if($completes->load_status == 'Delivered' || $completes->invoice_status == 'Completed')
+                        <a href="{{ route('accounts.invoice.show', $completes->id) }}" class="btn btn-success btn-sm">Invoice</a>
+                    @endif
+                </td>
+                <td>{{ $completes->load_number }}</td>
+                <td>{{ optional($completes->customer)->customer_name }}</td>
+                <td>{{ $completes->shipper_load_final_rate }}</td>
+                <td>
+                    <textarea name="internal_notes" row="10" col="5" style="width: 250px !important;height: 27px;" id="internal_notes_{{ $completes->id }}" data-id="{{ $completes->id }}" class="internal-notes" placeholder="Enter additional notes...">{{ nl2br(e($completes->internal_notes)) }}</textarea>
+                </td>
+                <td>
+                    <input type="date" class="form-control peperworkdate_{{$completes->id}}" name="paper_work_date" id="invoice_date" value="{{ !empty($completes->paper_work_date) ? \Carbon\Carbon::parse($completes->paper_work_date)->format('m-d-Y') : '' }}" data-id="{{$completes->id}}">
+                </td>
+                <td>{{ optional($completes->user)->name }}</td>
+                <td>{{ $completes->load_workorder }}</td>
+                <td>{{ \Carbon\Carbon::parse($completes->created_at)->format('m-d-Y') }}</td>
+                <td>{{ $firstAppointment ? \Carbon\Carbon::parse($firstAppointment)->format('m-d-Y') : '' }}</td>
+                <td>{{ $lastAppointment ? \Carbon\Carbon::parse($lastAppointment)->format('m-d-Y') : '' }}</td>
+                <td>{{ $completes->load_actual_delivery_date }}</td>
+                <td>{{ $completes->carrier?->carrier_name }}</td>
+                <td>{{ $completes->carrier_final_rate }}</td>
+                    @php
+                        $shipperLocations = json_decode($completes->load_shipper_location, true);
+                        $consigneeLocations = json_decode($completes->load_consignee_location, true);
+
+                        $firstShipper = $shipperLocations[0]['location'] ?? '';
+                        $lastConsignee = $consigneeLocations[count($consigneeLocations) - 1]['location'] ?? '';
+                    @endphp
+                <td>{{ $firstShipper }}</td>
+                <td>{{ $lastConsignee }}</td>
+                <td class="text-success">{{ $completes->load_status }}</td>
+                <td class="dynamic-data">
+                    @if($completes->load_status == 'Delivered' || $completes->invoice_status == 'Completed' )
+                    @php
+                    $deliveredDate = \Carbon\Carbon::parse($completes->created_at);
+                    $currentDate = \Carbon\Carbon::now();
+                    $differenceInDays = $deliveredDate->diffInDays($currentDate);
+                    @endphp
+                    {{ $differenceInDays }} days
+                    @elseif($completes->invoice_status == 'Completed' || $completes->load_status == 'Delivered')
+                    Aging Complete
+                    @endif
+                </td>
+                
+                
+                
+            </tr>
+        @endforeach
+
+<script>
+    $(document).ready(function () {
+        // Auto-save internal notes on input change
+        $('.internal-notes').on('input', function () {
+            var notes = $(this).val(); // Get the value of the textarea
+            var id = $(this).data('id'); // Get the record ID
+
+            // Send AJAX request to save notes
+            $.ajax({
+                url: '/save-internal-notes', // Adjust the URL to your save route
+                type: 'POST',
+                data: {
+                    id: id,
+                    notes: notes,
+                    _token: '{{ csrf_token() }}' // Include CSRF token for security
+                },
+                success: function (response) {
+                    console.log('Notes saved successfully:', response);
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error saving notes:', error);
+                }
+            });
+        });
+    });
+
+
+function markAsPaid(loadId) {
+    const $perperworkdateInput = $(`.peperworkdate_${loadId}`).first();
+    const perperworkdate = $perperworkdateInput.length ? $perperworkdateInput.val() : '';
+
+    if (perperworkdate === '') {
+        $('#mc-error-message').text('Please select the paperwork date').fadeIn();
+        setTimeout(function() {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 1000);
+    } else {
+        // Make an AJAX request to the Laravel route
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        });
+
+        $.ajax({
+            url: `/update-invoice-status/${loadId}`,
+            method: 'POST',
+            data: {
+                status: 'Paid',
+                perperworkdate: perperworkdate
+            },
+            success: function(response) {
+                const $button = $(`#markAsPaidBtn_${loadId}`);
+                if ($button.length) {
+                    $button.text('Paid');
+                    $button.removeClass().addClass('btn btn-success btn-sm');
+                    $button.prop('disabled', true);
+                }
+
+                 $('#mc-success-message').text(response.message).fadeIn();
+
+                 // Hide after 10 seconds
+                setTimeout(function() {
+                    $('#mc-success-message').text('').fadeOut();
+                }, 1000);
+                
+            },
+            error: function(xhr, status, error) {
+                $('#mc-error-message').text('Failed to mark as Paid').fadeIn();
+                // Hide after 10 seconds
+                setTimeout(function() {
+                    $('#mc-error-message').text('').fadeOut();
+                }, 1000);
+            }
+        });
+    }
+}
+
+</script>
