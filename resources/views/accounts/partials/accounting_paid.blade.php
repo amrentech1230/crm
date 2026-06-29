@@ -29,8 +29,15 @@
                 {{ isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '' }}
             </td>
 
+            @php
+                $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
+                $paymentIsComplete = abs($difference) < 0.005;
+            @endphp
             <td class="dynamic-data">
                 {{ $record->load_bill_to }}
+                @if($paymentIsComplete)
+                    <span class="text-success ms-1" style="font-weight: 700;">&#10004;</span>
+                @endif
             </td>
            
             <td class="dynamic-data">
@@ -42,11 +49,11 @@
 
             </td>
             <td class="dynamic-data">{{ $record->shipper_load_final_rate }}</td>
-            <td class="dynamic-data">{{ $record->load_advance_rec_amount }}</td>
+            <td class="dynamic-data">{{ $record->receiving_amount }}</td>
 
 <td class="dynamic-data">
     @php
-        $difference = $record->shipper_load_final_rate - $record->load_advance_rec_amount;
+        $difference = $record->shipper_load_final_rate - $record->receiving_amount;
     @endphp
 
     @if($difference > 0)

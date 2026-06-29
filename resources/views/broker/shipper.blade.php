@@ -2,7 +2,11 @@
 <!-- This links to the app.blade.php layout -->
 
 @section('content')
-
+<style>
+#search-active .pagination-container{
+    display:none !important;
+}
+</style>
 <div class="page-content">
     <div class="container-fluid">
 
@@ -76,7 +80,7 @@
                                 @include('broker.partials.shipper_table')
                             </tbody>
                         </table>
-                        <div class="custom-pagination">
+                        <div class="custom-pagination pagination-container">
                             {{ $shipper->links() }}
                         </div>
                     </div>

@@ -16,7 +16,9 @@
     z-index: 9999;
     top: 10px;
 }
-
+#search-active .pagination-container{
+    display:none !important;
+}
 #mc-error-message{
     padding: 10px;
     background-color: rgb(239 212 214);
@@ -94,7 +96,7 @@ table.dataTable tbody > tr.selected td p {
 						<!-- App Search-->
                         <form class="app-search-load d-none d-lg-block">
                             <div class="position-relative-load" id="opens" style="width: 300px;">
-                                <input type="text" class="form-control" name="loadquery" placeholder="Search...">
+                                <input type="text" class="form-control" name="query" placeholder="Search...">
                                 <span class="ri-search-line"></span>
                             </div>
                         </form>
@@ -178,7 +180,7 @@ table.dataTable tbody > tr.selected td p {
                                     @include('accounts.partials.accounting_open')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $open->setPageName('open')->links() }}
                                 </div>
                             </div>
@@ -296,7 +298,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                     
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $invoiced->setPageName('invoiced')->links() }}
                                 </div>
                             </div>
@@ -334,7 +336,7 @@ table.dataTable tbody > tr.selected td p {
                                        @include('accounts.partials.accounting_paid')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $paid->setPageName('paid')->links() }}
                                 </div>
                             </div>
@@ -454,11 +456,13 @@ $(document).ready(function () {
 
         $(inputSelector).on('keyup', function () {
             let query = $(this).val().trim();
+            let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
 
             clearTimeout($.data(this, 'timer'));
             let wait = setTimeout(() => {
                 if (query.length > 0) {
                     $('.loader-container').removeClass('hide');
+                    paginationContainer.hide();
 
                     $.ajax({
                         url: ajaxUrl,
@@ -474,10 +478,10 @@ $(document).ready(function () {
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
-                                pageLength: 100, 
-								buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                               
-                            });    
+                                pageLength: 100,
+                                paging: false,
+                                buttons: ['copy', 'excel', 'pdf', 'colvis'],
+                            });
 
                             $('.loader-container').addClass('hide');
                         },
@@ -487,7 +491,7 @@ $(document).ready(function () {
                         // }
                     });
                 } else {
-                    $(resultContainer).html('');
+                    paginationContainer.show();
                 }
             }, 300);
 
