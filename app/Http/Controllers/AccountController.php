@@ -1487,15 +1487,27 @@ public function updateInvoiceStatus(Request $request, $id)
     public function updateInvoiceStatusAsPaidRecord(Request $request, $id)
     {
         $load = Load::find($id);
-        // return $request->all();
         if ($load) {
+            $request->validate([
+                'payment_receiving_date' => 'required|date',
+                'receiving_amount' => 'nullable|numeric|min:0',
+                'remaining_amount' => 'nullable|numeric'
+            ]);
+
             $load->invoice_status = 'Paid Record';
             $load->payment_receiving_date = $request->input('payment_receiving_date');
             $load->invoice_status_date = now()->format('Y-m-d H:i:s');
-            // $load->invoice_date = now()->format('Y-m-d H:i:s');
-			$load->receiving_amount = $load->shipper_load_final_rate;
 
-            
+            if ($request->filled('receiving_amount')) {
+                $load->receiving_amount = $request->input('receiving_amount');
+            }
+
+            if ($request->filled('remaining_amount')) {
+                $load->remaining_amount = $request->input('remaining_amount');
+            } elseif ($request->filled('receiving_amount')) {
+                $load->remaining_amount = floatval($load->shipper_load_final_rate) - floatval($load->receiving_amount);
+            }
+
             $load->save();
 
             $subject = "Load Mark as Paid, payment receiving date :".$request->input('payment_receiving_date');
@@ -1512,7 +1524,7 @@ public function updateInvoiceStatus(Request $request, $id)
         $request->validate([
             'load_id' => 'required|integer',
             'receiving_amount' => 'required|numeric|min:0',
-            'remaining_amount' => 'required|numeric|min:0'
+            'remaining_amount' => 'required|numeric'
         ]);
     
         $load = Load::find($request->load_id);

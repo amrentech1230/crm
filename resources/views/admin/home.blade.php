@@ -863,11 +863,13 @@
 
             $(inputSelector).on('keyup', function () {
                 let query = $(this).val().trim();
+                let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
 
                 clearTimeout($.data(this, 'timer'));
                 let wait = setTimeout(() => {
                     if (query.length > 0) {
                         $('.loader-container').removeClass('hide');
+                        paginationContainer.hide();
 
                         $.ajax({
                             url: ajaxUrl,
@@ -899,6 +901,7 @@
                             }
                         });
                     } else {
+                        paginationContainer.show();
                         $(resultContainer).html('');
                     }
                 }, 300);

@@ -8,7 +8,9 @@
     div#datatable-buttons_filter {
         display: none;
     }
-
+#search-active .pagination-container{
+    display:none !important;
+}
     #mc-success-message {
         padding: 10px;
         background-color: rgb(212, 237, 218);
@@ -121,8 +123,8 @@
 
                                 </table>
 
-                                <div class="custom-pagination">
-                                    {{ $loads->links('pagination::bootstrap-4') }}
+<div class="custom-pagination pagination-container">                                   
+     {{ $loads->links('pagination::bootstrap-4') }}
                                 </div>
                             </div>
                         </div>

@@ -2314,7 +2314,7 @@ $(document).ready(function () {
                             }
 
                             $(resultContainer).html(response);
-
+$('.custom-pagination').hide();
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
@@ -2339,7 +2339,9 @@ $(document).ready(function () {
                         }
                     });
                 } else {
-                    $(resultContainer).html('');
+                    // $(resultContainer).html('');
+                     $(resultContainer).html('');
+    $('.custom-pagination').show();
                 }
             }, 300);
 
