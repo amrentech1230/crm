@@ -19,6 +19,18 @@
 				<a href="{{route('CompletedPublicDoc',$record->id)}}" class="btn btn-primary btn-sm" target="_blank" rel="noopener noreferrer"> <i class="fas fa-file"></i></a>
                 <a href="{{ route('accounts.view_loads_detail', $record->id) }}" class="btn btn-primary btn-sm" title="logs"> <i class="fas fa-eye"></i></a>
             </td>
+
+                @php
+                    $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
+                @endphp
+                <td style="min-width:120px;" id="payment-status-{{ $record->id }}">
+                    <div id="payment-status-label-{{ $record->id }}" style="font-weight:700; margin-bottom:5px; display: {{ $difference > 0 ? 'none' : 'block' }}; color: {{ $difference > 0 ? 'green' : 'green' }};">
+                        Paid
+                    </div>
+                    @if($difference > 0)
+                        <a href="javascript:void(0);" id="short-btn-{{ $record->id }}" class="btn btn-warning btn-sm" onclick="markAsShortPayment({{ $record->id }}, {{ $record->receiving_amount ?? 0 }}, {{ $record->shipper_load_final_rate ?? 0 }})">Short</a>
+                    @endif
+                </td>
                         <td class="dynamic-data">{{ $record->load_workorder }}</td>
                          <td class="dynamic-data">{{ $record->invoice_number }}</td>
                          @php
@@ -53,14 +65,16 @@
 
 <td class="dynamic-data">
     @php
-        $difference = $record->shipper_load_final_rate - $record->receiving_amount;
+        $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
     @endphp
 
     @if($difference > 0)
-        {{-- Short Payment --}}
-        <span style="color: red; font-weight: 600;">
-            {{ number_format($difference, 2) }}
-        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color: red; font-weight: 600;">{{ number_format($difference, 2) }}</span>
+            <label style="margin:0; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="mark-paid-checkbox" data-id="{{ $record->id }}" data-shipper="{{ $record->shipper_load_final_rate }}"> Mark Paid
+            </label>
+        </div>
     @elseif($difference < 0)
         {{-- Excess Payment --}}
         <span style="color: green; font-weight: 600;">
@@ -74,8 +88,8 @@
     @endif
 </td>
 
-            <td class="dynamic-data">{{ !empty($record->payment_receiving_date) ? \Carbon\Carbon::parse($record->payment_receiving_date)->format('m-d-Y') : '' }}</td>
-            <td class="dynamic-data">{{ \Carbon\Carbon::parse($record->invoice_status_date)->format('m-d-Y') }}</td>
+            <td class="dynamic-data" id="payment-receiving-date-{{ $record->id }}">{{ !empty($record->payment_receiving_date) ? \Carbon\Carbon::parse($record->payment_receiving_date)->format('m-d-Y H:i:s') : '' }}</td>
+            <td class="dynamic-data">{{ !empty($record->invoice_status_date) ? \Carbon\Carbon::parse($record->invoice_status_date)->format('m-d-Y') : '' }}</td>
             <td class="dynamic-data">{{ !empty($record->paper_work_date) ? \Carbon\Carbon::parse($record->paper_work_date)->format('m-d-Y') : '' }}</td>
             <td class="dynamic-data">@if($record->user) {{ $record->user->name }} @endif</td>
             <td class="dynamic-data">{{ $record->created_at->format('m-d-Y') }}</td>
@@ -171,6 +185,60 @@
         }
     }
 </script>
+
+<script>
+    $(document).off('change.markPaid', '.mark-paid-checkbox').on('change.markPaid', '.mark-paid-checkbox', function(event) {
+        event.stopImmediatePropagation();
+
+        var $cb = $(this);
+        if (!$cb.is(':checked')) return;
+        if ($cb.data('processing')) return;
+        $cb.data('processing', true);
+
+        var id = $cb.data('id');
+        var shipper = parseFloat($cb.data('shipper')) || 0;
+
+        var now = new Date();
+        // Format as YYYY-MM-DD HH:MM:SS
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        var hh = String(now.getHours()).padStart(2, '0');
+        var min = String(now.getMinutes()).padStart(2, '0');
+        var ss = String(now.getSeconds()).padStart(2, '0');
+        var formatted = yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + min + ':' + ss;
+
+        // show global loader
+        $('.loader-container').removeClass('hide');
+
+        $.ajax({
+            url: '/account/update-invoice-status-as-paid-record/' + id,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                payment_receiving_date: formatted,
+                receiving_amount: shipper,
+                status: 'Paid'
+            },
+            success: function(res) {
+                $('.loader-container').addClass('hide');
+                $('#payment-status-label-' + id).text('Paid').css('display', 'block');
+                $('#short-btn-' + id).remove();
+                $('#payment-receiving-date-' + id).text(formatted);
+                $cb.prop('disabled', true);
+                $cb.removeData('processing');
+            },
+            error: function(xhr) {
+                console.error(xhr.responseText);
+                $cb.prop('checked', false);
+                $cb.removeData('processing');
+                $('.loader-container').addClass('hide');
+            }
+        });
+    });
+</script>
 <script>
     function printInvoice(recordId) {
         var printWindow = window.open('/account/invoices/' + recordId + '/print/paid', '_blank', 'width=800,height=600');
@@ -180,7 +248,8 @@
     }
 
     function markAsBackInvoiceRecord(loadId) {
-    if (confirm('Are you sure you want to back this record in Invoice?')) {
+        // show loader and perform back-invoice silently
+        $('.loader-container').removeClass('hide');
         $.ajax({
             url: `/account/update-invoice-status-as-back-invoice/${loadId}`,
             method: 'POST',
@@ -189,15 +258,55 @@
             },
             success: function(response) {
                 console.log('AJAX request successful:', response);
+                $('.loader-container').addClass('hide');
                 location.reload();
             },
             error: function(xhr, status, error) {
                 console.error('Error marking as Back to Invoice:', error);
-                alert('Failed back in Invoice.');
+                $('.loader-container').addClass('hide');
             }
         });
     }
-}
 
 
 </script>
+
+    <script>
+        function markAsShortPayment(loadId, currentReceiving, shipperFinal) {
+            var defaultVal = (currentReceiving && Number(currentReceiving) > 0) ? Number(currentReceiving) : Number(shipperFinal);
+            var received = prompt('Enter received amount for short payment:', defaultVal);
+            if (received === null) return; // cancelled
+
+            received = parseFloat(received);
+            if (isNaN(received) || received < 0) {
+                console.error('Invalid receiving amount');
+                return;
+            }
+
+            $('.loader-container').removeClass('hide');
+
+            $.ajax({
+                url: "/account/update-invoice-status-as-short/" + loadId,
+                method: 'POST',
+                data: {
+                    receiving_amount: received,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(res) {
+                        console.log(res.message || 'Marked as Short Payment');
+                        $('.loader-container').addClass('hide');
+                        var $tab = $('a[data-bs-toggle="tab"][href="#invoiced_paid"]');
+                        if ($tab.length) {
+                            $tab.trigger('click');
+                            location.reload();
+                        } else {
+                            location.reload();
+                        }
+                },
+                error: function(xhr) {
+                    $('.loader-container').addClass('hide');
+                    console.error('Failed to mark short payment', xhr.responseText);
+                }
+            });
+        }
+    </script>

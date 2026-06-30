@@ -867,43 +867,43 @@
 
                 clearTimeout($.data(this, 'timer'));
                 let wait = setTimeout(() => {
+                    $('.loader-container').removeClass('hide');
+
                     if (query.length > 0) {
-                        $('.loader-container').removeClass('hide');
                         paginationContainer.hide();
-
-                        $.ajax({
-                            url: ajaxUrl,
-                            type: 'GET',
-                            data: {
-                                query: query
-                            },
-                            success: function (response) {
-                                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                                    $(tableSelector).DataTable().destroy();
-                                }
-
-                                $(resultContainer).html(response);
-
-                                $(tableSelector).DataTable({
-                                    responsive: true,
-                                    dom: 'Bfrtip',
-                                    buttons: ['copy', 'excel', 'pdf',
-                                        'colvis'
-                                    ],
-                                    pageLength: 50,
-                                });
-
-                                $('.loader-container').addClass('hide');
-                            },
-                            error: function (xhr) {
-                                console.error("AJAX error:", xhr.responseText);
-                                $('.loader-container').addClass('hide');
-                            }
-                        });
                     } else {
                         paginationContainer.show();
-                        $(resultContainer).html('');
                     }
+
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'GET',
+                        data: {
+                            query: query
+                        },
+                        success: function (response) {
+                            if ($.fn.DataTable.isDataTable(tableSelector)) {
+                                $(tableSelector).DataTable().destroy();
+                            }
+
+                            $(resultContainer).html(response);
+
+                            $(tableSelector).DataTable({
+                                responsive: true,
+                                dom: 'Bfrtip',
+                                buttons: ['copy', 'excel', 'pdf',
+                                    'colvis'
+                                ],
+                                pageLength: 50,
+                            });
+
+                            $('.loader-container').addClass('hide');
+                        },
+                        error: function (xhr) {
+                            console.error("AJAX error:", xhr.responseText);
+                            $('.loader-container').addClass('hide');
+                        }
+                    });
                 }, 300);
 
                 $(this).data('timer', wait);
