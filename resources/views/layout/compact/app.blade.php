@@ -137,20 +137,23 @@ table.dataTable tbody > tr.selected td p {
 }
 
 
-#crm-loader {
+.loader-container {
     position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    background: #0f0f0f;
+    background: rgba(15,15,15,0.85);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-}
-
-.loader-container {
     text-align: center;
     color: #fff;
+}
+
+.hide {
+    display: none !important;
 }
 
 .spinner {
@@ -177,12 +180,12 @@ table.dataTable tbody > tr.selected td p {
     </head>
 
     <body data-topbar="dark">
-    <!-- <div id="crm-loader">
-    <div class="loader-container">
-        <div class="spinner"></div>
-        <h3>Loading CCI CRM...</h3>
+    <div class="loader-container hide">
+        <div>
+            <div class="spinner"></div>
+            <h3>Loading CCI CRM...</h3>
+        </div>
     </div>
-</div> -->
     <!-- <body data-layout="horizontal" data-topbar="dark"> -->
 
         <!-- Begin page -->

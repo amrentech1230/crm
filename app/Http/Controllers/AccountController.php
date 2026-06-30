@@ -58,7 +58,7 @@ class AccountController extends Controller
 					if($request->input('target') == '#open'){
 						 $open = Load::where('load_status','Open')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
+                                $query->orWhere('load_number', 'like', "%{$term}%");
 									 
 								}
 							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('open');
@@ -71,10 +71,10 @@ class AccountController extends Controller
 								$query->where('invoice_status', '')
 									->orWhereNull('invoice_status');
 							})->where(function($query) use ($searchTerms) {
-								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
-								}
+                                foreach ($searchTerms as $term) {
+                                    $query->orWhere('load_number', 'like', "%{$term}%");
+						 
+                                }
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -83,29 +83,35 @@ class AccountController extends Controller
 						return view('accounts.partials.accounting_complete',compact('complete'))->render();
 						
 					}else if($request->input('target') == '#invoiced'){
-						
-						 $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
+						$invoiced = Load::where('invoice_status', 'Paid')
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('invoiced');
-						 
-						return view('accounts.partials.accounting_invoiced',compact('invoiced'))->render();
+							})
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('invoiced');
 						
+						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
 					}else if($request->input('target') == '#invoiced_paid'){
-						$paid = Load::where('invoice_status','Paid Record')->where(function($query) use ($searchTerms) {
+						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->with(['user','customer','carrier', 'user.officedata'])->orderBy("loads.id", "desc")->paginate(100)->setPageName('paid');
+							})
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('paid');
 						
-						return view('accounts.partials.accounting_paid',compact('paid'))->render();
+						return view('accounts.partials.accounting_paid', compact('paid'))->render();
 					}
-						
-				}
+                
 			}
+            }
                
         } 
         return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
@@ -169,7 +175,7 @@ class AccountController extends Controller
         $invoiced = $invoicedQuery->paginate(50)->setPageName('invoiced');
 
         // Paid tab query
-        $paidQuery = Load::where('invoice_status', 'Paid Record')
+        $paidQuery = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
             ->orderBy("loads.id", "desc");
 
@@ -1494,7 +1500,9 @@ public function updateInvoiceStatus(Request $request, $id)
                 'remaining_amount' => 'nullable|numeric'
             ]);
 
-            $load->invoice_status = 'Paid Record';
+            // Allow caller to specify the desired status (default to 'Paid Record')
+            $desiredStatus = $request->input('status', 'Paid Record');
+            $load->invoice_status = $desiredStatus;
             $load->payment_receiving_date = $request->input('payment_receiving_date');
             $load->invoice_status_date = now()->format('Y-m-d H:i:s');
 
@@ -1512,34 +1520,80 @@ public function updateInvoiceStatus(Request $request, $id)
 
             $subject = "Load Mark as Paid, payment receiving date :".$request->input('payment_receiving_date');
             addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
-    
-            return response()->json(['success' => true, 'message' => 'Marked as Paid Record successfully'], 200);
+
+            return response()->json(['success' => true, 'message' => 'Marked as Paid successfully', 'status' => $desiredStatus], 200);
         }
     
         return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+    }
+
+    /**
+     * Mark a load as a short payment (partial payment) from Paid tab.
+     * If payment_receiving_date is not provided, set it to now().
+     */
+    public function updateInvoiceStatusAsShort(Request $request, $id)
+    {
+        $load = Load::find($id);
+        Log::info('updateInvoiceStatusAsShort called', ['id' => $id, 'request' => $request->all()]);
+
+        if (! $load) {
+            Log::warning('Load not found for short payment', ['id' => $id]);
+            return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'receiving_amount' => 'required|numeric|min:0'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Short payment validation failed', ['id' => $id, 'errors' => $validator->errors()->all()]);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $receiving = floatval($request->input('receiving_amount'));
+
+        // Update only payment fields; do NOT modify shipper_load_final_rate
+        $this->applyPaymentAmounts($load, $receiving);
+        $load->invoice_status = 'Paid Record';
+
+        if ($request->filled('payment_receiving_date')) {
+            $load->payment_receiving_date = $request->input('payment_receiving_date');
+        } else {
+            $load->payment_receiving_date = now()->format('Y-m-d H:i:s');
+        }
+
+        $load->invoice_status_date = now()->format('Y-m-d H:i:s');
+
+        $saved = $load->save();
+
+        Log::info('Short payment saved', ['id' => $id, 'saved' => $saved, 'receiving' => $receiving, 'remaining' => $load->remaining_amount]);
+
+        $subject = "Load marked as Short Payment, receiving: {$receiving}";
+        addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
+
+        return response()->json(['success' => true, 'message' => 'Marked as Short Payment successfully'], 200);
     }
 
     public function updateReceivingAmount(Request $request)
     {
         $request->validate([
             'load_id' => 'required|integer',
-            'receiving_amount' => 'required|numeric|min:0',
-            'remaining_amount' => 'required|numeric'
+            'receiving_amount' => 'required|numeric|min:0'
         ]);
     
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->receiving_amount = $request->receiving_amount;
-            $load->remaining_amount = $request->remaining_amount;
+            $this->applyPaymentAmounts($load, floatval($request->receiving_amount));
             $load->save();
 
-             $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ."and remaining amount ".$request->remaining_amount;
+            $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
             addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
     
             return response()->json([
                 'success' => true,
-                'remaining_amount' => number_format($load->remaining_amount, 2)
+                'remaining_amount' => number_format($load->remaining_amount, 2),
+                'load_advance_rec_amount' => number_format($load->load_advance_rec_amount, 2)
             ]);
         } else {
             return response()->json([
@@ -1559,8 +1613,18 @@ public function updateInvoiceStatus(Request $request, $id)
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->load_advance_rec_amount = $request->adv_receiving_amount;
-            $load->save();
+            $advAmount = floatval($request->adv_receiving_amount ?? 0);
+
+            // Only treat as advance if amount is greater than shipper final rate
+            $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+            $advanceToStore = 0;
+            if ($advAmount > $shipperRate) {
+                $advanceToStore = $advAmount - $shipperRate;
+            }
+
+            $load->load_advance_rec_amount = $advanceToStore;
+            $saved = $load->save();
+            Log::info('updateadvReceivingAmount', ['load_id' => $load->id, 'advAmount' => $advAmount, 'shipperRate' => $shipperRate, 'stored' => $advanceToStore, 'saved' => $saved]);
 
             //$subject = "update the load payment receiving amount advance receiving amount ".$request->adv_receiving_amount;
             //addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
@@ -1602,6 +1666,20 @@ public function updateInvoiceStatus(Request $request, $id)
                 'success' => false,
                 'message' => 'Load not found'
             ]);
+        }
+    }
+
+    protected function applyPaymentAmounts(Load $load, float $receiving)
+    {
+        $load->receiving_amount = $receiving;
+        $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+
+        if ($receiving >= $shipperRate) {
+            $load->remaining_amount = 0;
+            $load->load_advance_rec_amount = round($receiving - $shipperRate, 2);
+        } else {
+            $load->remaining_amount = round($shipperRate - $receiving, 2);
+            $load->load_advance_rec_amount = 0;
         }
     }
 
@@ -1844,7 +1922,7 @@ $searchTerms = array_filter(
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])
+                $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
@@ -1864,7 +1942,7 @@ $searchTerms = array_filter(
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
+            $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
 			
         }
         
