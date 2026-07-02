@@ -1235,6 +1235,7 @@ public function accountupdateCustomer(Request $request, $id)
             $recordPaidAmount += $load->shipper_load_final_rate;
         }
     }
+    
 
     // Adjust used and remaining credit based on Record Paid loads
     $usedAmount = $totalFinalRate - $recordPaidAmount;
@@ -2306,11 +2307,15 @@ $searchTerms = array_filter(
 
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
-                $customersData = collect();
+                // $customersData = Customer::all();
+                // $customersData = collect();
+                $customersData = Customer::with('user')->paginate(50);
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $customersData = Customer::all();
+            // $customersData = Customer::all();
+            // $customersData = Customer::with('user')->paginate(50); // Eager load 'user' to avoid N+1
+            $customersData = Customer::with('user')->paginate(50);
             
   
         }
@@ -5175,9 +5180,50 @@ public function customerDetailsReportingExcell()
         );
     }
 
+    protected function getPaymentStatusDetails(Load $load): array
+    {
+        $shipperRate = (float) ($load->shipper_load_final_rate ?? 0);
+        $receivingAmount = (float) ($load->receiving_amount ?? 0);
+        $paymentDate = $load->payment_receiving_date ? Carbon::parse($load->payment_receiving_date)->format('Y-m-d') : '';
+        $markDate = $load->invoice_status_date ? Carbon::parse($load->invoice_status_date)->format('Y-m-d') : '';
+
+        if ($shipperRate <= 0) {
+            $status = 'Pending';
+            $remainingAmount = 0.0;
+            $excessAmount = 0.0;
+        } elseif ($receivingAmount <= 0) {
+            $status = 'Pending';
+            $remainingAmount = $shipperRate;
+            $excessAmount = 0.0;
+        } else {
+            $difference = $receivingAmount - $shipperRate;
+            $remainingAmount = max($shipperRate - $receivingAmount, 0.0);
+            $excessAmount = max($difference, 0.0);
+
+            if (abs($difference) < 0.005) {
+                $status = 'Full Payment';
+            } elseif ($difference > 0) {
+                $status = 'Excess Payment';
+            } else {
+                $status = 'Short Payment';
+            }
+        }
+
+        return [
+            'status' => $status,
+            'remaining_amount' => round($remainingAmount, 2),
+            'excess_amount' => round($excessAmount, 2),
+            'payment_date' => $paymentDate,
+            'mark_date' => $markDate,
+        ];
+    }
+
     public function loadCompleteReportingExcel()
     {
-        $data = Load::with('user')->get();
+         ini_set('memory_limit', '-1');
+    set_time_limit(0);
+
+    $data = Load::with('user')->get();
 
             $maxConsignees = 0;
         foreach ($data as $item) {
@@ -5193,7 +5239,7 @@ public function customerDetailsReportingExcell()
                 $headers[] = "Unloading Location $i";
             }
         
-         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent' ]);
+         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Account Receiving Status','Customer Payment Received Amount','Remaining Amount','Excess Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent' ]);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -5238,7 +5284,8 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $shipper_location[0]['location'] ?? '');
+            $shipperLocationValue = is_array($shipper_location) ? ($shipper_location[0]['location'] ?? '') : '';
+            $sheet->setCellValue($col . $row, $shipperLocationValue);
             $col++;
             if (is_array($consignee_location)) {
                         foreach ($consignee_location as $idx => $loc) {
@@ -5302,11 +5349,18 @@ public function customerDetailsReportingExcell()
 
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->paper_work_date ? \Carbon\Carbon::parse($item->paper_work_date)->format('m/d/Y') : '') : '');
             $col++;
+            $paymentSummary = $this->getPaymentStatusDetails($item);
             $sheet->setCellValue($col . $row, $item->payment_receiving_date ? \Carbon\Carbon::parse($item->payment_receiving_date)->format('m/d/Y') : '');
+            $col++;
+            $sheet->setCellValue($col . $row, $paymentSummary['status'] ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->invoice_status == 'Paid Record' ? ($item->receiving_amount ?? '-') : '');
             $col++;
-            $sheet->setCellValue($col . $row, $item->invoice_status_date ? \Carbon\Carbon::parse($item->invoice_status_date)->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, $paymentSummary['remaining_amount'] ?? '');
+            $col++;
+            $sheet->setCellValue($col . $row, $paymentSummary['excess_amount'] ?? '');
+            $col++;
+            $sheet->setCellValue($col . $row, $paymentSummary['mark_date'] ? \Carbon\Carbon::parse($paymentSummary['mark_date'])->format('m/d/Y') : '');
             $col++;
             $sheet->setCellValue($col . $row, $item->load_shipper_rate ?? '');
             $col++;
@@ -5359,9 +5413,13 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->no_of_macro ?? '');
             $col++;
-            $lastAppointment = !empty($consignee_appointment) 
-                ? end($consignee_appointment)['appointment'] 
-                : null;
+            $lastAppointment = null;
+            if (is_array($consignee_appointment) && count($consignee_appointment) > 0) {
+                $lastAppointmentItem = end($consignee_appointment);
+                if (is_array($lastAppointmentItem)) {
+                    $lastAppointment = $lastAppointmentItem['appointment'] ?? null;
+                }
+            }
 
             // Format with Carbon
             $formattedAppointment = $lastAppointment 
