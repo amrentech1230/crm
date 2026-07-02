@@ -368,7 +368,10 @@
                                             <th>Invoice Date</th>
                                             <th>Paper work Received Date</th>
                                             <th>Payment Receiving Date</th>
+                                            <th>Account Receiving Status</th>
                                             <th>Customer Payment Received Amount</th>
+                                            <th>Remaining Amount</th>
+                                            <th>Excess Amount</th>
                                             <th>Customer Payment Mark Date</th>
                                             <th>Customer Rate</th>
                                             <th>Carrier Rate</th>

@@ -374,7 +374,7 @@ document.addEventListener('keydown', function (e) {
 </script> -->
 <script>
 window.addEventListener("load", function () {
-    document.getElementById("crm-loader").style.display = "none";
+    document.querySelector(".loader-container")?.classList.add("hide");
 });
 </script>
 
