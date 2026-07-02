@@ -377,6 +377,8 @@
                                             <th>CPR Check</th>
                                             <th>Macro Sent</th>
                                             <th>Customer Short Pay</th>
+                                            <th>Macro Status</th>
+                                            <th>Macro Number</th>
 
                                         </tr>
                                     </thead>

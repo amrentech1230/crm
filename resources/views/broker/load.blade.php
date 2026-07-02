@@ -2314,6 +2314,7 @@ $(document).ready(function () {
                             }
 
                             $(resultContainer).html(response);
+                            $('.custom-pagination').hide();
 
                             $(tableSelector).DataTable({
                                 responsive: true,
@@ -2338,9 +2339,12 @@ $(document).ready(function () {
                             $('.loader-container').addClass('hide');
                         }
                     });
-                } else {
-                    $(resultContainer).html('');
+                               } else {
+                    // $(resultContainer).html('');
+                     $(resultContainer).html('');
+    $('.custom-pagination').show();
                 }
+
             }, 300);
 
             $(this).data('timer', wait);

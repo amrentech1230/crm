@@ -117,7 +117,6 @@
                                 $shipDate = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $shipDate }}</td>
-                            <td>{{ $load->ship_date ?? '' }}</td>
                         </tr>
                         <tr>
                             <th>Delivery Date</th>
@@ -126,7 +125,6 @@
                                 $deliveryDate = isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $deliveryDate }}</td>
-                            <td>{{ $load->delivery_date ?? '' }}</td>
                         </tr>
                     </table>
                 </td>
@@ -152,7 +150,6 @@
                         }
                     @endphp
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($shipperText) }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->shipper_info ?? '' }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
@@ -170,7 +167,6 @@
                         }
                     @endphp
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($consigneeText) }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->consignee_info ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -182,13 +178,11 @@
                     <h6>3rd Party Billing</h6>
                     <!-- Assuming 3rd party billing info is not directly in $load for now -->
                     <div style="min-height: 80px;"></div>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $load->third_party_billing ?? '' }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
 Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->transportation_company ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -208,24 +202,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
             </thead>
             <tbody>
                 <!-- Placeholder for freight items. If freight data is stored in $load, iterate here. -->
-                @php $totalPieces = 0; $totalWeight = 0; @endphp
-                @if(!empty($load->freight_items) && is_array($load->freight_items))
-                    @foreach($load->freight_items as $item)
-                    @php
-                        $totalPieces += 1; // Or use a quantity field if available
-                        $totalWeight += (float)($item['weight'] ?? 0);
-                    @endphp
-                    <tr>
-                        <td>{{ $item['pieces'] ?? '' }}</td>
-                        <td>{{ $item['description'] ?? '' }}</td>
-                        <td>{{ $item['weight'] ?? '' }}</td>
-                        <td>{{ $item['type'] ?? '' }}</td>
-                        <td>{{ $item['nmfc'] ?? '' }}</td>
-                        <td>{{ $item['hm'] ?? '' }}</td>
-                        <td>{{ $item['class'] ?? '' }}</td>
-                    </tr>
-                    @endforeach
-                @else
                 <tr>
                     <td>#Unit 1</td>
                     <td></td>
@@ -234,7 +210,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                     <td></td>
                     <td></td>
                     <td></td>
-                    <td colspan="7" class="text-center">No freight items.</td>
                 </tr>
                 {{--
                 @foreach(json_decode($load->freight_items, true) as $item)
@@ -249,7 +224,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 </tr>
                 @endforeach
                 --}}
-                @endif
             </tbody>
             <tfoot>
                 <tr>
@@ -257,13 +231,11 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                         <span class="fw-bold">Total Pieces</span><br>
                         <!-- Calculate total pieces if freight data is available -->
                         1
-                        {{ $totalPieces }}
                     </td>
                     <td colspan="2" class="text-center">
                         <span class="fw-bold">Total Weight</span><br>
                         <!-- Calculate total weight if freight data is available -->
                         0.00
-                        {{ number_format($totalWeight, 2) }}
                     </td>
                     <td colspan="4" class="text-center">
                         <span class="fw-bold">Emergency Response Phone</span><br>

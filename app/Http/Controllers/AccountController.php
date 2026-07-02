@@ -58,7 +58,7 @@ class AccountController extends Controller
 					if($request->input('target') == '#open'){
 						 $open = Load::where('load_status','Open')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
+                                $query->orWhere('load_number', 'like', "%{$term}%");
 									 
 								}
 							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('open');
@@ -71,10 +71,10 @@ class AccountController extends Controller
 								$query->where('invoice_status', '')
 									->orWhereNull('invoice_status');
 							})->where(function($query) use ($searchTerms) {
-								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
-								}
+                                foreach ($searchTerms as $term) {
+                                    $query->orWhere('load_number', 'like', "%{$term}%");
+						 
+                                }
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -83,29 +83,35 @@ class AccountController extends Controller
 						return view('accounts.partials.accounting_complete',compact('complete'))->render();
 						
 					}else if($request->input('target') == '#invoiced'){
-						
-						 $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
+						$invoiced = Load::where('invoice_status', 'Paid')
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('invoiced');
-						 
-						return view('accounts.partials.accounting_invoiced',compact('invoiced'))->render();
+							})
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('invoiced');
 						
+						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
 					}else if($request->input('target') == '#invoiced_paid'){
-						$paid = Load::where('invoice_status','Paid Record')->where(function($query) use ($searchTerms) {
+						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->with(['user','customer','carrier', 'user.officedata'])->orderBy("loads.id", "desc")->paginate(100)->setPageName('paid');
+							})
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('paid');
 						
-						return view('accounts.partials.accounting_paid',compact('paid'))->render();
+						return view('accounts.partials.accounting_paid', compact('paid'))->render();
 					}
-						
-				}
+                
 			}
+            }
                
         } 
         return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
@@ -169,7 +175,7 @@ class AccountController extends Controller
         $invoiced = $invoicedQuery->paginate(50)->setPageName('invoiced');
 
         // Paid tab query
-        $paidQuery = Load::where('invoice_status', 'Paid Record')
+        $paidQuery = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
             ->orderBy("loads.id", "desc");
 
@@ -1487,47 +1493,107 @@ public function updateInvoiceStatus(Request $request, $id)
     public function updateInvoiceStatusAsPaidRecord(Request $request, $id)
     {
         $load = Load::find($id);
-        // return $request->all();
         if ($load) {
-            $load->invoice_status = 'Paid Record';
+            $request->validate([
+                'payment_receiving_date' => 'required|date',
+                'receiving_amount' => 'nullable|numeric|min:0',
+                'remaining_amount' => 'nullable|numeric'
+            ]);
+
+            // Allow caller to specify the desired status (default to 'Paid Record')
+            $desiredStatus = $request->input('status', 'Paid Record');
+            $load->invoice_status = $desiredStatus;
             $load->payment_receiving_date = $request->input('payment_receiving_date');
             $load->invoice_status_date = now()->format('Y-m-d H:i:s');
-            // $load->invoice_date = now()->format('Y-m-d H:i:s');
-			$load->receiving_amount = $load->shipper_load_final_rate;
 
-            
+            if ($request->filled('receiving_amount')) {
+                $load->receiving_amount = $request->input('receiving_amount');
+            }
+
+            if ($request->filled('remaining_amount')) {
+                $load->remaining_amount = $request->input('remaining_amount');
+            } elseif ($request->filled('receiving_amount')) {
+                $load->remaining_amount = floatval($load->shipper_load_final_rate) - floatval($load->receiving_amount);
+            }
+
             $load->save();
 
             $subject = "Load Mark as Paid, payment receiving date :".$request->input('payment_receiving_date');
             addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
-    
-            return response()->json(['success' => true, 'message' => 'Marked as Paid Record successfully'], 200);
+
+            return response()->json(['success' => true, 'message' => 'Marked as Paid successfully', 'status' => $desiredStatus], 200);
         }
     
         return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+    }
+
+    /**
+     * Mark a load as a short payment (partial payment) from Paid tab.
+     * If payment_receiving_date is not provided, set it to now().
+     */
+    public function updateInvoiceStatusAsShort(Request $request, $id)
+    {
+        $load = Load::find($id);
+        Log::info('updateInvoiceStatusAsShort called', ['id' => $id, 'request' => $request->all()]);
+
+        if (! $load) {
+            Log::warning('Load not found for short payment', ['id' => $id]);
+            return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'receiving_amount' => 'required|numeric|min:0'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Short payment validation failed', ['id' => $id, 'errors' => $validator->errors()->all()]);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $receiving = floatval($request->input('receiving_amount'));
+
+        // Update only payment fields; do NOT modify shipper_load_final_rate
+        $this->applyPaymentAmounts($load, $receiving);
+        $load->invoice_status = 'Paid Record';
+
+        if ($request->filled('payment_receiving_date')) {
+            $load->payment_receiving_date = $request->input('payment_receiving_date');
+        } else {
+            $load->payment_receiving_date = now()->format('Y-m-d H:i:s');
+        }
+
+        $load->invoice_status_date = now()->format('Y-m-d H:i:s');
+
+        $saved = $load->save();
+
+        Log::info('Short payment saved', ['id' => $id, 'saved' => $saved, 'receiving' => $receiving, 'remaining' => $load->remaining_amount]);
+
+        $subject = "Load marked as Short Payment, receiving: {$receiving}";
+        addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
+
+        return response()->json(['success' => true, 'message' => 'Marked as Short Payment successfully'], 200);
     }
 
     public function updateReceivingAmount(Request $request)
     {
         $request->validate([
             'load_id' => 'required|integer',
-            'receiving_amount' => 'required|numeric|min:0',
-            'remaining_amount' => 'required|numeric|min:0'
+            'receiving_amount' => 'required|numeric|min:0'
         ]);
     
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->receiving_amount = $request->receiving_amount;
-            $load->remaining_amount = $request->remaining_amount;
+            $this->applyPaymentAmounts($load, floatval($request->receiving_amount));
             $load->save();
 
-             $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ."and remaining amount ".$request->remaining_amount;
+            $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
             addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
     
             return response()->json([
                 'success' => true,
-                'remaining_amount' => number_format($load->remaining_amount, 2)
+                'remaining_amount' => number_format($load->remaining_amount, 2),
+                'load_advance_rec_amount' => number_format($load->load_advance_rec_amount, 2)
             ]);
         } else {
             return response()->json([
@@ -1547,8 +1613,18 @@ public function updateInvoiceStatus(Request $request, $id)
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->load_advance_rec_amount = $request->adv_receiving_amount;
-            $load->save();
+            $advAmount = floatval($request->adv_receiving_amount ?? 0);
+
+            // Only treat as advance if amount is greater than shipper final rate
+            $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+            $advanceToStore = 0;
+            if ($advAmount > $shipperRate) {
+                $advanceToStore = $advAmount - $shipperRate;
+            }
+
+            $load->load_advance_rec_amount = $advanceToStore;
+            $saved = $load->save();
+            Log::info('updateadvReceivingAmount', ['load_id' => $load->id, 'advAmount' => $advAmount, 'shipperRate' => $shipperRate, 'stored' => $advanceToStore, 'saved' => $saved]);
 
             //$subject = "update the load payment receiving amount advance receiving amount ".$request->adv_receiving_amount;
             //addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
@@ -1590,6 +1666,20 @@ public function updateInvoiceStatus(Request $request, $id)
                 'success' => false,
                 'message' => 'Load not found'
             ]);
+        }
+    }
+
+    protected function applyPaymentAmounts(Load $load, float $receiving)
+    {
+        $load->receiving_amount = $receiving;
+        $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+
+        if ($receiving >= $shipperRate) {
+            $load->remaining_amount = 0;
+            $load->load_advance_rec_amount = round($receiving - $shipperRate, 2);
+        } else {
+            $load->remaining_amount = round($shipperRate - $receiving, 2);
+            $load->load_advance_rec_amount = 0;
         }
     }
 
@@ -1832,7 +1922,7 @@ $searchTerms = array_filter(
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])
+                $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
@@ -1852,7 +1942,7 @@ $searchTerms = array_filter(
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
+            $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
 			
         }
         
@@ -3514,8 +3604,8 @@ public function deleteCarrierFile(Request $request)
     
         } elseif ($id == 'Cpr') {
             $data = Load::with('user')->orderByRaw('CAST(load_number AS UNSIGNED) DESC')->get();
-            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note'];
-            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', ''];
+            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note', 'MC Number'];
+            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', '', 'load_mc_no'];
          
         } else {
             return response()->json(['message' => 'Invalid data type.'], 400);
@@ -6131,4 +6221,201 @@ public function customerApprovalupdateStatus(Request $request)
         // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
+
+    public function uploadCarrierDocuments(Request $request)
+{
+    $request->validate([
+        'carrier_id'    => 'required|integer',
+        'doc_upload.*'  => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx,xlsx,xls|max:20480',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    // Upload new files
+    if ($request->hasFile('doc_upload')) {
+
+        foreach ($request->file('doc_upload') as $file) {
+
+            $originalName = $file->getClientOriginalName();
+
+            $fileName = time().'_'.uniqid().'_'.preg_replace('/\s+/', '_', $originalName);
+
+            $destination = public_path('carrier_doc');
+
+            if (!File::exists($destination)) {
+                File::makeDirectory($destination, 0755, true);
+            }
+
+            $file->move($destination, $fileName);
+
+            $documents[] = [
+                'original_name' => $originalName,
+                'file_name'     => $fileName,
+                'file_path'     => 'carrier_doc/'.$fileName,
+            ];
+        }
+    }
+
+    // Save JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                      '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'html'    => $html,
+        'message' => 'Documents uploaded successfully.'
+    ]);
+}
+
+public function deleteCarrierDocument(Request $request)
+{
+    $request->validate([
+        'carrier_id' => 'required|integer',
+        'doc_index'  => 'required|integer',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Get existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    $docIndex = $request->doc_index;
+
+    if (!isset($documents[$docIndex])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Document not found.'
+        ]);
+    }
+
+    // Delete physical file
+    $filePath = public_path($documents[$docIndex]['file_path']);
+
+    if (file_exists($filePath)) {
+        @unlink($filePath);
+    }
+
+    // Remove from array
+    unset($documents[$docIndex]);
+
+    // Re-index array
+    $documents = array_values($documents);
+
+    // Save updated JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build updated HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                    '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Document deleted successfully.',
+        'html'    => $html
+    ]);
+}
 }

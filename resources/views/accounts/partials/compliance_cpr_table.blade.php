@@ -11,6 +11,7 @@
         <td>{{ $delivered->load_workorder }}</td>
         <td>@if($delivered->user) {{ $delivered->user?->name }} @endif</td>
         <td>{{ $delivered->load_bill_to }}</td>
+        <td>{{ !empty($delivered->load_mc_no) ? $delivered->load_mc_no : $delivered->carrier_dot }}</td>
         <td>{{ $delivered->shipper_load_final_rate }}</td>
         <td>@if($delivered->user) {{ $delivered->user?->officedata?->office_name }}@endif</td>
         <td>@if($delivered->user) {{ $delivered->user?->teamLeaderInfo?->tl }}@endif</td>

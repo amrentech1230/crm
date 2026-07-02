@@ -128,9 +128,9 @@
                                 </div>
                             </div>
                         </div> <!-- End Accordion -->
-
                     </div>
                 </div>
+                <input type="submit" class="btn btn-info" value="Back" onclick="window.history.back()">
             </div> <!-- end col -->
         </div> <!-- end row -->
 

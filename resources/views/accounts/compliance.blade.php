@@ -75,7 +75,7 @@ select#rate_check-21291 {
                                             <li class="nav-item" role="presentation">
                                                 <a class="nav-link active" data-bs-toggle="tab" href="#mc" role="tab" aria-selected="true">
                                                     <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
-                                                    <span class="d-none d-sm-block">Mc Check</span> 
+                                                    <span class="d-none d-sm-block">MC Check</span> 
                                                 </a>
                                             </li>
                                             <li class="nav-item" role="presentation">
@@ -111,12 +111,13 @@ select#rate_check-21291 {
                                                         <th>Carrier Name</th>
                                                         <th>Agent</th>
                                                         <th>Added date</th>
-                                                        <th>MC Check</th>
+                                                        <th>MC Status</th>
 														<th>Setup</th>
                                                         <th>MC Status</th>
 														<th>Setup Status</th>
-                                                        <th>Documents</th>
-                                                        <th>Carrier Block</th>
+                                                        <th>Blacklisted Carrier</th>
+                                                        <th>File Upload</th>
+                                                        <th>View File</th>
                                                     </tr>
                                                     </thead>
 
@@ -139,6 +140,7 @@ select#rate_check-21291 {
                                                         <th>W/O #</th>
                                                         <th>Agent</th>
                                                         <th>Customer #</th>
+                                                        <th>MC Number</th>
                                                         <th>Customer Final Rate</th>
                                                         <th>Office</th>
                                                         <th>Team Leader</th>
@@ -156,7 +158,7 @@ select#rate_check-21291 {
                                                         <th>CPR</th>
                                                         <th>Select CPR</th>
                                                         <th>Macro</th>
-                                                        <th>No Of Macro</th>
+                                                        <th>No of Macro</th>
                                                         <th>CPR Status</th>
                                                         <th>Documents</th>
                                                     </tr>

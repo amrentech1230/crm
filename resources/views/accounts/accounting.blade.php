@@ -16,7 +16,9 @@
     z-index: 9999;
     top: 10px;
 }
-
+#search-active .pagination-container{
+    display:none !important;
+}
 #mc-error-message{
     padding: 10px;
     background-color: rgb(239 212 214);
@@ -94,7 +96,7 @@ table.dataTable tbody > tr.selected td p {
 						<!-- App Search-->
                         <form class="app-search-load d-none d-lg-block">
                             <div class="position-relative-load" id="opens" style="width: 300px;">
-                                <input type="text" class="form-control" name="loadquery" placeholder="Search...">
+                                <input type="text" class="form-control" name="query" placeholder="Search...">
                                 <span class="ri-search-line"></span>
                             </div>
                         </form>
@@ -178,7 +180,7 @@ table.dataTable tbody > tr.selected td p {
                                     @include('accounts.partials.accounting_open')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $open->setPageName('open')->links() }}
                                 </div>
                             </div>
@@ -296,7 +298,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                     
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $invoiced->setPageName('invoiced')->links() }}
                                 </div>
                             </div>
@@ -308,6 +310,7 @@ table.dataTable tbody > tr.selected td p {
                                         <tr>
                                             <th>Load #</th>
                                             <th>Action</th>
+                                            <th>Payment Status</th>
                                             <th>W/O #</th>
                                             <th>Invoice #</th>
                                             <th>Delivered Date</th>
@@ -316,7 +319,7 @@ table.dataTable tbody > tr.selected td p {
                                             <th>Shipper Final Amount</th>
                                             <th>Received Amount</th>
 											<th>Remaining/Excess Amount</th>
-                                            <th>Customer Payment Receiving Date</th>
+                                            <th>Short Payment Mark as Full Payment Date</th>
                                             <th>Customer Payment Mark Date</th>
                                             <th>Paper Work Date</th>
                                             <th>Agent</th>
@@ -334,7 +337,7 @@ table.dataTable tbody > tr.selected td p {
                                        @include('accounts.partials.accounting_paid')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
+                                <div class="custom-pagination pagination-container">
                                     {{ $paid->setPageName('paid')->links() }}
                                 </div>
                             </div>
@@ -410,7 +413,7 @@ table.dataTable tbody > tr.selected td p {
 
 $(document).ready(function () {
     // Set initial ID for the search form (fallback)
-    $('form.app-search .position-relative').attr('id', 'opens');
+    $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'opens');
 
     let initializedTabs = {};
 
@@ -421,28 +424,28 @@ $(document).ready(function () {
         let tableSelector = '';
 
         if (target === '#open') {
-            $('form.app-search .position-relative').attr('id', 'opens');
+            $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'opens');
             inputSelector = '#opens input[name="query"]';
             ajaxUrl = '/account/accounting_open_search';
             resultContainer = '#open-search';
             tableSelector = '#datatable-buttons-open';
 
         } else if (target === '#completed') {
-            $('form.app-search .position-relative').attr('id', 'completeds');
+            $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'completeds');
             inputSelector = '#completeds input[name="query"]';
             ajaxUrl = '/account/accounting_completed_search';
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
         } else if (target === '#invoiced') {
-            $('form.app-search .position-relative').attr('id', 'invoiceds');
+            $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'invoiceds');
             inputSelector = '#invoiceds input[name="query"]';
             ajaxUrl = '/account/accounting_invoiced_search';
             resultContainer = '#invoiced-search';
             tableSelector = '#datatable-buttons-invoiced';
 
         } else if (target === '#invoiced_paid') {
-            $('form.app-search .position-relative').attr('id', 'invoiced_paids');
+            $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'invoiced_paids');
             inputSelector = '#invoiced_paids input[name="query"]';
             ajaxUrl = '/account/accounting_invoiced_paid_search';
             resultContainer = '#invoiced_paid-search';
@@ -454,41 +457,43 @@ $(document).ready(function () {
 
         $(inputSelector).on('keyup', function () {
             let query = $(this).val().trim();
+            let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
 
             clearTimeout($.data(this, 'timer'));
             let wait = setTimeout(() => {
+                $('.loader-container').removeClass('hide');
+
                 if (query.length > 0) {
-                    $('.loader-container').removeClass('hide');
-
-                    $.ajax({
-                        url: ajaxUrl,
-                        type: 'GET',
-                        data: { query: query },
-                        success: function (response) {
-                            if ($.fn.DataTable.isDataTable(tableSelector)) {
-                                $(tableSelector).DataTable().destroy();
-                            }
-
-                            $(resultContainer).html(response);
-
-                            $(tableSelector).DataTable({
-                                responsive: true,
-                                dom: 'Bfrtip',
-                                pageLength: 100, 
-								buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                               
-                            });    
-
-                            $('.loader-container').addClass('hide');
-                        },
-                        // error: function (xhr) {
-                            // console.error("AJAX error:", xhr.responseText);
-                            // $('.loader-container').addClass('hide');
-                        // }
-                    });
+                    paginationContainer.hide();
                 } else {
-                    $(resultContainer).html('');
+                    paginationContainer.show();
                 }
+
+                $.ajax({
+                    url: ajaxUrl,
+                    type: 'GET',
+                    data: { query: query },
+                    success: function (response) {
+                        if ($.fn.DataTable.isDataTable(tableSelector)) {
+                            $(tableSelector).DataTable().destroy();
+                        }
+
+                        $(resultContainer).html(response);
+
+                        $(tableSelector).DataTable({
+                            responsive: true,
+                            dom: 'Bfrtip',
+                            pageLength: 100,
+                            paging: false,
+                            buttons: ['copy', 'excel', 'pdf', 'colvis'],
+                        });
+
+                        $('.loader-container').addClass('hide');
+                    },
+                    error: function () {
+                        $('.loader-container').addClass('hide');
+                    }
+                });
             }, 300);
 
             $(this).data('timer', wait);

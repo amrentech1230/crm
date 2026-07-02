@@ -179,5 +179,7 @@ try {
                                     <td class="dynamic-data">{{ $log->cpr_check }}</td>
                                     <td class="dynamic-data">{{ $log->no_of_macro }}</td>
                                     <td class="dynamic-data">{{ $log->load_advance_rec_amount }}</td>
+                                    <td class="dynamic-data">{{ $log->macro }}</td>
+                                    <td class="dynamic-data">{{ $log->no_of_macro }}</td>
                                 </tr>
                                 @endforeach

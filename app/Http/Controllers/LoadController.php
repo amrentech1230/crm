@@ -15,12 +15,11 @@ use \App\Models\user;
 use \App\Models\Manger;
 use \App\Models\TeamLeader;
 use \App\Models\ItHardware;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Pagination\Paginator;
 use Carbon\Carbon;
-use Smalot\PdfParser\Parser;
+use Dompdf\Options;
+use Dompdf\Dompdf;
 
 class LoadController extends Controller
 {
@@ -1711,29 +1710,9 @@ public function raiseTicketStore(Request $request)
     return back()->with('success', 'Ticket raised successfully!');
 }
 
-    public function generateBolPdf(Request $request, $id)
+    public function generateBolPdf($id)
     {
-        // Fetch the original load to get base data like load number
-        $originalLoad = Load::findOrFail($id);
-
-        // Create a new stdClass object to hold the data for the PDF view.
-        // Using stdClass is cleaner than replicating a model when the data structure is different.
-        $load = new \stdClass();
-
-        // Assign data from the original load
-        $load->load_number = $originalLoad->load_number;
-
-        // Overwrite with data from the submitted form
-        $load->load_workorder = $request->input('load_workorder');
-        $load->shipper_info = $request->input('shipper_info');
-        $load->consignee_info = $request->input('consignee_info');
-        $load->transportation_company = $request->input('transportation_company');
-        $load->notes = $request->input('notes');
-        $load->freight_items = $request->input('freight', []); // Get freight items
-
-        // You can add more fields here as needed
-        $load->ship_date = $request->input('ship_date');
-        $load->delivery_date = $request->input('delivery_date');
+        $load = Load::findOrFail($id);
 
         $options = new Options();
         $options->set('defaultFont', 'Arial'); // Use a common font
@@ -1752,101 +1731,5 @@ public function raiseTicketStore(Request $request)
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
-
-
-    public function extractDoData(Request $request)
-{
-    $request->validate([
-        'load_do_file' => 'required|file'
-    ]);
-
-    $file = $request->file('load_do_file');
-
-    $path = $file->store('temp');
-
-    /*
-     |--------------------------------------------------------------------------
-     | OCR Logic Here
-     |--------------------------------------------------------------------------
-     */
-
-    $text = $this->extractTextFromFile(storage_path('app/'.$path));
-
-    /*
-     |--------------------------------------------------------------------------
-     | Example Parsing
-     |--------------------------------------------------------------------------
-     */
-
-    preg_match('/Shipper:(.*)/i', $text, $shipper);
-    preg_match('/Consignee:(.*)/i', $text, $consignee);
-    preg_match('/Weight:(.*)/i', $text, $weight);
-    preg_match('/PO Number:(.*)/i', $text, $po);
-
-    return response()->json([
-        'shipper_name' => trim($shipper[1] ?? ''),
-        'consignee_name' => trim($consignee[1] ?? ''),
-        'weight' => trim($weight[1] ?? ''),
-        'po_number' => trim($po[1] ?? ''),
-    ]);
-}
-
-
-public function extractPdfData(Request $request)
-{
-    try {
-
-        $request->validate([
-            'pdf_file' => 'required|mimes:pdf'
-        ]);
-
-        $parser = new Parser();
-
-        $pdf = $parser->parseFile(
-            $request->file('pdf_file')->getPathname()
-        );
-
-        $text = $pdf->getText();
-
-        return response()->json([
-            'success' => true,
-            'text' => $text,
-
-            'load_no' => $this->extractField(
-                $text,
-                '/Load\s*(?:Number|#)?\s*:?\s*([A-Z0-9\-]+)/i'
-            ),
-
-            'carrier' => $this->extractField(
-                $text,
-                '/Carrier\s*:?\s*(.+)/i'
-            ),
-
-            'mc_no' => $this->extractField(
-                $text,
-                '/MC\s*(?:#|Number)?\s*:?\s*([A-Z0-9\-]+)/i'
-            ),
-
-            'rate' => $this->extractField(
-                $text,
-                '/(?:Rate|Total Rate)\s*:?\s*\$?([\d,.]+)/i'
-            )
-        ]);
-
-    } catch (\Exception $e) {
-
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
-
-private function extractField($text, $pattern)
-{
-    preg_match($pattern, $text, $matches);
-
-    return $matches[1] ?? '';
-}
 
 }

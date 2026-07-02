@@ -194,7 +194,7 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control" required name="load_type" style="width: 100%;">
+                                        <select class="form-control" required name="load_type" id="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -1284,7 +1284,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>Load Number</th>
                                     <td>
-                                        <input name="load_number" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1293,7 +1293,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>BOL Number</th>
                                     <td>
-                                        <input name="load_workorder" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1306,7 +1306,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                             json_decode($post->load_shipper_appointment,true);
                                         @endphp
                                     <td>
-                                        <input name="ship_date" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
                                             readonly style="font-weight: 900; color: #555;">
                                     </td>
@@ -1335,7 +1335,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 }
 @endphp
 
-<input name="delivery_date" class="editable-field border-0 w-100"
+<input class="editable-field border-0 w-100"
     value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
     readonly>
                                     </td>
@@ -1373,7 +1373,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 @endphp
 
 <textarea class="form-control editable-field border-0"
-<textarea name="shipper_info" class="form-control editable-field border-0"
     rows="6"
     readonly>{{ trim($shipperText) }}</textarea>
                             </div>
@@ -1401,7 +1400,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         }
     }
 @endphp
-                                <textarea name="consignee_info" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                     rows="5"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
@@ -1416,7 +1415,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">3rd Party Billing</h6>
 
-                                <textarea name="third_party_billing" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                     rows="5"
                                     readonly></textarea>
                             </div>
@@ -1427,7 +1426,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Transportation Company</h6>
 
                                 <textarea class="form-control editable-field border-0"
-                                <textarea name="transportation_company" class="form-control editable-field border-0"
                                 rows="5"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
@@ -1458,21 +1456,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <td>
                 <input type="text"
-                <input name="freight[0][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit 1">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][description]" type="text"
                     class="form-control editable-field"
                     placeholder="Description">
             </td>
 
             <td>
                 <input type="number"
-                <input name="freight[0][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
                     onkeyup="updateTotals()"
@@ -1481,21 +1476,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <td>
                 <input type="text"
-                <input name="freight[0][type]" type="text"
                     class="form-control editable-field"
                     placeholder="Type">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][nmfc]" type="text"
                     class="form-control editable-field"
                     placeholder="NMFC">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][hm]" type="text"
                     class="form-control editable-field"
                     placeholder="HM">
             </td>
@@ -1505,7 +1497,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <div class="d-flex gap-2">
 
                     <input type="text"
-                    <input name="freight[0][class]" type="text"
                         class="form-control editable-field"
                         placeholder="Class">
 
@@ -1576,7 +1567,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
             <h6 class="fw-bold mb-2">Notes:</h6>
 
             <textarea class="form-control editable-field border-0"
-            <textarea name="notes" class="form-control editable-field border-0"
                 rows="7"
                 readonly>{{ $post->notes ?? '' }}</textarea>
 
@@ -1590,7 +1580,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Amount:</strong> <input type="text"
-                        <strong>C.O.D. Amount:</strong> <input name="cod_amount" type="text"
                 class="form-control editable-field border-0" value="$0.00"
                 readonly>
                     </td>
@@ -1599,7 +1588,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Fee:</strong> <input type="text"
-                        <strong>C.O.D. Fee:</strong> <input name="cod_fee" type="text"
                 class="form-control editable-field border-0" value="Collect"
                 readonly>
                     </td>
@@ -1608,7 +1596,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>Declared Value:</strong> <input type="text"
-                        <strong>Declared Value:</strong> <input name="declared_value" type="text"
                 class="form-control editable-field border-0" value=" $0.00"
                 readonly>
                     </td>
@@ -1657,21 +1644,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         <td>
             <input type="text"
-            <input name="shipper_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="carrier_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="signature_date" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
@@ -1700,21 +1684,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         <td>
             <input type="text"
-            <input name="shipper_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="carrier_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="signature_time" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
@@ -1735,25 +1716,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 <tr>
     <td>
         <input type="text"
-        <input name="consignee_name_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_date_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_pieces_received" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
@@ -2194,6 +2171,7 @@ $(document).ready(function () {
 
 $(document).ready(function () {
     const $loadType = $('#load_type_two');
+    const $shippmentloadType = $('#load_type');
 
     function RestrictionOTR() {
        
@@ -2205,25 +2183,55 @@ $(document).ready(function () {
         }
     }
 
+    // function RestrictionOTRonload() {
+    //     const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+
+    //     if ($loadType.val() === "OTR") {
+    //         $('#load_shipper_rate').removeAttr('readonly');
+    //         $('#load_fsc_rate').removeAttr('readonly');
+    //         $('#load_carrier_fee').removeAttr('readonly');
+    //         $('#load_billing_fsc_rate').removeAttr('readonly');
+    //     } else if ($loadType.val() === "DRAYAGE") {
+    //         if (shipperRate > 0) {
+    //             $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+
+	// 			$('#load_shipper_rate').attr('readonly', true);
+	// 			$('#load_fsc_rate').attr('readonly', true);
+	// 			$('#load_carrier_fee').attr('readonly', true);
+	// 			$('#load_billing_fsc_rate').attr('readonly', true);
+    //         }
+    //     }
+    // }
+
     function RestrictionOTRonload() {
-        const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const loadTypeVal = $loadType.val();
+    const shippmentloadTypeVal = $shippmentloadType.val();
 
-        if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
-        } else if ($loadType.val() === "DRAYAGE") {
-            if (shipperRate > 0) {
-                $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+    if (loadTypeVal === "OTR") {
+        $('#load_shipper_rate').removeAttr('readonly');
+        $('#load_fsc_rate').removeAttr('readonly');
+        $('#load_carrier_fee').removeAttr('readonly');
+        $('#load_billing_fsc_rate').removeAttr('readonly');
 
-				$('#load_shipper_rate').attr('readonly', true);
-				$('#load_fsc_rate').attr('readonly', true);
-				$('#load_carrier_fee').attr('readonly', true);
-				$('#load_billing_fsc_rate').attr('readonly', true);
-            }
+    } else if (shippmentloadTypeVal === "TONU") {
+        // Allow editing shipper rate for TONU
+        $('#load_shipper_rate').removeAttr('readonly');
+
+    } else if (loadTypeVal === "DRAYAGE") {
+        if (shipperRate > 0) {
+            $loadType
+                .attr('readonly', true)
+                .css('pointer-events', 'none')
+                .css('background-color', '#e9ecef');
+
+            $('#load_shipper_rate').attr('readonly', true);
+            $('#load_fsc_rate').attr('readonly', true);
+            $('#load_carrier_fee').attr('readonly', true);
+            $('#load_billing_fsc_rate').attr('readonly', true);
         }
     }
+}
 
     RestrictionOTRonload();
 
@@ -2489,7 +2497,7 @@ $(document).ready(function() {
 $(document).on('change', 'input[name^="load_consignee_appointment_"]', function () {
 
     let deliveryInput = $(this);
-    let row = deliveryInput.closest('.row'); 
+    let row = deliveryInput.closest('.row');
 
     let pickupInput = row.find('input[name^="load_shipper_appointment_"]');
 
@@ -2501,8 +2509,9 @@ $(document).on('change', 'input[name^="load_consignee_appointment_"]', function 
         let pickupDate = new Date(pickupValue);
         let deliveryDate = new Date(deliveryValue);
 
-        if (deliveryDate < pickupDate) {
-            alert("Delivery date & time cannot be earlier than Pickup date & time.");
+        // Delivery must be greater than pickup
+        if (deliveryDate <= pickupDate) {
+            alert("Delivery date & time must be later than Pickup date & time.");
             deliveryInput.val('');
         }
     }
@@ -2524,7 +2533,7 @@ $(document).on('change', 'input[name^="load_shipper_appointment_"]', function ()
 </script>
 
 <!-- html2pdf -->
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 
@@ -2556,21 +2565,18 @@ function addFreightRow() {
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit ${rowCount}">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][description]" type="text"
                     class="form-control editable-field"
                     placeholder="Description">
             </td>
 
             <td>
                 <input type="number"
-                <input name="freight[${rowCount-1}][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
                     onkeyup="updateTotals()"
@@ -2579,21 +2585,18 @@ function addFreightRow() {
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][type]" type="text"
                     class="form-control editable-field"
                     placeholder="Type">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][nmfc]" type="text"
                     class="form-control editable-field"
                     placeholder="NMFC">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][hm]" type="text"
                     class="form-control editable-field"
                     placeholder="HM">
             </td>
@@ -2603,7 +2606,6 @@ function addFreightRow() {
                 <div class="d-flex gap-2">
 
                     <input type="text"
-                    <input name="freight[${rowCount-1}][class]" type="text"
                         class="form-control editable-field"
                         placeholder="Class">
 
@@ -2686,42 +2688,12 @@ updateTotals();
 
 async function downloadBOL() {
 
-    const bolArea = document.getElementById('bolDownloadArea');
-    const fields = bolArea.querySelectorAll('input, textarea');
-
-    // Create a new hidden form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = "{{ route('broker.load.bol.pdf', $post->id) }}";
-    form.style.display = 'none'; // Hide the form
-
-    // Add CSRF token
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = '{{ csrf_token() }}';
-    form.appendChild(csrfToken);
-
-    // Append all input/textarea values from the modal to the form
-    fields.forEach(field => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = field.name;
-        input.value = field.value;
-        form.appendChild(input);
-    });
-
-    // Append the form to the body and submit it
-    document.body.appendChild(form);
-    form.submit();
-
-    // Clean up: remove the form after submission
-    document.body.removeChild(form);
+    // Redirect to the backend route to generate and download the PDF
+    window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
 
 }
 
 </script>
-
 
 <style>
 

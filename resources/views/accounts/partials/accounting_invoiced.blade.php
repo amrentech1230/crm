@@ -166,23 +166,27 @@
 
                 </td>
 
-                <td class="dynamic-data">{{ $invoice->shipper_load_final_rate }}</td>
-                <!------<td class="dynamic-data">
+                <td class="dynamic-data">
+                    {{ $invoice->shipper_load_final_rate }}
+                    <div class="form-check form-check-inline ms-2" style="display: inline-block; vertical-align: middle; margin-left: 8px;">
+                        <input type="checkbox" class="form-check-input use-final-rate-checkbox" style="width: 18px; height: 18px;" 
+                            data-invoice-id="{{ $invoice->id }}"
+                            data-shipper-final-rate="{{ $invoice->shipper_load_final_rate }}"
+                            id="use_final_rate_{{ $invoice->id }}">
+                        <label class="form-check-label" for="use_final_rate_{{ $invoice->id }}" style="font-size: 12px; margin-left: 4px;">Use ₹{{ number_format(floatval($invoice->shipper_load_final_rate), 2) }}</label>
+                    </div>
+                    <!-- <div>
+                        <a href="#" class="add-note-link" data-invoice-id="{{ $invoice->id }}" style="font-size: 12px; color: #0d6efd; text-decoration: underline; display: inline-block; margin-top: 4px;">Additional note</a>
+                    </div> -->
+                </td>
+                <td class="dynamic-data">
                     <input type="number" class="form-control receiving_amount"
                         name="receiving_amount" data-invoice-id="{{ $invoice->id }}"
                         data-shipper-load-final-rate="{{ $invoice->shipper_load_final_rate }}"
                         id="receiving_amount_{{ $invoice->id }}"
                         value="{{ $invoice->receiving_amount }}">
-                </td>---------->
-				<td class="dynamic-data">
-                    <input type="text" class="form-control adv_receiving_amount" name="load_advance_rec_amount" data-invoice-id="{{ $invoice->id }}" data-shipper-load-final-rate="{{ $invoice->shipper_load_final_rate }}"
-                        id="receiving_amount_{{ $invoice->id }}" onkeyup="saveadvanceReceivingAmount(this)" value="{{ $invoice->load_advance_rec_amount }}">
+                    <input type="hidden" class="remaining_amount_{{ $invoice->id }}" value="{{ number_format(floatval($invoice->shipper_load_final_rate) - floatval($invoice->receiving_amount), 2, '.', '') }}">
                 </td>
-                @php
-                $shipperLoadFinalRate = floatval($invoice->shipper_load_final_rate);
-                $receivingAmount = floatval($invoice->receiving_amount);
-                $remaining = max($shipperLoadFinalRate - $receivingAmount, 0);
-                @endphp
                 <td class="dynamic-data">
                   
                        <textarea name="invoice_internal_value" onkeyup="RemainingAmount(this)" row="10" col="5" style="width: 450px !important;height: 50px;"   data-invoice-id="{{ $invoice->id }}" class="invoice_internal_value" placeholder="Enter additional notes...">{{ $invoice->invoice_internal_value }}</textarea>
@@ -456,6 +460,8 @@ function printPreInvoice(id) {
 function markAsPaidRecord(loadId) {
    
     const paymentReceivingDate = $(`.paymentreceivingdate_${loadId}`).val();
+    const receivingAmount = $(`#receiving_amount_${loadId}`).val();
+    const remainingAmount = parseFloat($(`.remaining_amount_${loadId}`).val()) || 0;
 
     if (paymentReceivingDate === '') {
          $('#mc-error-message').text('Please select the payment receiving date').fadeIn();
@@ -465,12 +471,13 @@ function markAsPaidRecord(loadId) {
         return;
     }
 
-
-$.ajax({
+    $.ajax({
         url: "{{ route('update.invoice.status.as.paid.record', ':id') }}".replace(':id', loadId),
         method: 'POST',
         data: {
-            payment_receiving_date: paymentReceivingDate
+            payment_receiving_date: paymentReceivingDate,
+            receiving_amount: receivingAmount,
+            remaining_amount: remainingAmount
         },
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -517,23 +524,14 @@ function markAsBackDeliveredRecord(loadId) {
                 'shipper-load-final-rate'));
             var receivingAmount = parseFloat(receiving_amount) || 0;
               
-            if(receivingAmount > shipperLoadFinalRate){
-                
-                $('#mc-error-message').text('Receiving amount should not be greater than the shipper final rate.').fadeIn();
+            var remainingAmount = shipperLoadFinalRate - receivingAmount;
+            $('.remaining_amount_' + invoiceId).val(remainingAmount.toFixed(2));
+
+            if (receivingAmount > shipperLoadFinalRate) {
+                $('#mc-success-message').text('Advance / excess payment will be recorded.').fadeIn();
                 setTimeout(function() {
-                        $('#mc-error-message').text('').fadeOut();
-                    }, 2000);
-                    $('#receiving_amount_' + invoiceId).val(0);
-            }else{
-
-               
-                var remainingAmount = shipperLoadFinalRate - receivingAmount;
-
-                // Ensure remaining amount is not negative
-                remainingAmount = Math.max(remainingAmount, 0);
-                // Display remaining amount, limiting to 2 decimal places
-                
-                $('.remaining_amount_' + invoiceId).val(remainingAmount.toFixed(2));
+                    $('#mc-success-message').text('').fadeOut();
+                }, 2000);
             }
             
         }
@@ -639,9 +637,34 @@ function markAsBackDeliveredRecord(loadId) {
 		}
 
 
-    $(document).on('input', '.receiving_amount', function () {
+    function handleFinalRateCheckbox(invoiceId) {
+        var $checkbox = $('#use_final_rate_' + invoiceId);
+        var receivingInput = $('#receiving_amount_' + invoiceId);
+        var shipperFinalRate = parseFloat($checkbox.data('shipper-final-rate')) || 0;
+        var currentValue = $.trim(receivingInput.val());
+        var currentAmount = parseFloat(currentValue);
+        var manualEdited = receivingInput.data('manual-edited') === true;
+
+        if ($checkbox.is(':checked')) {
+            if (currentValue === '' || isNaN(currentAmount) || (currentAmount === 0 && !manualEdited)) {
+                receivingInput.val(shipperFinalRate.toFixed(2)).data('auto-filled', true).data('manual-edited', false).trigger('change');
+            } else {
+                receivingInput.data('auto-filled', false).trigger('change');
+            }
+        } else {
+            var wasAutoFilled = receivingInput.data('auto-filled') === true;
+            if (wasAutoFilled) {
+                receivingInput.val('').data('auto-filled', false).trigger('change');
+            } else {
+                receivingInput.trigger('change');
+            }
+        }
+    }
+
+    $(document).on('input change', '.receiving_amount', function () {
         var invoiceId = $(this).data('invoice-id');
         var receiving_amount = $(this).val();
+        $(this).data('manual-edited', true).data('auto-filled', false);
         updateRemainingAmount(invoiceId, receiving_amount);
         saveReceivingAmount(invoiceId, receiving_amount);
     });
@@ -652,6 +675,20 @@ function markAsBackDeliveredRecord(loadId) {
          updateRemainingAmount(invoiceId, receiving_amount);
          saveReceivingAmount(invoiceId, receiving_amount);
      });
+
+    $(document).on('change', '.use-final-rate-checkbox', function () {
+        var invoiceId = $(this).data('invoice-id');
+        handleFinalRateCheckbox(invoiceId);
+    });
+
+    $(document).on('click', '.add-note-link', function (e) {
+        e.preventDefault();
+        var invoiceId = $(this).data('invoice-id');
+        var noteField = $('.invoice_internal_value[data-invoice-id="' + invoiceId + '"]');
+        if (noteField.length) {
+            noteField.focus();
+        }
+    });
 	 
 	//  $(document).on('input', '.adv_receiving_amount', function () {
     //     var invoiceId = $(this).data('invoice-id');

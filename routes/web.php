@@ -196,6 +196,7 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::get('account/compliance-search-mc', [AccountController::class, 'compliance_search_mc'])->name('compliance_search_mc');
     Route::get('account/compliance-search-cpr', [AccountController::class, 'compliance_search_cpr'])->name('compliance_search_cpr');
     Route::post('account/save-rate-checks', [AccountController::class, 'saverateChecks'])->name('saverateChecks');
+
     Route::get('account/reporting', [AccountController::class, 'reporting'])->name('reporting');
 	Route::get('account/get-related-agent/{office_id}', [AccountController::class, 'getByOfficereporting']);
 	Route::get('account/credit', [AccountController::class, 'credit'])->name('credit');
@@ -244,6 +245,7 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::post('account/update-invoice-status/{id}', [AccountController::class, 'updateInvoiceStatus'])->name('update.invoice.status');
 
     Route::post('account/update-invoice-status-as-paid-record/{id}', [AccountController::class, 'updateInvoiceStatusAsPaidRecord'])->name('update.invoice.status.as.paid.record');
+     Route::post('account/update-invoice-status-as-short/{id}', [AccountController::class, 'updateInvoiceStatusAsShort'])->name('update.invoice.status.as.short');
 
     Route::post('account/load/update-receiving-amount', [AccountController::class, 'updateReceivingAmount'])->name('load.updateReceivingAmount');
 
@@ -375,7 +377,7 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
     Route::POST('broker/load-create', [LoadController::class, 'create'])->name('load.create');
     Route::get('broker/edit-load/{id}', [LoadController::class, 'editload'])->name('load.editload');
     Route::POST('/broker/load/update/{id}', [LoadController::class, 'BrokerLoadUpdate'])->name('broker.load.update');
-	Route::post('broker/extract-do-data', [LoadController::class, 'extractDoData'])->name('extract.do.data');
+	
     
     Route::get('broker/broker_all_load', [LoadController::class, 'broker_all_load'])->name('broker_all_load');
     Route::get('broker/broker_open_load', [LoadController::class, 'broker_open_load'])->name('broker_open_load');
@@ -393,15 +395,14 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
     Route::get('broker/fetch-consignee-details', [LoadController::class, 'fetchConsigneeDetails'])->name('fetch.consignee.details');
     Route::get('broker/fetch-shipper-details', [LoadController::class, 'fetchShipperDetails'])->name('fetch.shipper.details');
 	Route::post('broker/fetch-carrier-details', [LoadController::class, 'fetchCarrierDetails'])->name('fetch.carrier.details');
-    Route::post('/broker/load/{id}/bol/pdf', [LoadController::class, 'generateBolPdf'])->name('broker.load.bol.pdf');
+        Route::get('/broker/load/{id}/bol/pdf', [LoadController::class, 'generateBolPdf'])->name('broker.load.bol.pdf');
+
     Route::post('broker/fetch-carrier-suggestions', [LoadController::class, 'fetchCarrierSuggestions'])->name('fetch.carrier.suggestions');
 
     Route::get('remaing/check-remaing-limit', [LoadController::class, 'checkRemaingLimit'])->name('check.remaing.limit');
     Route::get('remaing/edit-check-remaing-limit', [LoadController::class, 'checkRemaingLimiteditload'])->name('edit.check.remaing.limit');
     Route::get('broker/raise/tickets', [LoadController::class, 'raiseTickets'])->name('broker.raise.tickets');
     Route::post('broker/raise-ticket', [LoadController::class, 'raiseTicketStore'])->name('broker.raise.ticket');
-    Route::post('broker/pdf/extract', [LoadController::class, 'extractPdfData'])->name('pdf.extract');
-
 
 
     Route::get('broker/get-states/{country_id}', [CustomerController::class, 'getStates']);
@@ -424,5 +425,9 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
 	Route::post('account/customer/remittance/filter', [AccountController::class, 'accountfilterRemittanceFiles'])->name('account.customer.remittance.filter');
 	Route::get('account/customer_search', [AccountController::class, 'customer_search'])->name('customer_search');
     Route::get('account/cmt_Data', [AccountController::class, 'cmt_Data'])->name('cmt.data');
+    Route::post('account/carrier/documents/upload', [AccountController::class, 'uploadCarrierDocuments'])->name('carrier.documents.upload');
+Route::post('account/carrier/documents/delete', [AccountController::class, 'deleteCarrierDocument'])->name('carrier.documents.delete');
 
 });
+
+
