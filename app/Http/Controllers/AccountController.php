@@ -100,7 +100,7 @@ class AccountController extends Controller
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
 									$query->orWhere('load_number', 'like', "%{$term}%");
-								}
+								}                     
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -1868,45 +1868,103 @@ $searchTerms = array_filter(
         return view('accounts.partials.accounting_complete', compact('complete'))->render();
     }
 
+    /**
+     * Parse an accounting search-box value into individual search terms.
+     *
+     * Terms are separated by commas / newlines (NOT spaces) so multi-word
+     * values such as a customer name stay intact. A run of space-separated
+     * numbers like "21021 21022 21023" is exploded into individual terms so a
+     * pasted list of load numbers works.
+     *
+     * @return array<int,string>
+     */
+    private function parseAccountingSearch($q)
+    {
+        $terms = [];
+
+        $parts = preg_split('/[\r\n,]+/', (string) $q);
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            // A run of space-separated numbers => several individual terms
+            $tokens = preg_split('/\s+/', $part);
+            if (count($tokens) > 1
+                && count(array_filter($tokens, fn($t) => is_numeric($t))) === count($tokens)) {
+                foreach ($tokens as $t) {
+                    $terms[] = $t;
+                }
+                continue;
+            }
+
+            // Otherwise keep the value (single id or multi-word name) intact
+            $terms[] = $part;
+        }
+
+        return array_values(array_unique($terms));
+    }
+
+    /**
+     * Apply the accounting search terms to a query.
+     *
+     * A purely numeric term is treated as a load # / invoice # and matched
+     * EXACTLY on those two fields only — this keeps a load-number search precise
+     * (10 load numbers => 10 loads) and prevents collisions where the number
+     * happens to equal another load's work order or customer reference.
+     *
+     * A text term (e.g. work order "OOLU9555049", a customer reference, or a
+     * customer / dispatcher name) is matched with a contains-search on the
+     * alphanumeric / name fields.
+     */
+    private function applyAccountingSearch($query, array $terms)
+    {
+        $query->where(function ($q) use ($terms) {
+            foreach ($terms as $term) {
+                if (is_numeric($term)) {
+                    $q->orWhere('load_number', $term)
+                      ->orWhere('invoice_number', $term);
+                } else {
+                    $q->orWhere('load_workorder', 'like', "%{$term}%")
+                      ->orWhere('customer_refrence_number', 'like', "%{$term}%")
+                      ->orWhere('load_bill_to', 'like', "%{$term}%")
+                      ->orWhere('load_dispatcher', 'like', "%{$term}%");
+                }
+            }
+        });
+
+        return $query;
+    }
+
     public function accounting_invoiced_search(Request $request){
 
         $q = $request->input('query');
-        
-        if (!empty($q)) {
-            
-                    // Split the query by commas to get multiple terms
-        $searchTerms = array_filter(
-            preg_split('/[\s,]+/', $q),
-            fn($term) => !empty(trim($term))
-        );
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-                        }
-                    })
+        if (!empty($q)) {
+
+            $terms = $this->parseAccountingSearch($q);
+
+            if (!empty($terms)) {
+                // Exact match on ids, contains-match on customer/dispatcher name
+                $invoiced = $this->applyAccountingSearch(
+                        Load::where('invoice_status','Paid')->with(['user','customer','carrier']),
+                        $terms
+                    )
                     ->orderBy('loads.id', 'desc')
                     ->get();
-                    // print_r($invoiced); die;
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
                 $invoiced = collect();
             }
         } else {
-            
+
             // If query is empty, return a paginated result without any filter
              $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
-       
+
             }
-        
+
         return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
     }
 
@@ -1914,27 +1972,15 @@ $searchTerms = array_filter(
 
         $q = $request->input('query');
         if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-       $searchTerms = array_filter(
-    preg_split('/[\s,]+/', $q),
-    fn($term) => !empty(trim($term))
-);
 
+            $terms = $this->parseAccountingSearch($q);
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-
-                        }
-                    })
+            if (!empty($terms)) {
+                // Exact match on ids, contains-match on customer/dispatcher name
+                $paid = $this->applyAccountingSearch(
+                        Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier']),
+                        $terms
+                    )
                     ->orderBy('loads.id', 'desc')
                     ->get();
             } else {
