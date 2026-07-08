@@ -143,13 +143,16 @@ table.dataTable tbody > tr.selected td p {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15,15,15,0.85);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
     text-align: center;
-    color: #fff;
+    color: #333;
+    /* background: rgba(255,255,255,0.9); */
+    /* background: rgba(0, 0, 0, 0.5); */
+     background-color: #fff;
+
 }
 
 .hide {
@@ -159,7 +162,7 @@ table.dataTable tbody > tr.selected td p {
 .spinner {
     width: 60px;
     height: 60px;
-    border: 4px solid rgba(255,255,255,0.1);
+    border: 4px solid rgba(0,0,0,0.1);
     border-top: 4px solid #a6ce3a;
     border-radius: 50%;
     animation: spin 1s linear infinite;

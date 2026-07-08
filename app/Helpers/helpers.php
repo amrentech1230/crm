@@ -31,6 +31,27 @@ if (!function_exists('getmacaddress')) {
 	}
 }
 
+if (!function_exists('format_report_date')) {
+    function format_report_date($value, $default = '-')
+    {
+        if ($value === null || $value === '' || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
+            return $default;
+        }
+
+        try {
+            $date = $value instanceof \Carbon\Carbon ? $value : \Carbon\Carbon::parse((string) $value);
+
+            if ($date->year === 0 || $date->month === 0 || $date->day === 0) {
+                return $default;
+            }
+
+            return $date->format('m/d/Y');
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+}
+
 function addToLog($customer_id = '', $load_id = '', $subject = '', $old_data = '', $new_data = '')
     {
         // Get the authenticated user

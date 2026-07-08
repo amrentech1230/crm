@@ -5228,35 +5228,68 @@ public function customerDetailsReportingExcell()
 
     protected function getPaymentStatusDetails(Load $load): array
     {
-        $shipperRate = (float) ($load->shipper_load_final_rate ?? 0);
-        $receivingAmount = (float) ($load->receiving_amount ?? 0);
-        $paymentDate = $load->payment_receiving_date ? Carbon::parse($load->payment_receiving_date)->format('Y-m-d') : '';
-        $markDate = $load->invoice_status_date ? Carbon::parse($load->invoice_status_date)->format('Y-m-d') : '';
+        // Parse the amounts exactly the way the AR accounts "Invoiced / Paid" tab does
+        // (see resources/views/accounts/partials/accounting_paid.blade.php) so the reporting
+        // Excel shows identical Received / Remaining / Excess amounts. Stored rates may contain
+        // currency symbols or thousands separators (e.g. "$1,200.00"), which a plain (float)
+        // cast would truncate to 1.0 — strip everything except digits, dot and minus first.
+        $shipperRate     = (float) preg_replace('/[^0-9.\-]/', '', (string) ($load->shipper_load_final_rate ?? ''));
+        $receivingAmount = (float) preg_replace('/[^0-9.\-]/', '', (string) ($load->receiving_amount ?? ''));
 
-        if ($shipperRate <= 0) {
-            $status = 'Pending';
+        $paymentDate = $load->payment_receiving_date ? Carbon::parse($load->payment_receiving_date)->format('Y-m-d') : '';
+        $markDate    = $load->invoice_status_date ? Carbon::parse($load->invoice_status_date)->format('Y-m-d') : '';
+
+        $isCancelled = strcasecmp((string) $load->load_status, 'Cancelled') === 0;
+
+        // Difference mirrors the AR tab: shipper final rate minus amount received.
+        $difference      = $shipperRate - $receivingAmount;
+        $remainingAmount = $difference > 0 ? $difference : 0.0;      // customer still owes
+        $excessAmount    = $difference < 0 ? abs($difference) : 0.0; // received more than invoiced
+
+        // Cancelled loads owe nothing and hold no excess — every field reads "Cancelled" or 0.
+        if ($isCancelled) {
             $remainingAmount = 0.0;
-            $excessAmount = 0.0;
+            $excessAmount    = 0.0;
+        }
+
+        if ($isCancelled) {
+            $status = 'Cancelled';
+        } elseif (empty($load->invoice_status)) {
+            // Not invoiced yet — show a hyphen instead of "Pending".
+            $status = '-';
         } elseif ($receivingAmount <= 0) {
             $status = 'Pending';
-            $remainingAmount = $shipperRate;
-            $excessAmount = 0.0;
+        } elseif (abs($difference) < 0.005) {
+            $status = 'Full Payment';
+        } elseif ($difference < 0) {
+            $status = 'Excess Payment';
         } else {
-            $difference = $receivingAmount - $shipperRate;
-            $remainingAmount = max($shipperRate - $receivingAmount, 0.0);
-            $excessAmount = max($difference, 0.0);
+            $status = 'Short Payment';
+        }
 
-            if (abs($difference) < 0.005) {
-                $status = 'Full Payment';
-            } elseif ($difference > 0) {
-                $status = 'Excess Payment';
-            } else {
-                $status = 'Short Payment';
-            }
+        // The reported "Invoice Status" must follow the real money received, not just the
+        // stored invoice_status flag. A load flagged "Paid Record" with nothing actually
+        // received must NOT read as paid — it maps back to "Invoiced" (still awaiting payment).
+        $invoiceStatus = $load->invoice_status;
+        if ($isCancelled) {
+            $displayInvoiceStatus = 'Cancelled';
+        } elseif (empty($invoiceStatus)) {
+            $displayInvoiceStatus = '';
+        } elseif ($invoiceStatus === 'Paid') {
+            $displayInvoiceStatus = 'Invoiced';
+        } elseif ($invoiceStatus === 'Paid Record') {
+            $displayInvoiceStatus = [
+                'Full Payment'   => 'Paid Record',
+                'Short Payment'  => 'Short Pay',
+                'Excess Payment' => 'Excess',
+            ][$status] ?? 'Invoiced'; // Pending -> no amount received yet
+        } else {
+            $displayInvoiceStatus = $invoiceStatus;
         }
 
         return [
             'status' => $status,
+            'display_invoice_status' => $displayInvoiceStatus,
             'remaining_amount' => round($remainingAmount, 2),
             'excess_amount' => round($excessAmount, 2),
             'payment_date' => $paymentDate,
@@ -5310,8 +5343,10 @@ public function customerDetailsReportingExcell()
             $appointment = isset($shipper_location[0]['appointment']) ? $shipper_location[0]['appointment'] : '';
             $consignee_location = json_decode($item->load_consignee_location, true);
             $consignee_appointment = json_decode($item->load_consignee_appointment, true);
-            
-            
+
+            // Computed here so the Invoice Status column can follow the account receiving status.
+            $paymentSummary = $this->getPaymentStatusDetails($item);
+
             $sheet->setCellValue($col . $row, $item->load_number ?? '');
             $col++;
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->invoice_number ?? '') : '');
@@ -5320,11 +5355,11 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_status ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, empty($item->invoice_status) ? '' : ($item->invoice_status == 'Paid' ? 'Invoiced' : $item->invoice_status));
+            $sheet->setCellValue($col . $row, $paymentSummary['display_invoice_status'] ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->customer_refrence_number ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $item->created_at ? $item->created_at->setTimezone('America/New_York')->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, format_report_date($item->created_at ? $item->created_at->setTimezone('America/New_York') : null));
             $col++;
             $sheet->setCellValue($col . $row, $item->load_bill_to ?? '');
             $col++;
@@ -5358,16 +5393,16 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_advance_payment ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $item->load_actual_delivery_date ? \Carbon\Carbon::parse($item->load_actual_delivery_date)->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, format_report_date($item->load_actual_delivery_date));
             $col++;
-            $sheet->setCellValue($col . $row, $item->load_carrier_due_date ? \Carbon\Carbon::parse($item->load_carrier_due_date)->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, format_report_date($item->load_carrier_due_date));
             $col++;
            $date = trim($item->load_carrier_due_date_on);
             $formatted = '';
 
             try {
                 if (!empty($date)) {
-                    $formatted = \Carbon\Carbon::parse($date)->format('m/d/Y');
+                    $formatted = format_report_date($date);
                 }
             } catch (\Exception $e) {
                 $formatted = ''; // ignore invalid dates
@@ -5384,29 +5419,29 @@ public function customerDetailsReportingExcell()
             in_array($item->invoice_status, ['Paid Record', 'Paid'])
                 ? (
                     $item->invoice_date
-                        ? \Carbon\Carbon::parse($item->invoice_date)->format('m/d/Y')
+                        ? format_report_date($item->invoice_date)
                         : ($item->invoice_status_date
-                            ? \Carbon\Carbon::parse($item->invoice_status_date)->format('m/d/Y')
+                            ? format_report_date($item->invoice_status_date)
                             : '')
                 )
                 : ''
             );
             $col++;
 
-            $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->paper_work_date ? \Carbon\Carbon::parse($item->paper_work_date)->format('m/d/Y') : '') : '');
+            $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? format_report_date($item->paper_work_date) : '');
             $col++;
-            $paymentSummary = $this->getPaymentStatusDetails($item);
-            $sheet->setCellValue($col . $row, $item->payment_receiving_date ? \Carbon\Carbon::parse($item->payment_receiving_date)->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, format_report_date($item->payment_receiving_date));
             $col++;
             $sheet->setCellValue($col . $row, $paymentSummary['status'] ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $item->invoice_status == 'Paid Record' ? ($item->receiving_amount ?? '-') : '');
+            // Amount received — shown for the same records the AR accounts Invoiced / Paid tab shows it for.
+            $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->receiving_amount ?? '') : '');
             $col++;
             $sheet->setCellValue($col . $row, $paymentSummary['remaining_amount'] ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $paymentSummary['excess_amount'] ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['mark_date'] ? \Carbon\Carbon::parse($paymentSummary['mark_date'])->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, format_report_date($paymentSummary['mark_date']));
             $col++;
             $sheet->setCellValue($col . $row, $item->load_shipper_rate ?? '');
             $col++;
@@ -5469,7 +5504,7 @@ public function customerDetailsReportingExcell()
 
             // Format with Carbon
             $formattedAppointment = $lastAppointment 
-                ? Carbon::parse($lastAppointment)->format('m/d/Y') 
+                ? format_report_date($lastAppointment)
                 : '-';
 
             // Set value in Excel
@@ -5488,7 +5523,7 @@ if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
 }
 
 $formattedFirstAppointment = $firstAppointment
-    ? \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y')
+    ? format_report_date($firstAppointment)
     : '-';
 
 $sheet->setCellValue($col . $row, $formattedFirstAppointment);
