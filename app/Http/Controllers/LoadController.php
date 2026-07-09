@@ -246,8 +246,11 @@ if (!empty($term)) {
             return redirect()->back()->withErrors(['msg' => 'Load not found.']);
         }
         
+        // Refresh the model to get latest data from database
+        $post->refresh();
+        
         $user_id = Auth::id();
-        $shipperData = json_decode($post->load_shipper, true); // Assuming 'load_shipper' is where your JSON data is stored
+        $shipperData = json_decode($post->load_shipperr, true); // Fixed: load_shipperr (with double 'r')
         $postData = $post->getAttributes();
 
 
@@ -872,17 +875,22 @@ for ($i = 1; $i <= 15; $i++) {
 }
       
         $load = Load::findOrFail($id);
+        
+        // Capture original load data BEFORE any form processing
+        $loaddata = clone $load;
 
         $oldData = json_encode($load);
 
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
             ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
             ->first();
-        if (empty($exsistcarrier)) {
+        $isCancelling = strcasecmp((string) $request->input('load_status'), 'Cancelled') === 0;
+
+        if (!$isCancelling && empty($exsistcarrier)) {
             return redirect()->back()->with('error', 'Carrier Not Found');
         }
 
-        if ($request->input('load_final_carrier_fee') > $request->input('shipper_load_final_rate')) {
+        if (!$isCancelling && $request->input('load_final_carrier_fee') > $request->input('shipper_load_final_rate')) {
             return redirect()->back()->with('error', 'Carrier rate cannot exceed the Customer Final Rate');
         }
 
@@ -1415,8 +1423,6 @@ for ($i = 1; $i <= 15; $i++) {
 
         $customerdata = customer::where('id', $customerId)->first();
 
-        $loaddata = Load::findOrFail($id);
-
         $old_shipper_load_other_charge = json_decode($loaddata->shipper_load_other_charge, true);
         
         $oldinvoicechargestotal = 0;
@@ -1456,12 +1462,12 @@ for ($i = 1; $i <= 15; $i++) {
         $finalcreditdiff = $rateDifference - $checkinvoice_credit;
       
       
-        if ($customerdata && (int) $customerdata->remaining_credit < $finalcreditdiff) {
+        if (!$isCancelling && $customerdata && (int) $customerdata->remaining_credit < $finalcreditdiff) {
               
             return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaing credit Limit, your credit limit is ' . $customerdata->remaining_credit);
-        } else if ($customerdata && (int) $customerdata->invoice_credit_limit < $checkinvoice_credit) {
+        } else if (!$isCancelling && $customerdata && (int) $customerdata->invoice_credit_limit < $checkinvoice_credit) {
             return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit Limit, your invoice credit limit is ' . $customerdata->invoice_credit_limit);
-        } else {
+        } else if (!$isCancelling) {
   
        
             // Calculate the difference between old and new rates
@@ -1495,6 +1501,34 @@ for ($i = 1; $i <= 15; $i++) {
             
         }
         
+        if ($isCancelling) {
+            // Set cancelled values on the load object
+            $load->load_status = 'Cancelled';
+            $load->invoice_status = null;
+            $load->load_shipper_rate = 0;
+            $load->load_fsc_rate = 0;
+            $load->load_billing_fsc_rate = 0;
+            $load->shipper_load_other_charge = json_encode([]);
+            $load->carrier_load_other_charge = json_encode([]);
+            $load->shipper_load_final_rate = 0;
+            $load->load_final_rate = 0;
+            $load->load_carrier_fee = 0;
+            $load->load_final_carrier_fee = 0;
+            $load->receiving_amount = 0;
+            $load->remaining_amount = 0;
+            $load->invoice_number = '';
+            $load->invoice_date = null;
+            $load->paper_work_date = null;
+            $load->payment_receiving_date = null;
+            $load->invoice_status_date = null;
+            $load->load_actual_delivery_date = null;
+            $load->load_carrier_due_date = null;
+            $load->load_carrier_due_date_on = null;
+            
+            // Apply accounting changes
+            $this->applyCancelledLoadAccounting($loaddata, $load);
+        }
+
         $load->save();
 
         $newData = json_encode($load);
@@ -1580,7 +1614,8 @@ for ($i = 1; $i <= 15; $i++) {
 $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
     ->where('user_id', $userId)
     ->select('shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
-    ->orderBy('shipper_name', 'asc') // Sort A to Z
+    ->orderBy('shipper_
+    name', 'asc') // Sort A to Z
     ->get();
 
 
@@ -1642,13 +1677,84 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
 
     }
 
+    private function applyCancelledLoadAccounting(Load $originalLoad, Load $load): void
+    {
+        $wasAlreadyCancelled = strcasecmp((string) $originalLoad->load_status, 'Cancelled') === 0;
+
+        if (!$wasAlreadyCancelled) {
+            $customer = Customer::find($originalLoad->customer_id);
+
+            if ($customer) {
+                $finalRate = $this->moneyValue($originalLoad->shipper_load_final_rate);
+                $invoiceCredit = min($this->invoiceCreditAmount($originalLoad), $finalRate);
+                $actualCredit = max($finalRate - $invoiceCredit, 0);
+
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $actualCredit;
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $invoiceCredit;
+                $customer->save();
+            }
+        }
+
+        $load->load_status = 'Cancelled';
+        $load->invoice_status = null;
+        $load->load_shipper_rate = 0;
+        $load->load_fsc_rate = 0;
+        $load->load_billing_fsc_rate = 0;
+        $load->shipper_load_other_charge = json_encode([]);
+        $load->shipper_load_final_rate = 0;
+        $load->load_final_rate = 0;
+        $load->receiving_amount = 0;
+        $load->remaining_amount = 0;
+        $load->invoice_number = '';
+        $load->invoice_date = null;
+        $load->paper_work_date = null;
+        $load->payment_receiving_date = null;
+        $load->invoice_status_date = null;
+        $load->load_actual_delivery_date = null;
+        $load->load_carrier_due_date = null;
+        $load->load_carrier_due_date_on = null;
+    }
+
+    private function invoiceCreditAmount(Load $load): float
+    {
+        $charges = json_decode($load->shipper_load_other_charge, true);
+
+        if (!is_array($charges)) {
+            return 0.0;
+        }
+
+        return array_reduce($charges, function ($total, $charge) {
+            if (($charge['for_invoice'] ?? 'off') !== 'on') {
+                return $total;
+            }
+
+            return $total + $this->moneyValue($charge['amount'] ?? 0);
+        }, 0.0);
+    }
+
+    private function moneyValue($value): float
+    {
+        return (float) preg_replace('/[^0-9.\-]/', '', (string) ($value ?? 0));
+    }
+
     public function load_status_update(Request $request)
     {
         $load = Load::find($request->input('load_id'));
         $loadid = $request->input('load_id');
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found'
+            ], 404);
+        }
+
+        $oldLoad = clone $load;
         $load->load_status = $request->input('load_status');
         if ($load->load_status == 'Delivered') {
         $load->load_actual_delivery_date = now();
+        }
+        if (strcasecmp((string) $load->load_status, 'Cancelled') === 0) {
+            $this->applyCancelledLoadAccounting($oldLoad, $load);
         }
         $load->save();
         $subject = "Broker change the Load ".$request->input('load_status').", loadid:-".$request->input('load_id');

@@ -1,5 +1,8 @@
 @foreach($paid as $i => $record)
-        
+    @php
+        $shouldShowPaymentRow = app(\App\Http\Controllers\AccountController::class)->shouldShowPaymentStatusForLoad($record);
+    @endphp
+    @if($shouldShowPaymentRow)
         <tr>
             
             <td class="dynamic-data" id="load_number3">
@@ -140,6 +143,7 @@
                 </td>
         </tr>
 		
+    @endif
 @endforeach
 
  

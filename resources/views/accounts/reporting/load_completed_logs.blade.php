@@ -143,7 +143,7 @@ try {
 
 <td class="dynamic-data">{{ format_report_date($log->load_carrier_due_date_on) }}</td>
                                     <td class="dynamic-data">{{ $log->load_carrier_fee }}</td>
-                                    <td class="dynamic-data">{{ $log->load_billing_fsc_rate }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->load_billing_fsc_rate, $isCancelled) }}</td>
                                     <td class="dynamic-data">
                                         @php
                                             $charges = json_decode($log->carrier_load_other_charge, true);
@@ -179,14 +179,16 @@ try {
                                         @endif
                                     </td>
 
-                                    <td class="dynamic-data">{{ $log->load_final_carrier_fee }}</td>
-                                    <td class="dynamic-data">{{ $log->load_shipper_rate }}</td>
-                                    <td class="dynamic-data">{{ $log->load_fsc_rate }}</td>
-                                    <td class="dynamic-data">{{ $log->shipper_load_other_charge }}</td>
-                                    <td class="dynamic-data">{{ $log->shipper_load_final_rate }}</td>
-                                    <td class="dynamic-data">{{ $log->invoice_number }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->load_final_carrier_fee, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->load_shipper_rate, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->load_fsc_rate, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_other_charge, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_final_rate, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? '-' : $log->invoice_number }}</td>
                                     <td class="dynamic-data">
-                                        @if(!empty($log->invoice_date) && $log->invoice_date !== '0000-00-00')
+                                        @if($isCancelled)
+                                            -
+                                        @elseif(!empty($log->invoice_date) && $log->invoice_date !== '0000-00-00')
                                             {{ format_report_date($log->invoice_date) }}
                                         @elseif(!empty($log->invoice_status_date) && $log->invoice_status_date !== '0000-00-00')
                                             {{ format_report_date($log->invoice_status_date) }}
@@ -195,17 +197,19 @@ try {
                                         @endif
                                     </td>
 
-                                    <td class="dynamic-data">{{ format_report_date($log->paper_work_date) }}</td>
-                                    <td class="dynamic-data">{{ format_report_date($log->payment_receiving_date) }}</td>
-                                    <td class="dynamic-data">{{ $paymentStatus }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->paper_work_date) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->payment_receiving_date) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? 'Cancelled' : $paymentStatus }}</td>
                                     <td class="dynamic-data">
-                                        @if(in_array($log->invoice_status, ['Paid Record', 'Paid']))
+                                        @if($isCancelled)
+                                            0
+                                        @elseif(in_array($log->invoice_status, ['Paid Record', 'Paid']))
                                             {{ $log->receiving_amount }}
                                         @endif
                                     </td>
-                                    <td class="dynamic-data">{{ number_format($remainingAmount, 2) }}</td>
-                                    <td class="dynamic-data">{{ number_format($excessAmount, 2) }}</td>
-                                    <td class="dynamic-data">{{ format_report_date($log->invoice_status_date) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? 0 : number_format($remainingAmount, 2) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? 0 : number_format($excessAmount, 2) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->invoice_status_date) }}</td>
                                     @php
                                         
                                         $shipperLoadFinalRate = $log->shipper_load_final_rate ?? 0;
@@ -214,9 +218,9 @@ try {
                                         $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
 
                                     @endphp
-                                    <td class="dynamic-data">{{ $log->shipper_load_final_rate }}</td>
-                                    <td class="dynamic-data">{{ $log->load_final_carrier_fee }}</td>
-                                    <td class="dynamic-data">{{ $margin }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_final_rate, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ format_report_value($log->load_final_carrier_fee, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ $isCancelled ? 0 : $margin }}</td>
                                     <td class="dynamic-data">{{ $log->load_workorder }}</td>
                                     <td class="dynamic-data">{{ $log->cpr_check }}</td>
                                     <td class="dynamic-data">{{ $log->no_of_macro }}</td>

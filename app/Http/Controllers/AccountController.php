@@ -100,7 +100,12 @@ class AccountController extends Controller
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
 									$query->orWhere('load_number', 'like', "%{$term}%");
-								}                     
+								}							
+							})
+							->where(function ($query) {
+								$query->whereNotNull('receiving_amount')
+									->whereRaw("TRIM(COALESCE(receiving_amount, '')) != ''")
+									->where('receiving_amount', '>', 0);
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -109,12 +114,11 @@ class AccountController extends Controller
 						
 						return view('accounts.partials.accounting_paid', compact('paid'))->render();
 					}
-                
+				}
 			}
-            }
-               
-        } 
-        return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
+			
+		}
+		return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
     }
 
     public function accounting(Request $request)
@@ -179,6 +183,12 @@ class AccountController extends Controller
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
             ->orderBy("loads.id", "desc");
 
+        $paidQuery->where(function ($query) {
+            $query->whereNotNull('receiving_amount')
+                ->whereRaw("TRIM(COALESCE(receiving_amount, '')) != ''")
+                ->where('receiving_amount', '>', 0);
+        });
+
         if (!empty($numbersArray)) {
             $paidQuery->whereIn('load_number', $numbersArray);
         }
@@ -202,7 +212,22 @@ class AccountController extends Controller
     }
 
 	
-	public function accountingCompletedPublicDoc(Request $request, $id)
+public function shouldShowPaymentStatusForLoad(Load $load): bool
+    {
+        $finalRate = (float) preg_replace('/[^0-9.\-]/', '', (string) ($load->shipper_load_final_rate ?? 0));
+        $receivingAmount = (float) preg_replace('/[^0-9.\-]/', '', (string) ($load->receiving_amount ?? 0));
+
+        return $receivingAmount > 0 && $finalRate > 0;
+    }
+
+    public function shouldShowInvoicedTabForLoad(Load $load): bool
+    {
+        $finalRate = (float) preg_replace('/[^0-9.\-]/', '', (string) ($load->shipper_load_final_rate ?? 0));
+
+        return $finalRate > 0;
+    }
+
+    public function accountingCompletedPublicDoc(Request $request, $id)
     {
         
         $complete = Load::where('id', $id)->first();
@@ -5318,7 +5343,7 @@ public function customerDetailsReportingExcell()
                 $headers[] = "Unloading Location $i";
             }
         
-         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Account Receiving Status','Customer Payment Received Amount','Remaining Amount','Excess Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent' ]);
+         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Account Receiving Status','Customer Payment Received Amount','Remaining Amount','Excess Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Actual Credit Restored','Invoicing Credit Restored' ]);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -5347,6 +5372,16 @@ public function customerDetailsReportingExcell()
             // Computed here so the Invoice Status column can follow the account receiving status.
             $paymentSummary = $this->getPaymentStatusDetails($item);
 
+            $isCancelledRow = strcasecmp((string) $item->load_status, 'Cancelled') === 0;
+            $cancelledActualCredit = 0;
+            $cancelledInvoicingCredit = 0;
+            if ($isCancelledRow) {
+                $cancelledFinalRate = (float) preg_replace('/[^0-9.\-]/', '', (string) ($item->shipper_load_final_rate ?? 0));
+                $cancelledInvoiceCredit = $this->invoiceCreditAmountForExcel($item);
+                $cancelledInvoicingCredit = min($cancelledInvoiceCredit, $cancelledFinalRate);
+                $cancelledActualCredit = max($cancelledFinalRate - $cancelledInvoicingCredit, 0);
+            }
+
             $sheet->setCellValue($col . $row, $item->load_number ?? '');
             $col++;
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->invoice_number ?? '') : '');
@@ -5355,11 +5390,11 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_status ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['display_invoice_status'] ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '-' : ($paymentSummary['display_invoice_status'] ?? ''));
             $col++;
             $sheet->setCellValue($col . $row, $item->customer_refrence_number ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, format_report_date($item->created_at ? $item->created_at->setTimezone('America/New_York') : null));
+            $sheet->setCellValue($col . $row, $item->created_at ? $item->created_at->setTimezone('America/New_York')->format('m/d/Y') : '');
             $col++;
             $sheet->setCellValue($col . $row, $item->load_bill_to ?? '');
             $col++;
@@ -5393,16 +5428,16 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_advance_payment ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, format_report_date($item->load_actual_delivery_date));
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '' : ($item->load_actual_delivery_date ? \Carbon\Carbon::parse($item->load_actual_delivery_date)->format('m/d/Y') : ''));
             $col++;
-            $sheet->setCellValue($col . $row, format_report_date($item->load_carrier_due_date));
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '' : ($item->load_carrier_due_date ? \Carbon\Carbon::parse($item->load_carrier_due_date)->format('m/d/Y') : ''));
             $col++;
-           $date = trim($item->load_carrier_due_date_on);
+           $date = $isCancelledRow ? '' : trim($item->load_carrier_due_date_on);
             $formatted = '';
 
             try {
                 if (!empty($date)) {
-                    $formatted = format_report_date($date);
+                    $formatted = \Carbon\Carbon::parse($date)->format('m/d/Y');
                 }
             } catch (\Exception $e) {
                 $formatted = ''; // ignore invalid dates
@@ -5412,44 +5447,44 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_final_carrier_fee ?? '');
             $col++;
-            $sheet->setCellValue($col . $row, $item->shipper_load_final_rate ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($item->shipper_load_final_rate ?? ''));
             $col++;
             $sheet->setCellValue(
             $col . $row,
-            in_array($item->invoice_status, ['Paid Record', 'Paid'])
+            $isCancelledRow ? '' : (in_array($item->invoice_status, ['Paid Record', 'Paid'])
                 ? (
                     $item->invoice_date
-                        ? format_report_date($item->invoice_date)
+                        ? \Carbon\Carbon::parse($item->invoice_date)->format('m/d/Y')
                         : ($item->invoice_status_date
-                            ? format_report_date($item->invoice_status_date)
+                            ? \Carbon\Carbon::parse($item->invoice_status_date)->format('m/d/Y')
                             : '')
                 )
-                : ''
+                : '')
             );
             $col++;
 
-            $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? format_report_date($item->paper_work_date) : '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '' : (in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->paper_work_date ? \Carbon\Carbon::parse($item->paper_work_date)->format('m/d/Y') : '') : ''));
             $col++;
-            $sheet->setCellValue($col . $row, format_report_date($item->payment_receiving_date));
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '' : ($item->payment_receiving_date ? \Carbon\Carbon::parse($item->payment_receiving_date)->format('m/d/Y') : ''));
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['status'] ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '-' : ($paymentSummary['status'] ?? ''));
             $col++;
             // Amount received — shown for the same records the AR accounts Invoiced / Paid tab shows it for.
-            $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->receiving_amount ?? '') : '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : (in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->receiving_amount ?? '') : ''));
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['remaining_amount'] ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($paymentSummary['remaining_amount'] ?? ''));
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['excess_amount'] ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($paymentSummary['excess_amount'] ?? ''));
             $col++;
-            $sheet->setCellValue($col . $row, format_report_date($paymentSummary['mark_date']));
+            $sheet->setCellValue($col . $row, $isCancelledRow ? '' : ($paymentSummary['mark_date'] ? \Carbon\Carbon::parse($paymentSummary['mark_date'])->format('m/d/Y') : ''));
             $col++;
-            $sheet->setCellValue($col . $row, $item->load_shipper_rate ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($item->load_shipper_rate ?? ''));
             $col++;
-            $sheet->setCellValue($col . $row, $item->load_fsc_rate ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($item->load_fsc_rate ?? ''));
             $col++;
             $otherCharges = json_decode($item->shipper_load_other_charge, true);
             $totalAmount = 0;
-            if (is_array($otherCharges)) {
+            if (!$isCancelledRow && is_array($otherCharges)) {
                 foreach ($otherCharges as $charge) {
                     if (isset($charge['amount'])) {
                         $amount = floatval(str_replace(',', '', $charge['amount']));
@@ -5457,10 +5492,10 @@ public function customerDetailsReportingExcell()
                     }
                 }
             }
-            $sheet->setCellValue($col . $row, $totalAmount);
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : $totalAmount);
             $col++;
 
-            $sheet->setCellValue($col . $row, $item->shipper_load_final_rate ?? '');
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : ($item->shipper_load_final_rate ?? ''));
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier_fee ?? '');
             $col++;
@@ -5481,12 +5516,12 @@ public function customerDetailsReportingExcell()
 
             $sheet->setCellValue($col . $row, $item->load_final_carrier_fee ?? '');
             $col++;
-            $shipperLoadFinalRate = $item->shipper_load_final_rate ?? 0;
+            $shipperLoadFinalRate = $isCancelledRow ? 0 : ($item->shipper_load_final_rate ?? 0);
             $loadFinalCarrierFee = $item->load_final_carrier_fee ?? 0;
             $shipperLoadFinalRate = is_numeric($shipperLoadFinalRate) ? $shipperLoadFinalRate : 0;
             $loadFinalCarrierFee = is_numeric($loadFinalCarrierFee) ? $loadFinalCarrierFee : 0;
             $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
-            $sheet->setCellValue($col . $row, number_format($margin, 2));
+            $sheet->setCellValue($col . $row, $isCancelledRow ? 0 : number_format($margin, 2));
             $col++;
             $sheet->setCellValue($col . $row, $item->load_workorder ?? '');
             $col++;
@@ -5504,7 +5539,7 @@ public function customerDetailsReportingExcell()
 
             // Format with Carbon
             $formattedAppointment = $lastAppointment 
-                ? format_report_date($lastAppointment)
+                ? Carbon::parse($lastAppointment)->format('m/d/Y') 
                 : '-';
 
             // Set value in Excel
@@ -5523,7 +5558,7 @@ if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
 }
 
 $formattedFirstAppointment = $firstAppointment
-    ? format_report_date($firstAppointment)
+    ? \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y')
     : '-';
 
 $sheet->setCellValue($col . $row, $formattedFirstAppointment);
@@ -5536,6 +5571,10 @@ $col++;
             $col++;
 
             $sheet->setCellValue($col . $row, $item->cmt_agent ?? '');
+            $col++;
+            $sheet->setCellValue($col . $row, $isCancelledRow ? $cancelledActualCredit : '-');
+            $col++;
+            $sheet->setCellValue($col . $row, $isCancelledRow ? $cancelledInvoicingCredit : '-');
             $col++;
 
             
@@ -5563,7 +5602,42 @@ $col++;
 
     public function agingReportingExcel()
     {
-        $data = Customer::with('user')->get()->map(function ($customer) {
+        $agingAmountSql = "
+            CASE
+                WHEN invoice_status = 'Paid Record' THEN
+                    GREATEST(
+                        CAST(COALESCE(NULLIF(shipper_load_final_rate, ''), 0) AS DECIMAL(12,2))
+                        - CAST(COALESCE(NULLIF(receiving_amount, ''), 0) AS DECIMAL(12,2)),
+                        0
+                    )
+                ELSE CAST(COALESCE(NULLIF(shipper_load_final_rate, ''), 0) AS DECIMAL(12,2))
+            END
+        ";
+
+        $agingTotals = Load::query()
+            ->select('customer_id')
+            ->selectRaw("SUM($agingAmountSql) as customer_aging")
+            ->selectRaw(
+                "SUM(CASE WHEN STR_TO_DATE(invoice_date, '%Y-%m-%d') BETWEEN ? AND ? THEN $agingAmountSql ELSE 0 END) as last_30_days",
+                [now()->subDays(30)->toDateString(), now()->toDateString()]
+            )
+            ->where(function ($q) {
+                $q->where('invoice_status', 'Paid')
+                    ->orWhere(function ($query) {
+                        $query->where('invoice_status', 'Paid Record')
+                            ->whereRaw("
+                                CAST(COALESCE(NULLIF(receiving_amount, ''), 0) AS DECIMAL(12,2))
+                                < CAST(COALESCE(NULLIF(shipper_load_final_rate, ''), 0) AS DECIMAL(12,2))
+                            ");
+                    });
+            })
+            ->groupBy('customer_id')
+            ->get()
+            ->keyBy('customer_id');
+
+        $data = Customer::with('user')->get()->map(function ($customer) use ($agingTotals) {
+            $totals = $agingTotals->get($customer->id);
+
             return [
                 'id' => $customer->id,
                 'customer_name' => $customer->customer_name,
@@ -5571,15 +5645,8 @@ $col++;
                 'office' => $customer->user->office ?? 'N/A',
                 'manager' => $customer->user->manager ?? 'N/A',
                 'team_lead' => $customer->user->team_lead ?? 'N/A',
-                'customerAging' => Load::where('customer_id', $customer->id)
-                    ->where('invoice_status', 'Paid')
-                    ->sum('shipper_load_final_rate'),
-                'last30Days' => Load::where('customer_id', $customer->id)
-                    ->where('invoice_status', 'Paid')
-                    ->whereRaw('STR_TO_DATE(invoice_date, "%Y-%m-%d") BETWEEN ? AND ?', [
-                        now()->subDays(30)->toDateString(),
-                        now()->toDateString()
-                    ])->sum('shipper_load_final_rate')
+                'customerAging' => $totals->customer_aging ?? 0,
+                'last30Days' => $totals->last_30_days ?? 0
             ];
         });
 
