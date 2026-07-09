@@ -52,6 +52,17 @@ if (!function_exists('format_report_date')) {
     }
 }
 
+if (!function_exists('format_report_value')) {
+    function format_report_value($value, $isCancelled = false, $default = '-')
+    {
+        if ($isCancelled) {
+            return 0;
+        }
+
+        return $value;
+    }
+}
+
 function addToLog($customer_id = '', $load_id = '', $subject = '', $old_data = '', $new_data = '')
     {
         // Get the authenticated user

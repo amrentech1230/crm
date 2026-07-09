@@ -1968,6 +1968,8 @@ public function update_password(Request $request)
         }
 
         $oldData = json_encode($load);
+        $originalLoad = clone $load;
+        $newStatus = $request->input('load_status');
 
         // $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
             // ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
@@ -2440,16 +2442,16 @@ public function update_password(Request $request)
         $load->paper_work_date = !empty($request->paper_work_date) ? $request->paper_work_date : null;
         $load->payment_receiving_date = $request->filled('payment_receiving_date') ? $request->payment_receiving_date : null;
         $currentDateTime = Carbon::now();  // Get the current timestamp
-        if ($request->input('load_status') === 'Delivered') {
+        if ($newStatus === 'Delivered') {
             // When the load status is 'Delivered', add the actual delivery date
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 'load_actual_delivery_date' => $currentDateTime,  // Current timestamp
             ];
         } else {
             // Otherwise, just update the load status
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 // Include other fields if necessary
             ];
         }
@@ -2524,6 +2526,10 @@ public function update_password(Request $request)
             $customer->save();
         }
         
+        if (strcasecmp((string) $newStatus, 'Cancelled') === 0 && strcasecmp((string) $originalLoad->load_status, 'Cancelled') !== 0) {
+            $this->applyCancelledLoadAccounting($originalLoad, $load);
+        }
+
         $load->save();
 
         $newData = json_encode($load);
@@ -2536,6 +2542,70 @@ public function update_password(Request $request)
     }
 	
 	
+    protected function applyCancelledLoadAccounting(Load $originalLoad, Load $load, ?Customer $customer = null): void
+    {
+        $wasAlreadyCancelled = strcasecmp((string) $originalLoad->load_status, 'Cancelled') === 0;
+
+        if (!$wasAlreadyCancelled) {
+            $customer = $customer ?? Customer::find($originalLoad->customer_id);
+
+            if ($customer) {
+                $finalRate = $this->moneyValue($originalLoad->shipper_load_final_rate);
+                $invoiceCredit = min($this->invoiceCreditAmount($originalLoad), $finalRate);
+                $actualCredit = max($finalRate - $invoiceCredit, 0);
+
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $actualCredit;
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $invoiceCredit;
+                $customer->save();
+            }
+        }
+
+        $load->load_status = 'Cancelled';
+        $load->invoice_status = null;
+        $load->load_shipper_rate = 0;
+        $load->load_fsc_rate = 0;
+        $load->load_billing_fsc_rate = 0;
+        $load->shipper_load_other_charge = json_encode([]);
+        $load->carrier_load_other_charge = json_encode([]);
+        $load->shipper_load_final_rate = 0;
+        $load->load_final_rate = 0;
+        $load->load_carrier_fee = 0;
+        $load->load_final_carrier_fee = 0;
+        $load->receiving_amount = 0;
+        $load->remaining_amount = 0;
+        $load->load_advance_rec_amount = 0;
+        $load->invoice_number = '';
+        $load->invoice_date = null;
+        $load->paper_work_date = null;
+        $load->payment_receiving_date = null;
+        $load->invoice_status_date = null;
+        $load->load_actual_delivery_date = null;
+        $load->load_carrier_due_date = null;
+        $load->load_carrier_due_date_on = null;
+    }
+
+    protected function invoiceCreditAmount(Load $load): float
+    {
+        $charges = json_decode($load->shipper_load_other_charge, true);
+
+        if (!is_array($charges)) {
+            return 0.0;
+        }
+
+        return array_reduce($charges, function ($total, $charge) {
+            if (($charge['for_invoice'] ?? 'off') !== 'on') {
+                return $total;
+            }
+
+            return $total + $this->moneyValue($charge['amount'] ?? 0);
+        }, 0.0);
+    }
+
+    protected function moneyValue($value): float
+    {
+        return (float) preg_replace('/[^0-9.\-]/', '', (string) ($value ?? 0));
+    }
+
 	public function allLogs(Request $request)
     {
         $alllogs = activity_log::orderBy('created_at', 'desc')->paginate(50);

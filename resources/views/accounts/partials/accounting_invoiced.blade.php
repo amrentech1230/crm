@@ -1,29 +1,25 @@
  
         @foreach($invoiced as $i => $invoice)
             @php
+                $shouldShowInvoicedRow = app(\App\Http\Controllers\AccountController::class)->shouldShowInvoicedTabForLoad($invoice);
                 $shipperAppointment = json_decode($invoice->load_shipper_appointment, true);
                 $firstAppointment = '';
 
                 if (is_array($shipperAppointment) && !empty($shipperAppointment)) {
-                reset($shipperAppointment);
-                $firstItem = current($shipperAppointment);
+                    reset($shipperAppointment);
+                    $firstItem = current($shipperAppointment);
 
-                if (is_array($firstItem)) {
-                // If first item is an array, get the first string value or a key like 'date'
-                if (isset($firstItem['date'])) {
-                $firstAppointment = $firstItem['date'];
-                } else {
-                // fallback: get first value of the array
-                $firstAppointment = reset($firstItem);
+                    if (is_array($firstItem)) {
+                        if (isset($firstItem['date'])) {
+                            $firstAppointment = $firstItem['date'];
+                        } else {
+                            $firstAppointment = reset($firstItem);
+                        }
+                    } elseif (is_string($firstItem)) {
+                        $firstAppointment = $firstItem;
+                    }
                 }
-                } elseif (is_string($firstItem)) {
-                // If first item is a string directly
-                $firstAppointment = $firstItem;
-                }
-                }
-            @endphp
 
-            @php
                 $consigneeAppointment = json_decode($invoice->load_consignee_appointment, true);
                 $lastAppointment = '';
 
@@ -42,6 +38,7 @@
                     }
                 }
             @endphp
+            @if($shouldShowInvoicedRow)
             <tr>
                 <td>{{ $i + 1 }}</td>
                 <td>{{ $invoice->load_number }}</td>
@@ -285,6 +282,7 @@
 </td>
             </tr>
 			
+            @endif
         @endforeach
 		
 <script>
