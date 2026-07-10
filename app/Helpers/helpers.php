@@ -63,7 +63,8 @@ if (!function_exists('format_report_value')) {
     }
 }
 
-function addToLog($customer_id = '', $load_id = '', $subject = '', $old_data = '', $new_data = '')
+if (!function_exists('addToLog')) {
+    function addToLog($customer_id = '', $load_id = '', $subject = '', $old_data = '', $new_data = '')
     {
         // Get the authenticated user
         $user = auth()->user();
@@ -83,70 +84,104 @@ function addToLog($customer_id = '', $load_id = '', $subject = '', $old_data = '
 
         Log::create($log);
     }
+}
 
-    function getdiffrance($old_data, $new_data){
-		$array1 = json_decode($old_data, true);
-		$array2 = json_decode($new_data, true);
+if (!function_exists('format_log_field_label')) {
+    function format_log_field_label($key)
+    {
+        $label = str_replace(['_', '-'], ' ', (string) $key);
+        $label = ucwords($label);
 
-		$diff = [];
+        $map = [
+            'Load Status' => 'Load Status',
+            'Invoice Status' => 'Invoice Status',
+            'Receiving Amount' => 'Receiving Amount',
+            'Remaining Amount' => 'Remaining Amount',
+            'Payment Receiving Date' => 'Payment Receiving Date',
+            'Invoice Status Date' => 'Invoice Status Date',
+            'Shipper Load Final Rate' => 'Customer Rate',
+            'Load Final Carrier Fee' => 'Carrier Rate',
+            'Load Advance Rec Amount' => 'Advance Received Amount',
+        ];
 
-		if(!empty($array1) && !empty($array2)){
-			$allKeys = array_unique(array_merge(array_keys($array1), array_keys($array2)));
+        return $map[$label] ?? $label;
+    }
+}
 
-			foreach ($allKeys as $key) {
-				$val1 = $array1[$key] ?? null;
-				$val2 = $array2[$key] ?? null;
+if (!function_exists('format_log_change_value')) {
+    function format_log_change_value($value)
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
 
-				if (!array_key_exists($key, $array1)) {
-					$diff[$key] = ['olddata' => null, 'newdata' => $val2];
-				} elseif (!array_key_exists($key, $array2)) {
-					$diff[$key] = ['olddata' => $val1, 'newdata' => null];
-				} elseif ($val1 !== $val2) {
-					$diff[$key] = ['olddata' => $val1, 'newdata' => $val2];
-				}
-			}
-		}
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_SLASHES);
+        }
 
-		$output = '';
-		// $output .= '<div>
-			// <span style="border: 1px solid black !important;">Field</span>
-			// <span style="border: 1px solid black !important;">Old Value</span>
-			// <span style="border: 1px solid black !important;">New Value</span>
-		// </div>';
+        return (string) $value;
+    }
+}
 
-		foreach ($diff as $key => $diffdata) {
-			$rawOld = $diffdata['olddata'];
-			$rawNew = $diffdata['newdata'];
+if (!function_exists('getdiffrance')) {
+    function getdiffrance($old_data, $new_data)
+    {
+        $array1 = json_decode($old_data, true);
+        $array2 = json_decode($new_data, true);
 
-			if (in_array($key, ['_token', '_method'])) {
-				continue;
-			}
+        if (!is_array($array1)) {
+            $array1 = [];
+        }
 
-			$oldNormalized = is_array($rawOld) ? json_encode($rawOld) : (string) $rawOld;
-			$newNormalized = is_array($rawNew) ? json_encode($rawNew) : (string) $rawNew;
+        if (!is_array($array2)) {
+            $array2 = [];
+        }
 
-			if ($oldNormalized !== $newNormalized && !empty($newNormalized)) {
-				
-				if($newNormalized != '[]'){
-					
-					if($newNormalized != '[null]'){
-					
-						$oldDisplay = is_array($rawOld) ? json_encode($rawOld, JSON_PRETTY_PRINT) : $rawOld;
-						$newDisplay = is_array($rawNew) ? json_encode($rawNew, JSON_PRETTY_PRINT) : $rawNew;
+        $diff = [];
+        $allKeys = array_unique(array_merge(array_keys($array1), array_keys($array2)));
 
-						
-						$output .= '<span><strong>' . $key . ' :- </strong></span>';
-						$output .= '<span>' . $oldDisplay . '</span> To ';
-						$output .= '<span>' . $newDisplay . '</span><br>';
-					}
-					
-				}
-				
-			}
-		}
-		
+        foreach ($allKeys as $key) {
+            $val1 = $array1[$key] ?? null;
+            $val2 = $array2[$key] ?? null;
 
-		return $output;
-	}
+            if (in_array($key, ['_token', '_method'])) {
+                continue;
+            }
+
+            if (!array_key_exists($key, $array1)) {
+                $diff[$key] = ['olddata' => null, 'newdata' => $val2];
+            } elseif (!array_key_exists($key, $array2)) {
+                $diff[$key] = ['olddata' => $val1, 'newdata' => null];
+            } elseif ($val1 !== $val2) {
+                $diff[$key] = ['olddata' => $val1, 'newdata' => $val2];
+            }
+        }
+
+        if (empty($diff)) {
+            return '<div class="text-muted small">No detailed field changes were recorded for this action.</div>';
+        }
+
+        $output = '<ul class="list-unstyled mb-0">';
+
+        foreach ($diff as $key => $diffdata) {
+            $rawOld = $diffdata['olddata'];
+            $rawNew = $diffdata['newdata'];
+            $oldNormalized = is_array($rawOld) ? json_encode($rawOld, JSON_UNESCAPED_SLASHES) : (string) $rawOld;
+            $newNormalized = is_array($rawNew) ? json_encode($rawNew, JSON_UNESCAPED_SLASHES) : (string) $rawNew;
+
+            if ($oldNormalized === $newNormalized || $newNormalized === '[]' || $newNormalized === '[null]') {
+                continue;
+            }
+
+            $output .= '<li class="mb-2"><div class="fw-semibold">' . e(format_log_field_label($key)) . '</div>';
+            $output .= '<div class="small text-muted">From: ' . e(format_log_change_value($rawOld)) . '</div>';
+            $output .= '<div class="small text-success">To: ' . e(format_log_change_value($rawNew)) . '</div></li>';
+        }
+
+        $output .= '</ul>';
+
+        return $output;
+    }
+}
 
 

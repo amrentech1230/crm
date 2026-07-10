@@ -81,7 +81,6 @@
                         <h4 class="card-title mb-3">Activity Logs</h4>
 
                         <div class="accordion accordion-flush" id="accordionLogs">
-                            <!-- Log Entry 1 -->
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="logHeadingOne">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -93,45 +92,45 @@
                                 <div id="logCollapseOne" class="accordion-collapse collapse"
                                     aria-labelledby="logHeadingOne" data-bs-parent="#accordionLogs">
                                     <div class="accordion-body">
-                                        <table id="datatable-buttons" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                                            <thead>
-												<tr>
-													<th>Load Id</th>
-													<th>Subject</th>
-													<th>Name</th>
-													<th>Date</th>
-													<th>Changes</th>
-													
-												</tr>
-                                            </thead>
-        
-        
-                                            <tbody>
-												@foreach($alllogs as $log)
-												@php 
-													$diffrent = getdiffrance($log->old_json, $log->new_json);
-												@endphp
-												
-												<tr>
-													<th>{{$log->load_id}}</th>
-													<th>{{$log->message}}</th>
-													<th>{{$log->user_name}}</th>
-													<th>{{$log->updated_at}}</th>
-													<th width="100px">{!! $diffrent !!}</th>
-													
-													
-												</tr>
-												@endforeach
-                                            </tbody>
-                                        </table>
+                                        @if($alllogs->isEmpty())
+                                            <div class="alert alert-light mb-0">No activity has been recorded for this load yet.</div>
+                                        @else
+                                            <div class="d-flex flex-column gap-3 p-3">
+                                                @foreach($alllogs as $log)
+                                                    @php
+                                                        $logDate = $log->updated_at ? \Carbon\Carbon::parse($log->updated_at)->setTimezone('America/New_York')->format('d-m-Y h:i A') : '-';
+                                                        $changes = getdiffrance($log->old_json, $log->new_json);
+                                                    @endphp
+
+                                                    <div class="border rounded p-3 bg-white shadow-sm">
+                                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                                            <div>
+                                                                <div class="fw-semibold">{{ $log->message ?: 'Load activity' }}</div>
+                                                                <div class="small text-muted mt-1">
+                                                                    <span class="me-3"><i class="fas fa-user"></i> {{ $log->user_name ?: 'System' }}</span>
+                                                                    <span><i class="fas fa-clock"></i> {{ $logDate }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <span class="badge bg-primary-subtle text-primary">{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->setTimezone('America/New_York')->format('d-m-Y') : '-' }}</span>
+                                                        </div>
+
+                                                        <div class="mt-3">
+                                                            <div class="small fw-semibold text-dark">Details</div>
+                                                            <div class="mt-2">{!! $changes !!}</div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
-                        </div> <!-- End Accordion -->
-
-                    </div>
-                </div>
+                        </div>
+                    </div> <!-- end card-body -->
+                </div> <!-- end card -->
             </div> <!-- end col -->
         </div> <!-- end row -->
+    </div> <!-- container-fluid -->
+</div> <!-- page-content -->
 
-        @endsection
+@endsection
