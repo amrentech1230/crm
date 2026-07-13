@@ -34,6 +34,28 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class AccountController extends Controller
 {
 
+    protected function invoiceCreditAmountForExcel(Load $load): float
+    {
+        $charges = json_decode($load->shipper_load_other_charge, true);
+
+        if (!is_array($charges)) {
+            return 0.0;
+        }
+
+        return array_reduce($charges, function ($total, $charge) {
+            if (($charge['for_invoice'] ?? 'off') !== 'on') {
+                return $total;
+            }
+
+            return $total + $this->moneyValue($charge['amount'] ?? 0);
+        }, 0.0);
+    }
+
+    protected function moneyValue($value): float
+    {
+        return (float) preg_replace('/[^0-9.\-]/', '', (string) ($value ?? 0));
+    }
+
     public function account_manager()
     {
         return view('accounts.account_manager');
