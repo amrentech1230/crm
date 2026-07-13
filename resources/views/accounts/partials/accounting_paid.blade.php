@@ -147,25 +147,6 @@
 @endforeach
 
  
-<script>
-    function openUploadWindow(url) {
-        // Define the size of the new window
-        var width = 1500;   // Width of the new window
-        var height = 800;  // Height of the new window
-
-        // Calculate the position to center the window
-        var left = screen.width / 2 - width / 2;   // Center horizontally
-        var top = screen.height / 2 - height / 2;  // Center vertically
-
-        // Open the new window with the specified URL and properties
-        var newWindow = window.open(url, 'UploadWindow', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',resizable=yes,scrollbars=yes');
-        
-        // Focus on the new window, if it was successfully opened
-        if (newWindow) {
-            newWindow.focus();
-        }
-    }
-</script>
 
 <script>
     $(document).off('change.markPaid', '.mark-paid-checkbox').on('change.markPaid', '.mark-paid-checkbox', function(event) {

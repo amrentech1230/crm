@@ -736,4 +736,14 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script> -->
+<script>
+function openUploadWindow(url) {
+    var width = 1500;
+    var height = 800;
+    var left = screen.width / 2 - width / 2;
+    var top = screen.height / 2 - height / 2;
+    var newWindow = window.open(url, 'UploadWindow', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',resizable=yes,scrollbars=yes');
+    if (newWindow) { newWindow.focus(); }
+}
+</script>
 @endsection
