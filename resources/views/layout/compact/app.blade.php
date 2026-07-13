@@ -183,12 +183,12 @@ table.dataTable tbody > tr.selected td p {
     </head>
 
     <body data-topbar="dark">
-    <div class="loader-container hide">
+    <!-- <div class="loader-container hide">
         <div>
             <div class="spinner"></div>
             <h3>Loading CCI CRM...</h3>
         </div>
-    </div>
+    </div> -->
     <!-- <body data-layout="horizontal" data-topbar="dark"> -->
 
         <!-- Begin page -->
@@ -377,7 +377,8 @@ document.addEventListener('keydown', function (e) {
 </script> -->
 <script>
 window.addEventListener("load", function () {
-    document.querySelector(".loader-container")?.classList.add("hide");
+    // document.querySelector(".loader-container")?.classList.add("hide");
+     document.getElementById("crm-loader").style.display = "none";
 });
 </script>
 

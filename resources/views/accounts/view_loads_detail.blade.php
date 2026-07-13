@@ -104,13 +104,17 @@
 
                                                     <div class="border rounded p-3 bg-white shadow-sm">
                                                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                                                            <div>
-                                                                <div class="fw-semibold">{{ $log->message ?: 'Load activity' }}</div>
-                                                                <div class="small text-muted mt-1">
+                                                            <!-- <div> -->
+                                                                <!-- <div class="fw-semibold">{{ $log->message ?: 'Load activity' }}</div> -->
+                                                                <!-- <div class="small text-muted mt-1">
                                                                     <span class="me-3"><i class="fas fa-user"></i> {{ $log->user_name ?: 'System' }}</span>
                                                                     <span><i class="fas fa-clock"></i> {{ $logDate }}</span>
+                                                                </div> -->
+                                                                <div class="fs-5 fw-bold mb-0">
+                                                                    <span class="text-primary">{{ $log->user_name ?: 'System' }}</span>
+                                                                    <span class="text-dark">{{ lcfirst($log->message ?: 'performed an activity') }}</span>
                                                                 </div>
-                                                            </div>
+                                                            <!-- </div> -->
                                                             <span class="badge bg-primary-subtle text-primary">{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->setTimezone('America/New_York')->format('d-m-Y') : '-' }}</span>
                                                         </div>
 
