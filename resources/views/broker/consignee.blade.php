@@ -63,15 +63,18 @@
                                 <th>Agent</th>
                                 <th>Team Leader</th>
                                 <th>Manager</th>
-								<th>Status</th>
+                                <th>Status</th>
                             </tr>
                             </thead>
 
-
                             <tbody id="consignee-data">
-                                @include('broker.partials.consignee_table')                           
+                                @include('broker.partials.consignee_table')
                             </tbody>
                         </table>
+
+                        <div id="consignee-modal-container">
+                            @include('broker.partials.consignee_modals')
+                        </div>
                         <div class="custom-pagination">
                             {{ $consignees->links() }}
                         </div>
@@ -279,11 +282,14 @@
         $.ajax({
             url: url,
             type: 'GET',
-            success: function(data) {
+            success: function(response) {
+			 const rows = response.rows || response;
+			 const modals = response.modals || '';
 			 if ($.fn.DataTable.isDataTable('#datatable')) {
 					$('#datatable').DataTable().destroy();
 				}
-				$('#consignee-data').html(data);
+				$('#consignee-data').html(rows);
+				$('#consignee-modal-container').html(modals);
 				$('#datatable').DataTable({
 					responsive: true,
 					dom: 'frtip',
@@ -357,13 +363,17 @@ $(document).ready(function () {
                         type: 'GET',
                         data: { query: query },
                         success: function (response) {
+                            const rows = response.rows || response;
+                            const modals = response.modals || '';
+
                             // Destroy existing DataTable if it exists
                             if ($.fn.DataTable.isDataTable(tableSelector)) {
                                 $(tableSelector).DataTable().destroy();
                             }
 
                             // Inject new table rows
-                            $(resultContainer).html(response);
+                            $(resultContainer).html(rows);
+                            $('#consignee-modal-container').html(modals);
 
                             // Re-initialize DataTable
                             $(tableSelector).DataTable({
@@ -384,6 +394,7 @@ $(document).ready(function () {
                 } else {
                     // Clear results if query is empty
                     $(resultContainer).html('');
+                    $('#consignee-modal-container').html('');
                 }
             }, 300); // 300ms debounce
 
@@ -411,13 +422,16 @@ $(document).ready(function () {
 				type: 'GET',
 				data: { user_id: user_id },
 				success: function (response) {
+					const rows = response.rows || response;
+					const modals = response.modals || '';
 					// Destroy existing DataTable if it exists
 					if ($.fn.DataTable.isDataTable(tableSelector)) {
 						$(tableSelector).DataTable().destroy();
 					}
 
 					// Inject new table rows
-					$(resultContainer).html(response);
+					$(resultContainer).html(rows);
+					$('#consignee-modal-container').html(modals);
 
 					// Re-initialize DataTable
 					$(tableSelector).DataTable({
