@@ -183,5 +183,3 @@ if (!function_exists('getdiffrance')) {
         return $output;
     }
 }
-
-

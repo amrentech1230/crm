@@ -2557,7 +2557,8 @@ public function deleteCarrierFile(Request $request)
     public function viewLoadDetail($id)
     {
         $load = Load::findOrFail($id);
-		$alllogs = activity_log::where('load_id', $id)->orderBy('updated_at', 'desc')->get();
+		// $alllogs = activity_log::where('load_id', $id)->orderBy('updated_at', 'desc')->get();
+           $alllogs = activity_log::where('load_id', $id)->orderBy('updated_at', 'desc')->get();
 
         return view('accounts.view_loads_detail', compact('load', 'alllogs'));
     }
