@@ -203,10 +203,8 @@
                            </div>
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
-                                 <label for="used_amount">Total Exhausted Limit
-                                 
-                              </label>
-                                 <input type="text" class="form-control" id="used_amount" name="used_amount" value="{{ $pendingpayment }}" required readonly>
+                                 <label for="used_amount">Total Exhausted Limit</label>
+                                 <input type="text" class="form-control" id="used_amount" name="used_amount" value="{{ $usedAmount }}" required readonly>
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -214,8 +212,8 @@
                                  <label for="remaining_credit">Remaining Credit Limit
                                  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#assigned-credit-remaing"></i>
                               </label>
-                                 <input type="text" class="form-control" id="remaining_credit" name="remaining_credit" value="{{ $customer->remaining_credit }}" required readonly>
-                                 <input type="hidden" class="form-control" id="remaining_credit_new" name="remaining_credit_new" value="{{ $customer->remaining_credit }}" required readonly>
+                                 <input type="text" class="form-control" id="remaining_credit" name="remaining_credit" value="{{ $remainingCredit }}" required readonly>
+                                 <input type="hidden" class="form-control" id="remaining_credit_new" name="remaining_credit_new" value="{{ $remainingCredit }}" required readonly>
                              
                              </div>
                            </div>
