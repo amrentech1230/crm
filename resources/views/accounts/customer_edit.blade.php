@@ -274,24 +274,7 @@
                                  <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}">
                               </div>
                            </div>
-                            @php
-                                $logs = json_decode($customer->remaining_credit_logs, true);
-                                $finalTotalCredit = 0;
 
-                                if (!empty($logs)) {
-                                    foreach ($logs as $log) {
-                                        $finalTotalCredit += (int) ($log['credit_limit'] ?? 0);
-                                    }
-                                }
-                            @endphp
-
-                            <div class="col-md-3 mt-2">
-                                <div class="form-group">
-                                    <label for="remaining_credit">Total Credit Limit</label>
-                                    <input type="text" class="form-control"
-                                        value="{{ $finalTotalCredit }}"
-                                        readonly>
-                                </div>
                             </div>
 
                             <div class="col-md-3 mt-2">
