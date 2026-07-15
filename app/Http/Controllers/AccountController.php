@@ -1141,6 +1141,7 @@ public function editCustomer($id)
 
 
     $credits = json_decode($customer->credit_limit_log, true);
+    $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true);
 
     if (is_array($credits)) {
         $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
@@ -1148,9 +1149,36 @@ public function editCustomer($id)
         $totalCreditLimit = 0;
     }
 
-    $usedAmount = $totalCreditLimit - $customer->remaining_credit;
-    $remainingCredit = $customer->remaining_credit;
-    
+    // If credit_limit_log is empty, fallback to remaining_credit_logs for assigned credit.
+    if ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
+        $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
+    }
+
+    // Calculate used credit from actual paid loads rather than relying on remaining_credit alone.
+    $loads = Load::where('customer_id', $customer->id)->get();
+    $usedAmount = 0;
+
+    foreach ($loads as $load) {
+        $rate = (float) ($load->shipper_load_final_rate ?? 0);
+        $invoiceStatus = trim((string) ($load->invoice_status ?? ''));
+
+        if ($invoiceStatus === 'Paid') {
+            $usedAmount += $rate;
+        } elseif ($invoiceStatus === 'Paid Record') {
+            if ($load->receiving_amount !== null && is_numeric($load->receiving_amount)) {
+                $usedAmount += (float) $load->receiving_amount;
+            } elseif ($load->remaining_amount !== null && is_numeric($load->remaining_amount)) {
+                $usedAmount += max(0, $rate - (float) $load->remaining_amount);
+            } else {
+                $usedAmount += $rate;
+            }
+        } elseif ($invoiceStatus === '') {
+            // Blank invoice_status loads should also reduce remaining customer credit.
+            $usedAmount += $rate;
+        }
+    }
+
+    $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
 
     // Calculate totals using aggregates for better performance
     $totalFinalRate = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
@@ -1243,143 +1271,186 @@ $totalCustomerPayment = $loadDataabove30days->sum('customer_payment');
 
 public function accountupdateCustomer(Request $request, $id)
 {
-     $validator = Validator::make($request->all(), [
-        'customer_name' => 'required|string',
-        'customer_address' => 'required',
-        'customer_city' => 'required',
-        'customer_state' => 'required',
-        'customer_country' => 'required',
-        'customer_zip' => 'required',
+    $validator = Validator::make($request->all(), [
+        'customer_name'      => 'required|string',
+        'customer_address'   => 'required',
+        'customer_city'      => 'required',
+        'customer_state'     => 'required',
+        'customer_country'   => 'required',
+        'customer_zip'       => 'required',
         'customer_telephone' => 'required',
     ]);
-	
-	
+
     if ($validator->fails()) {
         return redirect()->back()->withErrors($validator)->withInput();
     }
-	
 
+    // Find customer
+    $customer = Customer::find($id);
 
-    // Find the customer by ID
-    $customer = customer::find($id);
-
-  
-    $customerdata = customer::find($id);
- 
-     // Query all loads for the customer
-    $loads = Load::where('customer_id', $customer->id)->get();
-
-    // Initialize variables
-    $totalFinalRate = 0;
-    $recordPaidAmount = 0;
-
-    foreach ($loads as $load) {
-        // Add up the shipper_load_final_rate for all loads
-        $totalFinalRate += (float) $load->shipper_load_final_rate;
-
-        // Check for "Record Paid" status and calculate the adjustment
-        if ($load->invoice_status == "Paid Record") {
-            $recordPaidAmount += $load->shipper_load_final_rate;
-        }
-    }
-    
-
-    // Adjust used and remaining credit based on Record Paid loads
-    $usedAmount = $totalFinalRate - $recordPaidAmount;
-	
     if (!$customer) {
         return redirect()->back()->with('error', 'Customer not found.');
     }
 
-    // Decode existing credit limit logs or initialize an empty array
+    $customerdata = Customer::find($id);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Calculate Used Credit
+    |--------------------------------------------------------------------------
+    */
+    $loads = Load::where('customer_id', $customer->id)->get();
+
+    $usedAmount = 0;
+
+    foreach ($loads as $load) {
+
+        $rate = (float) ($load->shipper_load_final_rate ?? 0);
+
+        if (in_array($load->invoice_status, ['Paid Record', 'Paid'], true)) {
+
+            $remaining = (float) ($load->remaining_amount ?? 0);
+
+            if ($remaining <= 0 && $load->receiving_amount !== null) {
+                $remaining = max(0, $rate - (float) $load->receiving_amount);
+            }
+
+            $usedAmount += $remaining;
+
+        } else {
+
+            $usedAmount += $rate;
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Credit Limit Logs
+    |--------------------------------------------------------------------------
+    */
     $existingCreditLogs = json_decode($customer->credit_limit_log, true) ?? [];
 
-    // Prepare new credit limit logs
     $newCreditLimitLogs = [];
+
     $creditLimitLogData = $request->input('new_credit_limit', []);
     $creditTimes = $request->input('new_credit_time', []);
 
-
     if (!empty($creditLimitLogData) && !empty($creditTimes)) {
+
         foreach ($creditLimitLogData as $index => $creditLimit) {
+
             if (!empty($creditLimit) && isset($creditTimes[$index])) {
+
                 $newCreditLimitLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => $creditTimes[$index],
+                    'credit_time'  => $creditTimes[$index],
                 ];
             }
         }
     }
 
-    // Merge existing and new logs
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-	
-	// Decode existing remaning credit limit logs or initialize an empty array
-    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
 
-    // Prepare new remaning credit limit logs
-    $newinvoiceCreditLimitLogs = [];
-    $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
-    $invoicecreditTimes = $request->input('invoice_credit_time', []);
+    /*
+    |--------------------------------------------------------------------------
+    | Invoice Credit Limit Logs
+    |--------------------------------------------------------------------------
+    */
+    $existingInvoiceCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
 
+    $newInvoiceCreditLogs = [];
 
-    if (!empty($remainingcreditLimitLogData)) {
-        foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
+    $invoiceCreditLimitData = $request->input('invoice_credit_limits', []);
+
+    if (!empty($invoiceCreditLimitData)) {
+
+        foreach ($invoiceCreditLimitData as $creditLimit) {
+
             if (!empty($creditLimit)) {
-                $newinvoiceCreditLimitLogs[] = [
+
+                $newInvoiceCreditLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => now()->format("Y-m-d\TH:i"),
+                    'credit_time'  => now()->format('Y-m-d\TH:i'),
                 ];
             }
         }
     }
 
-    $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
+    $updatedInvoiceCreditLogs = array_merge(
+        $existingInvoiceCreditLogs,
+        $newInvoiceCreditLogs
+    );
 
-    // Decode existing remaning credit limit logs or initialize an empty array
-    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    /*
+    |--------------------------------------------------------------------------
+    | Remaining Credit Logs
+    |--------------------------------------------------------------------------
+    */
+    $existingRemainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
 
-    // Prepare new remaning credit limit logs
-    $newremaningCreditLimitLogs = [];
-    $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
-    $creditTimes = $request->input('new_remaing_credit_time', []);
+    $newRemainingCreditLogs = [];
 
-    if (!empty($remainingcreditLimitLogData) && !empty($creditTimes)) {
-        foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
-            if (!empty($creditLimit) && isset($creditTimes[$index])) {
-                $newremaningCreditLimitLogs[] = [
+    $remainingCreditLimitData = $request->input('new_remaing_credit_limit', []);
+    $remainingCreditTimes = $request->input('new_remaing_credit_time', []);
+
+    if (!empty($remainingCreditLimitData) && !empty($remainingCreditTimes)) {
+
+        foreach ($remainingCreditLimitData as $index => $creditLimit) {
+
+            if (!empty($creditLimit) && isset($remainingCreditTimes[$index])) {
+
+                $newRemainingCreditLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => $creditTimes[$index],
+                    'credit_time'  => $remainingCreditTimes[$index],
                 ];
             }
         }
     }
 
-    // Merge existing and new remaning logs
-    $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
-    $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
- 
-    // Calculate total credit limit from the updated logs
-    $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
+    $updatedRemainingCreditLogs = array_merge(
+        $existingRemainingCreditLogs,
+        $newRemainingCreditLogs
+    );
 
-    // Calculate remaining credit
-   // $usedAmount = $customer->used_amount ?? 0;
-    $remainingCredit = $totalCreditLimit - $usedAmount;
-  
-    // Update customer details
+    /*
+    |--------------------------------------------------------------------------
+    | Calculate Credit Totals
+    |--------------------------------------------------------------------------
+    */
+    $totalCreditLimit = array_sum(array_column($updatedCreditLogs, 'credit_limit'));
+    $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+
+    if ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
+        $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
+    }
+
+    $invoiceCreditLimitTotal = array_sum(
+        array_column($updatedInvoiceCreditLogs, 'credit_limit')
+    );
+
+    $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update Customer
+    |--------------------------------------------------------------------------
+    */
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
-    $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
-	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    //$customer->adv_customer_credit_limit = $totalCreditLimit; // Save total credit limit in adv_customer_credit_limit
-    $customer->remaining_credit = $request->input('remaining_credit'); // Save remaining credit in remaining_credit
-    $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
-	 $customer->customer_country = $request->input('customer_country');
+    $customer->remaining_credit_logs = json_encode($updatedRemainingCreditLogs);
+    $customer->invoice_credit_limit_log = json_encode($updatedInvoiceCreditLogs);
+
+    $customer->adv_customer_credit_limit = $totalCreditLimit;
+    $customer->remaining_credit = $remainingCredit;
+    $customer->invoice_credit_limit = $invoiceCreditLimitTotal ?: $request->input('invoice_credit_limit');
+
+    $customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
     $customer->customer_address = $request->input('customer_address');
+    $customer->customer_city = $request->input('customer_city');
+    $customer->customer_zip = $request->input('customer_zip');
     $customer->status = $request->input('status');
     $customer->customer_telephone = $request->input('customer_telephone');
-    $customer->adv_customer_credit_limit = $request->input('adv_customer_credit_limit');
     $customer->user_id = $request->input('user_id');
     $customer->comment_notes = $request->input('comment_notes')[0] ?? null;
     $customer->private_comment_notes = $request->input('private_comment_notes')[0] ?? null;
@@ -1387,10 +1458,23 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->approved_limit = $request->input('approved_limit');
     $customer->customer_hold_status = $request->has('customer_hold_status') ? 'hold' : 'unhold';
     $customer->invoice_through = $request->input('invoice_through');
+
     $customer->save();
 
+    /*
+    |--------------------------------------------------------------------------
+    | Log Activity
+    |--------------------------------------------------------------------------
+    */
     $subject = "Update the Customer info";
-    addToLog($customer->id, $load_id ='', $subject, json_encode($customerdata, true), json_encode($request->all(), true));
+
+    addToLog(
+        $customer->id,
+        '',
+        $subject,
+        json_encode($customerdata, true),
+        json_encode($request->all(), true)
+    );
 
     return redirect()->back()->with('success', 'Customer updated successfully');
 }
@@ -4696,28 +4780,27 @@ public function deleteCarrierFile(Request $request)
 			} else {
 				$totalCreditLimit = 0;
 			}
-			
-			$data = json_decode($customer->remaining_credit_logs, true);
 
-			// Ensure $data is an array
-			if (!is_array($data)) {
-				$data = [];
-			}
+            $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true);
+            if ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
+                $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
+            }
+            
+            $data = is_array($remainingCreditLogs) ? $remainingCreditLogs : [];
 
-			// Filter only valid items with credit_limit
-			$data = array_filter($data, function($item) {
-				return is_array($item) && isset($item['credit_limit']);
-			});
+            // Filter only valid items with credit_limit
+            $data = array_filter($data, function($item) {
+                return is_array($item) && isset($item['credit_limit']);
+            });
 
-			// Sum the credit_limit values
-			$totalremainingCredit = collect($data)->sum(function ($item) {
-				return (float) $item['credit_limit'];
-			});
+            // Sum the credit_limit values
+            $totalremainingCredit = collect($data)->sum(function ($item) {
+                return (float) $item['credit_limit'];
+            });
+
+            $totals = $customerTotals[$customer->id] ?? null;
 			
-			$totals = $customerTotals[$customer->id] ?? null;
-			
-			$pending_amount = ($totals->total_created ?? 0) - ($totals->total_received ?? 0);
-                                            
+			$exhausted_limit = max(0, $totalCreditLimit - floatval($customer->remaining_credit));
 
             $sheet->setCellValue('A' . $row, $row+1);
             $sheet->setCellValue('B' . $row, $customer->user?->name);
@@ -4728,7 +4811,7 @@ public function deleteCarrierFile(Request $request)
             $sheet->setCellValue('G' . $row, $customer->user?->managerInfo?->manager);
             $sheet->setCellValue('H' . $row, $customer->user?->officedata?->office_name);
             $sheet->setCellValue('I' . $row, '$'.$totalCreditLimit);
-            $sheet->setCellValue('J' . $row, '$'.($pending_amount));
+            $sheet->setCellValue('J' . $row, '$'.number_format($exhausted_limit, 2));
             $sheet->setCellValue('K' . $row, '$'.number_format(floatval($customer->remaining_credit), 2));
 			$sheet->setCellValue('L' . $row, $totalremainingCredit);
             $sheet->setCellValue('M' . $row, $customer->status);
