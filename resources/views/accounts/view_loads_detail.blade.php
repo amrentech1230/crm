@@ -130,7 +130,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div> <!-- end card-body -->
+                    </div> 
                 </div> <!-- end card -->
             </div> <!-- end col -->
         </div> <!-- end row -->
