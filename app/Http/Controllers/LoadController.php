@@ -815,21 +815,23 @@ if (!empty($term)) {
 
             $yourModel->shipper_load_other_charge = json_encode($shipperCharges);
             
-            // ✅ VALIDATION: Check if load creation would exceed assigned credit limit
+            // ✅ VALIDATION: Check if total load creation amount would exceed assigned credit limit
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
                 $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
-                $currentRemainingCredit = (float) ($customer->remaining_credit ?? $assignedCreditLimit);
                 $loadAmount = (float) $finalRate;
                 
-                // Calculate what remaining credit would be after this load
-                $newRemainingCredit = $currentRemainingCredit - $loadAmount;
+                // Calculate total load creation amount for this customer
+                $totalLoadCreationAmount = (float) Load::where('customer_id', $yourModel->customer_id)
+                    ->where('load_status', '!=', 'Cancelled')
+                    ->sum('shipper_load_final_rate');
                 
-                // If remaining credit would go negative, reject the load
-                if ($newRemainingCredit < 0) {
-                    $exhaustedAmount = $assignedCreditLimit - $currentRemainingCredit;
-                    $availableCredit = $assignedCreditLimit - $exhaustedAmount;
-                    return back()->with('error', "Cannot create load. Assigned credit limit is ₹{$assignedCreditLimit}. Already exhausted: ₹{$exhaustedAmount}. Available credit: ₹{$availableCredit}. Load amount requested: ₹{$loadAmount}.");
+                $newTotalLoadAmount = $totalLoadCreationAmount + $loadAmount;
+                
+                // Check if total load creation would exceed assigned credit limit
+                if ($newTotalLoadAmount > $assignedCreditLimit) {
+                    $availableCredit = $assignedCreditLimit - $totalLoadCreationAmount;
+                    return back()->with('error', "Cannot create load. Assigned credit limit is ₹{$assignedCreditLimit}. Total load creation so far: ₹{$totalLoadCreationAmount}. Available credit: ₹{$availableCredit}. Load amount requested: ₹{$loadAmount}.");
                 }
             }
             

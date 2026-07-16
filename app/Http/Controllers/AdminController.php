@@ -1508,14 +1508,14 @@ public function update_password(Request $request)
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
-                            $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
+                            // $query->orwhere('load_workorder', 'like', "%$term%");
+                            // $query->orwhere('customer_refrence_number', 'like', "%$term%");
+                            // $query->orwhere('load_bill_to', 'like', "%$term%");
+                            // $query->orwhere('load_dispatcher', 'like', "%$term%");
+                            // $query->orwhere('invoice_number', 'like', "%$term%");
+                            // $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
+                            // $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
+                            // $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
                         }
                     })
                     ->orderBy('id', 'desc')
@@ -1959,6 +1959,30 @@ public function update_password(Request $request)
          if(empty($request->input('shipper_load_final_rate'))){
             return redirect()->back()->with('error', 'please enter the Customer Final Rate');
          }
+   
+        // ✅ VALIDATION: Check if total load creation amount would exceed assigned credit limit
+        $newFinalRate = (float) $request->input('shipper_load_final_rate');
+        $oldFinalRate = (float) $load->shipper_load_final_rate;
+        $rateDifference = $newFinalRate - $oldFinalRate;
+        
+        $customer = Customer::find($load->customer_id);
+        if ($customer && $rateDifference > 0) { // Only validate if rate is increasing
+            $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
+            
+            // Calculate total load creation amount for this customer (excluding this load)
+            $totalLoadCreationAmount = (float) Load::where('customer_id', $load->customer_id)
+                ->where('load_status', '!=', 'Cancelled')
+                ->where('id', '!=', $load->id)
+                ->sum('shipper_load_final_rate');
+            
+            $newTotalLoadAmount = $totalLoadCreationAmount + $newFinalRate;
+            
+            // Check if total load creation would exceed assigned credit limit
+            if ($newTotalLoadAmount > $assignedCreditLimit) {
+                $availableCredit = $assignedCreditLimit - $totalLoadCreationAmount;
+                return back()->with('error', "Cannot update load. Assigned credit limit is ₹{$assignedCreditLimit}. Total load creation so far: ₹{$totalLoadCreationAmount}. Available credit: ₹{$availableCredit}. New load amount: ₹{$newFinalRate}.");
+            }
+        }
    
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
         ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
