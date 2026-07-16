@@ -2522,7 +2522,7 @@ public function update_password(Request $request)
 
         if ($customer) {
             $customer->remaining_credit -= $rateDifference;
-            $customer->remaining_credit_amount = $rateDifference; // Update remaining credit
+            $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit (actual remaining amount)
             $customer->save();
         }
         
@@ -2555,6 +2555,7 @@ public function update_password(Request $request)
                 $actualCredit = max($finalRate - $invoiceCredit, 0);
 
                 $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $actualCredit;
+                $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit amount after refund
                 $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $invoiceCredit;
                 $customer->save();
             }

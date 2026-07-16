@@ -845,7 +845,7 @@ if (!empty($term)) {
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
                 $customer->remaining_credit -= $yourModel->shipper_load_final_rate;
-                $customer->remaining_credit_amount = $customer->adv_customer_credit_limit; // Update remaining credit
+                $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit (actual remaining amount)
                 $customer->save();
             }
 
