@@ -310,7 +310,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $broker_status->setPageName('all_load')->links() }}
+                                    {{ $broker_status->setPageName('all_load')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="open" role="tabpanel">
@@ -641,30 +641,38 @@
         }
 
         $.ajax({
-            url: '/admin/search_by_filter',
-            type: 'GET',
-            data: {
-                tab: activeTab,
-                office: office,
-                manager: manager,
-                teamLeader: teamLeader,
-                agent: agent,
-            },
-            success: function (data) {
-                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                    $(tableSelector).DataTable().destroy();
-                }
+    url: '/admin/search_by_filter',
+    type: 'GET',
+    dataType: 'json',   
+    data: {
+        tab: activeTab,
+        office: office,
+        manager: manager,
+        teamLeader: teamLeader,
+        agent: agent,
+    },
+    success: function (response) {
+        if ($.fn.DataTable.isDataTable(tableSelector)) {
+            $(tableSelector).DataTable().destroy();
+        }
 
-                $(resultContainer).html(data);
+        $(resultContainer).html(response.html);
 
-                $(tableSelector).DataTable({
-                    responsive: true,
-                    dom: 'rtip',
-                    buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    paging: false,
-                });
-            }
+        // Pagination update
+        let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+        paginationContainer.html(response.pagination).show();
+
+        $(tableSelector).DataTable({
+            responsive: true,
+            dom: 'rtip',
+            buttons: ['copy', 'excel', 'pdf', 'colvis'],
+            paging: false,
         });
+    },
+    error: function (xhr) {
+        console.error("Filter AJAX error:", xhr.responseText);
+    }
+});
     }
 </script>
 <script>
@@ -878,6 +886,7 @@
                     $.ajax({
                         url: ajaxUrl,
                         type: 'GET',
+                        dataType: 'json',
                         data: {
                             query: query
                         },
@@ -887,6 +896,11 @@
                             }
 
                             $(resultContainer).html(response);
+                            if (query.length > 0) {
+                    paginationContainer.hide(); 
+                } else {
+                    paginationContainer.html(response.pagination).show();
+                }
 
                             $(tableSelector).DataTable({
                                 responsive: true,
