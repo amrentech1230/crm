@@ -815,6 +815,24 @@ if (!empty($term)) {
 
             $yourModel->shipper_load_other_charge = json_encode($shipperCharges);
             
+            // ✅ VALIDATION: Check if load creation would exceed assigned credit limit
+            $customer = Customer::find($yourModel->customer_id);
+            if ($customer) {
+                $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
+                $currentRemainingCredit = (float) ($customer->remaining_credit ?? $assignedCreditLimit);
+                $loadAmount = (float) $finalRate;
+                
+                // Calculate what remaining credit would be after this load
+                $newRemainingCredit = $currentRemainingCredit - $loadAmount;
+                
+                // If remaining credit would go negative, reject the load
+                if ($newRemainingCredit < 0) {
+                    $exhaustedAmount = $assignedCreditLimit - $currentRemainingCredit;
+                    $availableCredit = $assignedCreditLimit - $exhaustedAmount;
+                    return back()->with('error', "Cannot create load. Assigned credit limit is ₹{$assignedCreditLimit}. Already exhausted: ₹{$exhaustedAmount}. Available credit: ₹{$availableCredit}. Load amount requested: ₹{$loadAmount}.");
+                }
+            }
+            
             // echo "<pre>"; print_r   ($yourModel); die();  
 
             $yourModel->save();
