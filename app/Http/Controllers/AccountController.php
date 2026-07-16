@@ -1155,30 +1155,36 @@ public function editCustomer($id)
     }
 
     // Calculate used credit from actual paid loads rather than relying on remaining_credit alone.
-    $loads = Load::where('customer_id', $customer->id)->get();
-    $usedAmount = 0;
+    // $loads = Load::where('customer_id', $customer->id)->get();
+ $usedAmount = 0;
 
-    foreach ($loads as $load) {
-        $rate = (float) ($load->shipper_load_final_rate ?? 0);
-        $invoiceStatus = trim((string) ($load->invoice_status ?? ''));
+    // foreach ($loads as $load) {
+    //     $rate = (float) ($load->shipper_load_final_rate ?? 0);
+    //     $invoiceStatus = trim((string) ($load->invoice_status ?? ''));
 
-        if ($invoiceStatus === 'Paid') {
-            $usedAmount += $rate;
-        } elseif ($invoiceStatus === 'Paid Record') {
-            if ($load->receiving_amount !== null && is_numeric($load->receiving_amount)) {
-                $usedAmount += (float) $load->receiving_amount;
-            } elseif ($load->remaining_amount !== null && is_numeric($load->remaining_amount)) {
-                $usedAmount += max(0, $rate - (float) $load->remaining_amount);
-            } else {
-                $usedAmount += $rate;
-            }
-        } elseif ($invoiceStatus === '') {
-            // Blank invoice_status loads should also reduce remaining customer credit.
-            $usedAmount += $rate;
-        }
-    }
+    //     if ($invoiceStatus === 'Paid') {
+    //         $usedAmount += $rate;
+    //     } elseif ($invoiceStatus === 'Paid Record') {
+    //         if ($load->receiving_amount !== null && is_numeric($load->receiving_amount)) {
+    //             $usedAmount += (float) $load->receiving_amount;
+    //         } elseif ($load->remaining_amount !== null && is_numeric($load->remaining_amount)) {
+    //             $usedAmount += max(0, $rate - (float) $load->remaining_amount);
+    //         } else {
+    //             $usedAmount += $rate;
+    //         }
+    //     } elseif ($invoiceStatus === '') {
+    //         // Blank invoice_status loads should also reduce remaining customer credit.
+    //         $usedAmount += $rate;
+    //     }
+    // }
 
     $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
+    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
+$receiving_amount = Load::where('customer_id', $customer->id)
+    ->where('invoice_status', 'Paid Record')
+    ->sum('receiving_amount');
+
+$usedAmount = $loadcreateamount - $receiving_amount;
 
     // Calculate totals using aggregates for better performance
     $totalFinalRate = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
@@ -1932,11 +1938,11 @@ $searchTerms = array_filter(
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
+                            // $query->orwhere('load_workorder', 'like', "%$term%");
+                            // $query->orwhere('customer_refrence_number', 'like', "%$term%");
+                            // $query->orwhere('load_bill_to', 'like', "%$term%");
+                            // $query->orwhere('invoice_number', 'like', "%$term%");
+                            // $query->orwhere('load_dispatcher', 'like', "%$term%");
 
                         }
                     })
@@ -2050,25 +2056,34 @@ $searchTerms = array_filter(
      * customer / dispatcher name) is matched with a contains-search on the
      * alphanumeric / name fields.
      */
-    private function applyAccountingSearch($query, array $terms)
-    {
-        $query->where(function ($q) use ($terms) {
-            foreach ($terms as $term) {
-                if (is_numeric($term)) {
-                    $q->orWhere('load_number', $term)
-                      ->orWhere('invoice_number', $term);
-                } else {
-                    $q->orWhere('load_workorder', 'like', "%{$term}%")
-                      ->orWhere('customer_refrence_number', 'like', "%{$term}%")
-                      ->orWhere('load_bill_to', 'like', "%{$term}%")
-                      ->orWhere('load_dispatcher', 'like', "%{$term}%");
-                }
-            }
-        });
+    // private function applyAccountingSearch($query, array $terms)
+    // {
+    //     $query->where(function ($q) use ($terms) {
+    //         foreach ($terms as $term) {
+    //             if (is_numeric($term)) {
+    //                 $q->orWhere('load_number', $term)
+    //                   ->orWhere('invoice_number', $term);
+    //             } else {
+    //                 $q->orWhere('load_workorder', 'like', "%{$term}%")
+    //                 //   ->orWhere('customer_refrence_number', 'like', "%{$term}%")
+    //                 //   ->orWhere('load_bill_to', 'like', "%{$term}%")
+    //                 //   ->orWhere('load_dispatcher', 'like', "%{$term}%");
+    //             }
+    //         }
+    //     });
 
-        return $query;
-    }
+    //     return $query;
+    // }
+private function applyAccountingSearch($query, array $terms)
+{
+    $query->where(function ($q) use ($terms) {
+        foreach ($terms as $term) {
+            $q->orWhere('load_number', 'like', '%' . trim($term) . '%');
+        }
+    });
 
+    return $query;
+}
     public function accounting_invoiced_search(Request $request){
 
         $q = $request->input('query');
