@@ -536,14 +536,14 @@ $(document).ready(function () {
                             if ($.fn.DataTable.isDataTable(tableSelector)) {
                                 $(tableSelector).DataTable().destroy();
                             }
-                            $(resultContainer).html(response);
+                            $(resultContainer).html(response.html);
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'rtip',
                                 buttons: false,
                                 buttons: false,
-                                pageLength: 50,              // ✅ default show 50
-                               // lengthMenu: [10, 25, 50, 100] // ✅ dropdown options
+                                pageLength: 50,              // default show 50
+                               // lengthMenu: [10, 25, 50, 100] // dropdown options
                             }); 
                             $('.loader-container').addClass('hide');
                         },
