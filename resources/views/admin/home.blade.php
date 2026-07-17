@@ -641,15 +641,16 @@
         }
 
         $.ajax({
-    url: '/admin/search_by_filter',
-    type: 'GET',
-    dataType: 'json',   
-    data: {
-        tab: activeTab,
-        office: office,
-        manager: manager,
-        teamLeader: teamLeader,
-        agent: agent,
+          url: '/admin/search_by_filter',
+          type: 'GET',
+          dataType: 'json',   
+        data: {
+          tab: activeTab,
+          office: office,
+          manager: manager,
+          teamLeader: teamLeader,
+          agent: agent,
+          
     },
     success: function (response) {
         if ($.fn.DataTable.isDataTable(tableSelector)) {
@@ -676,65 +677,136 @@
     }
 </script>
 <script>
-    $(document).on('click', '.custom-pagination a', function (e) {
-        e.preventDefault();
+    // $(document).on('click', '.custom-pagination a', function (e) {
+    //     e.preventDefault();
 
-        let url = $(this).attr('href');
+    //     let url = $(this).attr('href');
 
-        // Get active tab (without the #)
-        let activeTab = $('.nav-link.active').attr('href');
-        let resultContainer = '';
-        let tableSelector = '';
+    //     // Get active tab (without the #)
+    //     let activeTab = $('.nav-link.active').attr('href');
+    //     let resultContainer = '';
+    //     let tableSelector = '';
 
-        if (activeTab === '#all_load') {
-            resultContainer = '#all_load-search';
-            tableSelector = '#datatable-buttons-all_load';
-        } else if (activeTab === '#open') {
-            resultContainer = '#open-search';
-            tableSelector = '#datatable-buttons-open';
-        } else if (activeTab === '#delivered') {
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-        } else if (activeTab === '#completed') {
-            resultContainer = '#shipper-search';
-            tableSelector = '#datatable-buttons-completed';
-        } else if (activeTab === '#invoiced') {
-            resultContainer = '#invoiced-search';
-            tableSelector = '#datatable-buttons-invoiced';
-        } else if (activeTab === '#invoiced_paid') {
-            resultContainer = '#invoiced_paid-search';
-            tableSelector = '#datatable-buttons-invoiced_paid';
-        } else {
-            return; // Exit if it's not one of the expected tabs
-        }
-        $.ajax({
-            url: url,
-            type: 'GET',
-            data: {
-                tab: activeTab
-            },
-            success: function (data) {
-                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                    $(tableSelector).DataTable().destroy();
-                }
+    //     if (activeTab === '#all_load') {
+    //         resultContainer = '#all_load-search';
+    //         tableSelector = '#datatable-buttons-all_load';
+    //     } else if (activeTab === '#open') {
+    //         resultContainer = '#open-search';
+    //         tableSelector = '#datatable-buttons-open';
+    //     } else if (activeTab === '#delivered') {
+    //         resultContainer = '#delivered-search';
+    //         tableSelector = '#datatable-buttons-delivered';
+    //     } else if (activeTab === '#completed') {
+    //         resultContainer = '#shipper-search';
+    //         tableSelector = '#datatable-buttons-completed';
+    //     } else if (activeTab === '#invoiced') {
+    //         resultContainer = '#invoiced-search';
+    //         tableSelector = '#datatable-buttons-invoiced';
+    //     } else if (activeTab === '#invoiced_paid') {
+    //         resultContainer = '#invoiced_paid-search';
+    //         tableSelector = '#datatable-buttons-invoiced_paid';
+    //     } else {
+    //         return; // Exit if it's not one of the expected tabs
+    //     }
+    //     $.ajax({
+    //         url: url,
+    //         type: 'GET',
+    //         data: {
+    //             tab: activeTab
+    //         },
+    //         success: function (data) {
+    //             if ($.fn.DataTable.isDataTable(tableSelector)) {
+    //                 $(tableSelector).DataTable().destroy();
+    //             }
 
-                $(resultContainer).html(data);
+    //             $(resultContainer).html(data);
 
 
-                $(tableSelector).DataTable({
-                    responsive: true,
-                    dom: 'rtip',
-                    buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    paging: false,
-                    pageLength: 50,
-                });
+    //             $(tableSelector).DataTable({
+    //                 responsive: true,
+    //                 dom: 'rtip',
+    //                 buttons: ['copy', 'excel', 'pdf', 'colvis'],
+    //                 paging: false,
+    //                 pageLength: 50,
+    //             });
 
-                // Optional: update the browser URL
-                window.history.pushState("", "", url);
+    //             // Optional: update the browser URL
+    //             window.history.pushState("", "", url);
+    //         }
+    //     });
+    // });
+$(document).on('click', '.custom-pagination a', function (e) {
+    e.preventDefault();
+
+    let href = $(this).attr('href');
+    if (!href) return;
+
+    let activeTab = $('.nav-link.active').attr('href');
+    let resultContainer = '', tableSelector = '', ajaxUrl = '', pageParam = '';
+
+    if (activeTab === '#all_load') {
+        resultContainer = '#all_load-search'; tableSelector = '#datatable-buttons-all_load';
+        ajaxUrl = '/admin/all_search'; pageParam = 'all_load';
+    } else if (activeTab === '#open') {
+        resultContainer = '#open-search'; tableSelector = '#datatable-buttons-open';
+        ajaxUrl = '/admin/open_search'; pageParam = 'open';
+    } else if (activeTab === '#delivered') {
+        resultContainer = '#delivered-search'; tableSelector = '#datatable-buttons-delivered';
+        ajaxUrl = '/admin/delivered_search'; pageParam = 'delivered';
+    } else if (activeTab === '#completed') {
+        resultContainer = '#shipper-search'; tableSelector = '#datatable-buttons-completed';
+        ajaxUrl = '/admin/complete_search'; pageParam = 'completed';
+    } else if (activeTab === '#invoiced') {
+        resultContainer = '#invoiced-search'; tableSelector = '#datatable-buttons-invoiced';
+        ajaxUrl = '/admin/invoice_search'; pageParam = 'invoiced';
+    } else if (activeTab === '#invoiced_paid') {
+        resultContainer = '#invoiced_paid-search'; tableSelector = '#datatable-buttons-invoiced_paid';
+        ajaxUrl = '/admin/invoice_paid_search'; pageParam = 'invoiced_paid';
+    } else {
+        return;
+    }
+
+    // href se sirf page number nikalo (e.g. ?all_load=3)
+    let urlObj = new URL(href, window.location.origin);
+    let pageNum = urlObj.searchParams.get(pageParam) || '1';
+
+    $('.loader-container').removeClass('hide');
+
+    $.ajax({
+        url: ajaxUrl,
+        type: 'GET',
+        dataType: 'json',
+        data: {
+            [pageParam]: pageNum,
+            office: $('#officeSelect').val(),
+            manager: $('#managerSelect').val(),
+            teamLeader: $('#teamLeaderSelect').val(),
+            agent: $('#agentSelect').val(),
+        },
+        success: function (response) {
+            if ($.fn.DataTable.isDataTable(tableSelector)) {
+                $(tableSelector).DataTable().destroy();
             }
-        });
-    });
 
+            $(resultContainer).html(response.html);
+            $(resultContainer).closest('.tab-pane').find('.custom-pagination').html(response.pagination);
+
+            $(tableSelector).DataTable({
+                responsive: true,
+                dom: 'rtip',
+                buttons: ['copy', 'excel', 'pdf', 'colvis'],
+                paging: false,
+                pageLength: 50,
+            });
+
+            $('.loader-container').addClass('hide');
+        },
+        error: function (xhr) {
+            console.error("Pagination AJAX error:", xhr.responseText);
+            $('.loader-container').addClass('hide');
+        }
+    });
+});
     $(document).ready(function () {
         $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr("href");
@@ -794,7 +866,7 @@
                         $(tableSelector).DataTable().destroy();
                     }
 
-                    $(resultContainer).html(response);
+                    $(resultContainer).html(response.html);
 
                     $(tableSelector).DataTable({
                         responsive: true,
@@ -895,7 +967,7 @@
                                 $(tableSelector).DataTable().destroy();
                             }
 
-                            $(resultContainer).html(response);
+                            $(resultContainer).html(response.html);
                             if (query.length > 0) {
                     paginationContainer.hide(); 
                 } else {

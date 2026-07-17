@@ -88,8 +88,7 @@ class AdminController extends Controller
 		]);
 	}
 
-   
-  public function search_by_filter(Request $request)
+   public function search_by_filter(Request $request)
 {
     $filters = [
         'office'   => $request->input('office'),
@@ -105,28 +104,18 @@ class AdminController extends Controller
             Paginator::currentPageResolver(function () use ($request, $tab) {
                 return $request->input($tab);
             });
-            break; // Stop after finding the matching tab
+            break;
         }
     }
 
     $broker_status = $this->filteredLoadsQuery(Load::with('user'), $filters)
-        ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('all_load');
+        ->orderBy('id', 'desc')->paginate(50)->setPageName('all_load');
 
-    $open = $this->filteredLoadsQuery(
-            Load::with('user')->where('load_status', 'Open'),
-            $filters)
-        ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('open');
+    $open = $this->filteredLoadsQuery(Load::with('user')->where('load_status', 'Open'), $filters)
+        ->orderBy('id', 'desc')->paginate(50)->setPageName('open');
 
-    $deliverd = $this->filteredLoadsQuery(
-            Load::with('user')->where('load_status', 'Delivered'),
-            $filters)
-        ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('delivered');
+    $deliverd = $this->filteredLoadsQuery(Load::with('user')->where('load_status', 'Delivered'), $filters)
+        ->orderBy('id', 'desc')->paginate(50)->setPageName('delivered');
 
     $complete = $this->filteredLoadsQuery(
             Load::with(['user', 'customer', 'carrier'])
@@ -135,32 +124,22 @@ class AdminController extends Controller
                     $query->whereNull('invoice_status')->orWhere('invoice_status', '');
                 }),
             $filters)
-        ->orderBy('loads.id', 'desc')
-        ->paginate(50)
-        ->setPageName('completed');
+        ->orderBy('loads.id', 'desc')->paginate(50)->setPageName('completed');
 
-    $invoice_paid = $this->filteredLoadsQuery(
-            Load::with('user')->where('invoice_status', 'Paid'),
-            $filters)
-        ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('invoiced');
+    $invoice_paid = $this->filteredLoadsQuery(Load::with('user')->where('invoice_status', 'Paid'), $filters)
+        ->orderBy('id', 'desc')->paginate(50)->setPageName('invoiced');
 
-    $paid_record = $this->filteredLoadsQuery(
-            Load::with('user')->where('invoice_status', 'Paid Record'),
-            $filters)
-        ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('invoiced_paid');
+    $paid_record = $this->filteredLoadsQuery(Load::with('user')->where('invoice_status', 'Paid Record'), $filters)
+        ->orderBy('id', 'desc')->paginate(50)->setPageName('invoiced_paid');
 
     $allagent = User::where('status', 'active')->pluck('name');
     $manager  = Manger::get();
     $teamlead = TeamLeader::get();
     $office   = Office::get();
+    $agent    = User::where('role_id', 21)->get();
 
     if ($request->ajax()) {
 
-        // Tab ke hisaab se view aur uska paginator map karo
         $tabConfig = [
             '#all_load'      => ['view' => 'admin.home.all_load',      'paginator' => $broker_status],
             '#open'          => ['view' => 'admin.home.open_load',     'paginator' => $open],
@@ -176,12 +155,10 @@ class AdminController extends Controller
         $html = view($config['view'], compact(
             'broker_status', 'allagent', 'open', 'deliverd',
             'complete', 'invoice_paid', 'paid_record',
-            'manager', 'teamlead', 'office'
+            'manager', 'teamlead', 'office', 'agent'
         ))->render();
 
-        $pagination = $config['paginator']
-            ->links('pagination::bootstrap-5')
-            ->render();
+        $pagination = $config['paginator']->links('pagination::bootstrap-5')->render();
 
         return response()->json([
             'html'       => $html,
@@ -189,9 +166,8 @@ class AdminController extends Controller
         ]);
     }
 
-    return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'));
+    return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office', 'agent'));
 }
-	
 	protected function filteredLoadsQuery($baseQuery, $filters)
 	{
 		return $baseQuery
@@ -1502,258 +1478,291 @@ public function update_password(Request $request)
 
     /******************** Home *********************/
 
-    // public function all_search(Request $request)
-    // {
-    //     $q = $request->input('query');
-    //     if (!empty($q)) {
-    //         // Split the query by commas to get multiple terms
-    //         $searchTerms = array_filter(explode(',', $q), function($term) {
-    //             return !empty(trim($term)); // Only keep non-empty terms
-    //         });
-
-    //         if (count($searchTerms) > 0) {
-    //             // Search for non-empty terms with 'orWhere'
-    //             $broker_status = Load::with(['user'])
-    //                 ->where(function($query) use ($searchTerms) {
-    //                     foreach ($searchTerms as $term) {
-    //                         $query->orWhere('load_number', 'like', "%$term%");
-    //                         // $query->orwhere('load_workorder', 'like', "%$term%");
-    //                         // $query->orwhere('customer_refrence_number', 'like', "%$term%");
-    //                         // $query->orwhere('load_bill_to', 'like', "%$term%");
-    //                         // $query->orwhere('load_dispatcher', 'like', "%$term%");
-    //                         // $query->orwhere('invoice_number', 'like', "%$term%");
-    //                         // $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
-    //                         // $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
-    //                         // $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
-    //                     }
-    //                 })
-    //                 ->orderBy('id', 'desc')
-    //                 ->paginate(100);
-    //         } else {
-    //             // If no valid terms, return an empty collection or handle accordingly
-    //             $broker_status = collect();
-    //         }
-    //     } else {
-    //         // If query is empty, return a paginated result without any filter
-    //         $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
-    //     }
-        
-    //     return view('admin.home.all_load', compact('broker_status'))->render();
-    
-    // }
-public function all_search(Request $request)
+    public function all_search(Request $request)
 {
-    $q = $request->input('query');
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
 
-    if (!empty($q)) {
-        // Split the query by commas to get multiple terms
-        $searchTerms = array_filter(explode(',', $q), function ($term) {
-            return !empty(trim($term)); // Only keep non-empty terms
+    // Page resolver - "all_load" param se page number lo
+    if ($request->has('all_load')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('all_load');
         });
-
-        if (count($searchTerms) > 0) {
-            $broker_status = Load::with(['user'])
-                ->where(function ($query) use ($searchTerms) {
-                    foreach ($searchTerms as $term) {
-                        $query->orWhere('load_number', 'like', "%$term%");
-                        // $query->orwhere('load_workorder', 'like', "%$term%");
-                        // ...baaki commented fields same rahenge
-                    }
-                })
-                ->orderBy('id', 'desc')
-                ->paginate(100)
-                ->withQueryString();
-        } else {
-            // Koi valid term nahi -> empty paginator banao (crash na ho)
-            $broker_status = Load::with('user')->whereRaw('1 = 0')->paginate(100);
-        }
-    } else {
-        // Query empty -> normal paginated result
-        $broker_status = Load::with('user')
-            ->orderBy('id', 'desc')
-            ->paginate(50)
-            ->withQueryString();
     }
 
+    $q = $request->input('query');
+    $baseQuery = Load::with(['user']);
+
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                }
+            });
+        } else {
+            $baseQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $broker_status = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('all_load');
+
     $html = view('admin.home.all_load', compact('broker_status'))->render();
-    $pagination = $broker_status->setPageName('all_load')
-        ->links('pagination::bootstrap-5')
-        ->render();
+    $pagination = $broker_status->links('pagination::bootstrap-5')->render();
 
     return response()->json([
         'html' => $html,
         'pagination' => $pagination,
     ]);
 }
-     public function open_search(Request $request)
-    {
 
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $open = Load::with(['user'])->where('load_status', 'Open')
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $open = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-           $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50); 
-        }
-        
-        return view('admin.home.open_load', compact('open'))->render();
-       
+ public function open_search(Request $request)
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
+
+    if ($request->has('open')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('open');
+        });
     }
 
-     public function delivered_search(Request $request)
-    {
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
+    $q = $request->input('query');
+    $baseQuery = Load::with('user')->where('load_status', 'Open');
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $deliverd = Load::with(['user'])->where('load_status', 'Delivered')
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $deliverd = collect();
-            }
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                    $query->orWhere('load_workorder', 'like', "%$term%");
+                    $query->orWhere('customer_refrence_number', 'like', "%$term%");
+                }
+            });
         } else {
-            // If query is empty, return a paginated result without any filter
-           $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50); 
+            $baseQuery->whereRaw('1 = 0');
         }
-        
-        return view('admin.home.delivered', compact('deliverd'))->render();
-       
     }
+
+    $open = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('open');
+
+    $html = view('admin.home.open_load', compact('open'))->render();
+    $pagination = $open->links('pagination::bootstrap-5')->render();
+
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
+
+
+   public function delivered_search(Request $request)
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
+
+    if ($request->has('delivered')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('delivered');
+        });
+    }
+
+    $q = $request->input('query');
+    $baseQuery = Load::with('user')->where('load_status', 'Delivered');
+
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                    $query->orWhere('load_workorder', 'like', "%$term%");
+                    $query->orWhere('customer_refrence_number', 'like', "%$term%");
+                }
+            });
+        } else {
+            $baseQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $deliverd = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('delivered');
+
+    $html = view('admin.home.delivered', compact('deliverd'))->render();
+    $pagination = $deliverd->links('pagination::bootstrap-5')->render();
+
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
+
 
      public function complete_search(Request $request)
-    {
-       $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $complete = Load::with(['user'])->where('load_status', 'Completed')
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $complete = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-           $complete = Load::with('user')->where('load_status', 'Completed')->orderBy("id", "desc")->paginate(50);
-        }
-        
-        return view('admin.home.completed', compact('complete'))->render();
+    if ($request->has('completed')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('completed');
+        });
     }
 
-     public function invoice_search(Request $request)
-    {
-       $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
+    $q = $request->input('query');
+    $baseQuery = Load::with('user')->where('load_status', 'Completed');
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $invoice_paid = Load::with(['user'])->where('invoice_status', 'Paid')
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $invoice_paid = collect();
-            }
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                    $query->orWhere('load_workorder', 'like', "%$term%");
+                    $query->orWhere('customer_refrence_number', 'like', "%$term%");
+                }
+            });
         } else {
-            // If query is empty, return a paginated result without any filter
-           $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50); 
+            $baseQuery->whereRaw('1 = 0');
         }
-        
-        return view('admin.home.invoiced', compact('invoice_paid'))->render();
     }
 
-    public function invoice_paid_search(Request $request)
-    {
+    $complete = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('completed');
 
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
+    $html = view('admin.home.completed', compact('complete'))->render();
+    $pagination = $complete->links('pagination::bootstrap-5')->render();
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $paid_record = Load::with(['user'])->where('invoice_status', 'Paid Record')
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $paid_record = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-          $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50); 
-        }
-        
-        return view('admin.home.invoiced_paid', compact('paid_record'))->render();
-       
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
+
+
+   public function invoice_search(Request $request)
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
+
+    if ($request->has('invoiced')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('invoiced');
+        });
     }
+
+    $q = $request->input('query');
+    $baseQuery = Load::with('user')->where('invoice_status', 'Paid');
+
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                    $query->orWhere('load_workorder', 'like', "%$term%");
+                    $query->orWhere('customer_refrence_number', 'like', "%$term%");
+                }
+            });
+        } else {
+            $baseQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $invoice_paid = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('invoiced');
+
+    $html = view('admin.home.invoiced', compact('invoice_paid'))->render();
+    $pagination = $invoice_paid->links('pagination::bootstrap-5')->render();
+
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
+
+
+   public function invoice_paid_search(Request $request)
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
+
+    if ($request->has('invoiced_paid')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return $request->input('invoiced_paid');
+        });
+    }
+
+    $q = $request->input('query');
+    $baseQuery = Load::with('user')->where('invoice_status', 'Paid Record');
+
+    if (!empty($q)) {
+        $searchTerms = array_filter(explode(',', $q), fn($t) => !empty(trim($t)));
+        if (count($searchTerms) > 0) {
+            $baseQuery->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('load_number', 'like', "%$term%");
+                    $query->orWhere('load_workorder', 'like', "%$term%");
+                    $query->orWhere('customer_refrence_number', 'like', "%$term%");
+                }
+            });
+        } else {
+            $baseQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $paid_record = $this->filteredLoadsQuery($baseQuery, $filters)
+        ->orderBy('id', 'desc')
+        ->paginate(50)
+        ->setPageName('invoiced_paid');
+
+    $html = view('admin.home.invoiced_paid', compact('paid_record'))->render();
+    $pagination = $paid_record->links('pagination::bootstrap-5')->render();
+
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
 
 
     /******************** All data *********************/
