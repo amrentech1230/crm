@@ -1,4 +1,37 @@
- 
+<style>
+    .mail-document-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 12px;
+    }
+    .mail-document-card {
+        position: relative;
+        display: block;
+        min-height: 150px;
+        padding: 10px;
+        border: 1px solid #d9e0e7;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+    }
+    .mail-document-card:has(input:not(:checked)) { opacity: .55; }
+    .mail-document-card input[type="checkbox"] { margin-right: 6px; }
+    .mail-document-preview {
+        display: flex;
+        min-height: 86px;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #dc3545;
+        text-decoration: none;
+        overflow: hidden;
+    }
+    .mail-document-preview img { max-width: 100%; max-height: 86px; object-fit: contain; }
+    .mail-document-preview .fa-file-pdf { font-size: 40px; }
+    .mail-document-name { display: block; padding-right: 26px; font-size: 12px; overflow-wrap: anywhere; }
+    .remove-mail-document { position: absolute; right: 8px; bottom: 7px; }
+</style>
+
         @foreach($invoiced as $i => $invoice)
             @php
                 $shouldShowInvoicedRow = app(\App\Http\Controllers\AccountController::class)->shouldShowInvoicedTabForLoad($invoice);
@@ -89,9 +122,10 @@
 											<input type="hidden" name="invoice_no" value="{{$invoice->invoice_number}}">
 											
 											<strong>Upload new documents:</strong><br><br>
-											<input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}"  onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" multiple>
-											<div id="uploadStatus{{ $invoice->load_number }}"></div>
-											<div id="uploadedDocsAccordion{{ $invoice->load_number }}" class="accordion mt-3"></div>
+                                            <input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}" onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" accept="application/pdf" multiple>
+                                            <small class="text-muted d-block mt-1">Select PDF files. Multiple selected documents are sent as one merged PDF.</small>
+                                            <div id="uploadStatus{{ $invoice->load_number }}"></div>
+                                            <div id="uploadedDocsAccordion{{ $invoice->load_number }}" class="mail-document-grid mt-3"></div>
 
 											<strong>Select documents to attach:</strong><br><br>
 
@@ -100,45 +134,33 @@
 												
 											@endphp
 
-											@if(empty($docs))
-												<p>No documents found.</p>
-											@else
-												<div class="accordion" id="accordionExample">
-													@foreach($docs as $key => $file)
-														@php
-														
-															$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-														@endphp
-														@php
-															$fileName = basename($file);
-														@endphp
-
-														<div class="accordion-item">
-															<input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice')) checked @endif>
-															<h2 class="accordion-header" id="heading{{ $key }}">
-																<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ $key }}" aria-expanded="false" aria-controls="collapse{{ $key }}">
-																	View document #{{ $key + 1 }}  ({{basename($file)}})
-																</button>
-															</h2>
-															<div id="collapse{{ $key }}" class="accordion-collapse collapse" aria-labelledby="heading{{ $key }}" data-bs-parent="#accordionExample">
-																<div class="accordion-body">
-																	@if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
-																		<a href="{{ asset('public/'.$file) }}" target="_blank"><img src="{{ asset('public/'.$file) }}" alt="Image" style="max-width: 500px;"></a>
-																	@elseif($extension === 'pdf')
-																		<a href="{{ asset('public/'.$file) }}" target="_blank"><embed src="{{ asset('public/'.$file) }}" type="application/pdf" width="600" height="400"></a>
-																	@elseif(in_array($extension, ['doc', 'docx']))
-																		<iframe src="https://docs.google.com/gview?url={{ urlencode(asset('public/'.$file)) }}&embedded=true" 
-																				style="width:600px; height:500px;" frameborder="0"></iframe>
-																		<br><a href="{{ asset('storage/'.$file) }}" target="_blank">Download Word Document</a>
-																	@else
-																		<p>Unsupported file type.</p>
-																	@endif
-																</div>
-															</div>
-														</div>
-													@endforeach
-												</div>
-											@endif
+                                            @if(empty($docs))
+                                                <p>No documents found.</p>
+                                            @else
+                                                <div class="mail-document-grid">
+                                                    @foreach($docs as $key => $file)
+                                                        @php
+                                                            $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                                                            $fileName = basename($file);
+                                                        @endphp
+                                                        <label class="mail-document-card" title="Click to select or deselect">
+                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice')) checked @endif>
+                                                            <a class="mail-document-preview" href="{{ asset('public/'.$file) }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                                                                @if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
+                                                                    <img src="{{ asset('public/'.$file) }}" alt="{{ $fileName }}">
+                                                                @else
+                                                                    <i class="fas fa-file-pdf"></i>
+                                                                    <span>PDF preview</span>
+                                                                @endif
+                                                            </a>
+                                                            <span class="mail-document-name">{{ $fileName }}</span>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger remove-mail-document" title="Remove from this email" aria-label="Remove {{ $fileName }}">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
 											<button type="submit"class="btn btn-primary waves-effect waves-light mb-3" onclick="sendemailfunction(this, '{{ $invoice->id }}')" data-id ="{{$invoice->id}}" >Send Email</button>
 										</form>
@@ -353,6 +375,38 @@
     }
 </script>
 <script>
+function escapeMailDocumentHtml(value) {
+    return String(value).replace(/[&<>'"]/g, function (character) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character];
+    });
+}
+
+function mailDocumentCard(filePath, fileUrl) {
+    const fileName = filePath.split('/').pop();
+    const safeName = escapeMailDocumentHtml(fileName);
+    const safePath = escapeMailDocumentHtml(filePath);
+    const safeUrl = escapeMailDocumentHtml(fileUrl);
+
+    return `
+        <label class="mail-document-card" title="Click to select or deselect">
+            <input type="checkbox" name="documents[]" value="${safePath}" checked>
+            <a class="mail-document-preview" href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                <i class="fas fa-file-pdf"></i>
+                <span>PDF preview</span>
+            </a>
+            <span class="mail-document-name">${safeName}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-mail-document" title="Remove from this email" aria-label="Remove ${safeName}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </label>`;
+}
+
+$(document).on('click', '.remove-mail-document', function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    $(this).closest('.mail-document-card').remove();
+});
+
 function maildocumetupload(inputElement, invoiceno) {
     const files = inputElement.files;
     const load_no = $(inputElement).data('id');
@@ -388,49 +442,10 @@ function maildocumetupload(inputElement, invoiceno) {
                 $status.html(`<span class="text-success">Uploaded ${data.files.length} file(s) successfully.</span>`);
 
                 data.files.forEach(function (filePath) {
-                    const fileName = filePath.split('/').pop();
-                    const extension = fileName.split('.').pop().toLowerCase();
                     const fileUrl = `{{ url('/') }}/public/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
-
-                    let previewHTML = '';
-
-                    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
-                        previewHTML = `<img src="${fileUrl}" style="max-width: 500px;">`;
-                    } else if (extension === 'pdf') {
-                        previewHTML = `<embed src="${fileUrl}" type="application/pdf" width="600" height="400">`;
-                    } else if (['doc', 'docx'].includes(extension)) {
-                        previewHTML = `
-                            <iframe src="https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true"
-                                    style="width:600px; height:500px;" frameborder="0"></iframe>
-                            <br><a href="${fileUrl}" target="_blank">Download Word Document</a>
-                        `;
-                    } else {
-                        previewHTML = `<a href="${fileUrl}" target="_blank">Download File</a>`;
-                    }
-
-                    const uniqueId = 'uploaded_' + Math.floor(Math.random() * 100000);
-
-                    const accordionItem = `
-                        <div class="accordion-item">
-                            <input type="checkbox" name="documents[]" value="${filePath}" checked>
-                            <h2 class="accordion-header" id="heading${uniqueId}">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#collapse${uniqueId}" aria-expanded="false"
-                                        aria-controls="collapse${uniqueId}">
-                                    Uploaded: ${fileName}
-                                </button>
-                            </h2>
-                            <div id="collapse${uniqueId}" class="accordion-collapse collapse"
-                                 aria-labelledby="heading${uniqueId}">
-                                <div class="accordion-body">
-                                    ${previewHTML}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-
-                    $uploadedDocsContainer.append(accordionItem);
+                    $uploadedDocsContainer.append(mailDocumentCard(filePath, fileUrl));
                 });
+                inputElement.value = '';
             } else {
                 $status.html(`<span class="text-danger">Upload failed.</span>`);
             }

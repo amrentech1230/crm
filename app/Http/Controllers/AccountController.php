@@ -5998,6 +5998,12 @@ public function searchLoadsOnInvoice(Request $request)
 
 public function uploadmailDocument(Request $request)
 {
+    $request->validate([
+        'load_no' => ['required'],
+        'document' => ['required', 'array', 'min:1'],
+        'document.*' => ['file', 'mimes:pdf', 'max:20480'],
+    ]);
+
     $id = $request->input('load_no');
 
     if ($request->hasFile('document')) {
@@ -6022,7 +6028,7 @@ public function uploadmailDocument(Request $request)
         }
 
         // Update the load record with merged document paths
-        $load = Load::findOrFail($id);
+        $load = Load::where('load_number', $id)->firstOrFail();
 
         $oldFiles = json_decode($load->load_delivery_do_file, true) ?? [];
         $merged = array_merge($oldFiles, $uploadPaths);
