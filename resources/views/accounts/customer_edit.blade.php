@@ -1352,8 +1352,7 @@ function deleteRemittanceFile(filePath, customerId) {
 
 function showRemittanceFiles(customerId) {
     $('#remittanceAccordion').html('<div class="text-center p-3">Loading...</div>');
-
-    // Get selected range and date
+   
     const range = document.getElementById('filterRange')?.value || 'all';
     const specificDate = document.getElementById('filterDate')?.value || '';
 
