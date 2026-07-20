@@ -1544,7 +1544,8 @@ public function updateInvoiceStatus(Request $request, $id)
 					'customers.customer_zip', 
 					'customers.customer_country'
 				)
-				->where('loads.load_number', $id)
+				// ->where('loads.load_number', $id)
+                ->where('loads.id', $load->id)
 				->first();
 			
 			if (!$invoice) {
