@@ -81,7 +81,12 @@
                            </div>
                            <div class="col-md-3">
                               <div class="form-group">
-                                 <label for="customer_mc_ff">MC# / FF#</label>
+                                 <label for="customer_address">MC# /FF#</label>
+                                 <input type="text" class="form-control" id="customer_address"
+                                    name="customer_mc_ff_input"
+                                    value="{{ $customer->customer_mc_ff }} {{ $customer->customer_mc_ff_input }}"
+                                    >
+                                 <!-- <label for="customer_mc_ff">MC# / FF#</label>
                                  <div class="d-flex">
                                     <select class="form-control select2 mr-2" id="customer_mc_ff" name="customer_mc_ff">
                                        <option value="NA" {{ $customer->customer_mc_ff == 'NA' || $customer->customer_mc_ff == '' ? 'selected' : '' }}>NA</option>
@@ -89,7 +94,7 @@
                                        <option value="FF" {{ $customer->customer_mc_ff == 'FF' ? 'selected' : '' }}>FF</option>
                                     </select>
                                     <input type="text" class="form-control select2" id="customer_mc_ff_input" name="customer_mc_ff_input" value="{{ $customer->customer_mc_ff_input }}">
-                                 </div>
+                                 </div> -->
                               </div>
                            </div>
                            <div class="col-md-3">
@@ -778,7 +783,7 @@
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header" style="padding-left: 14px;">
-            <h4 class="modal-title">Add Remaining Credit Limit</h4>
+            <h4 class="modal-title">Set Remaining Credit Limit</h4>
             <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
             </div>
 
@@ -1116,19 +1121,12 @@ document.addEventListener('DOMContentLoaded', function () {
          // Function to update calculations
          function updateremaingCreditCalculations() {
             const currentValue = parseFloat($(this).val());
-            //const existingRemainingCredit = parseFloat('{{ $customer->remaining_credit ?? 0 }}') || 0;
-            const existingRemainingCredit = parseFloat($('#remaining_credit_new').val());
-			
-            let totalCreditLimit = 0;
 
+            // This field sets the remaining balance. It must not be added to
+            // the currently displayed remaining credit.
             if (!isNaN(currentValue)) {
-               totalCreditLimit = existingRemainingCredit + currentValue;
-            } else {
-               totalCreditLimit = existingRemainingCredit;
+               $('#remaining_credit').val(Math.max(0, currentValue).toFixed(2));
             }
-
-            // Update the remaining credit field
-            $('#remaining_credit').val(totalCreditLimit.toFixed(2));
          }
 		 
 		 
