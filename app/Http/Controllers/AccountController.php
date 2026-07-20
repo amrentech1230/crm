@@ -6024,7 +6024,7 @@ public function uploadmailDocument(Request $request)
             // Generate a unique file name to avoid conflicts
             $fileName = uniqid() . '_' . $cleanName;
             $file->move($targetDir, $fileName);
-            $uploadPaths[] = '/uploads/delivery-order/' . $id . '/' . $fileName;
+            $uploadPaths[] = 'uploads/delivery-order/' . $id . '/' . $fileName;
         }
 
         // Update the load record with merged document paths
@@ -6141,7 +6141,7 @@ public function carrier_verification_save(Request $request)
             $file->move($targetDir, $fileName);
 
             // Store relative public path
-            $uploadPaths[] = "/uploads/carrierbankdocs/{$id}/{$fileName}";
+            $uploadPaths[] = "uploads/carrierbankdocs/{$id}/{$fileName}";
         }
 
         // Fetch record
