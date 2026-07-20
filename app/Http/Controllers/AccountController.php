@@ -1436,6 +1436,14 @@ public function accountupdateCustomer(Request $request, $id)
 
     $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
 
+    // A value entered in the "Remaining Credit Limit" modal is an exact
+    // balance, not an additional credit amount. Keep the audit log, but do
+    // not add that value to the existing remaining balance.
+    if (!empty($newRemainingCreditLogs)) {
+        $latestRemainingCredit = end($newRemainingCreditLogs);
+        $remainingCredit = max(0, (float) $latestRemainingCredit['credit_limit']);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Update Customer
