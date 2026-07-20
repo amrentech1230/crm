@@ -1504,7 +1504,6 @@ public function saveInternalNotes(Request $request)
         'notes' => 'nullable|string',
     ]);
 
-    // Find the record and update the notes
     $delivered = Load::find($request->id);
 
     $subject = "Save the internal notes for load";
