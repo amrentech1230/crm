@@ -81,12 +81,15 @@
                            </div>
                            <div class="col-md-3">
                               <div class="form-group">
-                                 <label for="customer_address">MC# /FF#</label>
-                                 <input type="text" class="form-control" id="customer_address"
-                                    name="customer_mc_ff_input"
-                                    value="{{ $customer->customer_mc_ff }} {{ $customer->customer_mc_ff_input }}"
-                                    >
-                                
+                                 <label for="customer_mc_ff">MC# / FF#</label>
+                                 <div class="d-flex">
+                                    <select class="form-control select2 mr-2" id="customer_mc_ff" name="customer_mc_ff">
+                                       <option value="NA" {{ $customer->customer_mc_ff == 'NA' || $customer->customer_mc_ff == '' ? 'selected' : '' }}>NA</option>
+                                       <option value="MC" {{ $customer->customer_mc_ff == 'MC' ? 'selected' : '' }}>MC</option>
+                                       <option value="FF" {{ $customer->customer_mc_ff == 'FF' ? 'selected' : '' }}>FF</option>
+                                    </select>
+                                    <input type="text" class="form-control select2" id="customer_mc_ff_input" name="customer_mc_ff_input" value="{{ $customer->customer_mc_ff_input }}">
+                                 </div>
                               </div>
                            </div>
                            <div class="col-md-3">

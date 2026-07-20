@@ -1452,6 +1452,8 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
+    $customer->customer_mc_ff = $request->input('customer_mc_ff');
+    $customer->customer_mc_ff_input = $request->input('customer_mc_ff_input');
     $customer->customer_address = $request->input('customer_address');
     $customer->customer_city = $request->input('customer_city');
     $customer->customer_zip = $request->input('customer_zip');
