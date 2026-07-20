@@ -147,7 +147,6 @@ if (!function_exists('getdiffrance')) {
             if (in_array($key, ['_token', '_method'])) {
                 continue;
             }
-
             if (!array_key_exists($key, $array1)) {
                 $diff[$key] = ['olddata' => null, 'newdata' => $val2];
             } elseif (!array_key_exists($key, $array2)) {
