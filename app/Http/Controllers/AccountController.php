@@ -1708,8 +1708,6 @@ public function updateInvoiceStatus(Request $request, $id)
         $receiving = floatval($request->receiving_amount);
         $this->applyPaymentAmounts($load, $receiving);
 
-        // Amount receive hote hi status ko Paid Record karo, taaki Invoiced
-        // tab se hat jaye aur sirf Invoiced/Paid tab me dikhe.
         if ($receiving > 0) {
             $load->invoice_status = 'Paid Record';
             if (!$load->invoice_status_date) {
@@ -1931,23 +1929,15 @@ $searchTerms = array_filter(
 
 
             if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
                 $open = Load::where('load_status','Open')->with(['user','customer','carrier'])
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
-                            // $query->orwhere('load_workorder', 'like', "%$term%");
-                            // $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            // $query->orwhere('load_bill_to', 'like', "%$term%");
-                            // $query->orwhere('invoice_number', 'like', "%$term%");
-                            // $query->orwhere('load_dispatcher', 'like', "%$term%");
-
                         }
                     })
                     ->orderBy('loads.id', 'desc')
-                    ->get();
+                    ->paginate(50)->setPageName('open');
             } else {
-                // If no valid terms, return an empty collection or handle accordingly
                 $open = collect();
             }
         } else {

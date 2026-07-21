@@ -98,15 +98,11 @@ class AdminController extends Controller
         'agent'    => $request->input('agent'),
     ];
 
-    $tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
-
-    foreach ($tabs as $tab) {
-        if ($request->has($tab)) {
-            Paginator::currentPageResolver(function () use ($request, $tab) {
-                return $request->input($tab);
-            });
-            break; // Stop after finding the matching tab
-        }
+    // JS se 'page' parameter aata hai - use karo
+    if ($request->has('page')) {
+        Paginator::currentPageResolver(function () use ($request) {
+            return (int) $request->input('page', 1);
+        });
     }
 
     $broker_status = $this->filteredLoadsQuery(Load::with('user'), $filters)
