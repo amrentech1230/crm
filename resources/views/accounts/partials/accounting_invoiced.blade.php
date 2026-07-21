@@ -108,15 +108,16 @@
                                                         @php
                                                             $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                                                             $fileName = basename($file);
+                                                            $filePath = public_path(ltrim($file, '/'));
                                                         @endphp
+                                                        @if(!file_exists($filePath)) @continue @endif
                                                         <label class="mail-document-card" title="Click to select or deselect">
-                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice')) checked @endif>
-                                                            <a class="mail-document-preview" href="{{ asset('public/'.$file) }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice') || Str::startsWith($fileName, 'load_invoice')) checked @endif>
+                                                            <a class="mail-document-preview" href="{{ asset($file) }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
                                                                 @if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
-                                                                    <img src="{{ asset('public/'.$file) }}" alt="{{ $fileName }}">
+                                                                    <img src="{{ asset($file) }}" alt="{{ $fileName }}" style="max-width:100%;max-height:150px;object-fit:contain;">
                                                                 @else
-                                                                    <i class="fas fa-file-pdf"></i>
-                                                                    <span>PDF preview</span>
+                                                                    <iframe src="{{ asset($file) }}" style="width:150px;height:150px;border:none;pointer-events:none;" scrolling="no"></iframe>
                                                                 @endif
                                                             </a>
                                                             <span class="mail-document-name">{{ $fileName }}</span>
@@ -355,10 +356,9 @@ function mailDocumentCard(filePath, fileUrl) {
 
     return `
         <label class="mail-document-card" title="Click to select or deselect">
-            <input type="checkbox" name="documents[]" value="${safePath}" checked>
+            <input type="checkbox" name="documents[]" value="${safePath}">
             <a class="mail-document-preview" href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
-                <i class="fas fa-file-pdf"></i>
-                <span>PDF preview</span>
+                <iframe src="${safeUrl}" style="width:150px;height:150px;border:none;pointer-events:none;" scrolling="no"></iframe>
             </a>
             <span class="mail-document-name">${safeName}</span>
             <button type="button" class="btn btn-sm btn-outline-danger remove-mail-document" title="Remove from this email" aria-label="Remove ${safeName}">
@@ -408,7 +408,7 @@ function maildocumetupload(inputElement, invoiceno) {
                 $status.html(`<span class="text-success">Uploaded ${data.files.length} file(s) successfully.</span>`);
 
                 data.files.forEach(function (filePath) {
-                    const fileUrl = `{{ url('/') }}/public/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+                    const fileUrl = `{{ url('/') }}/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
                     $uploadedDocsContainer.append(mailDocumentCard(filePath, fileUrl));
                 });
                 inputElement.value = '';
