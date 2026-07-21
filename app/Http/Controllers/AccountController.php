@@ -1178,13 +1178,12 @@ public function editCustomer($id)
     //     }
     // }
 
-    $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
     $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-$receiving_amount = Load::where('customer_id', $customer->id)
-    ->where('invoice_status', 'Paid Record')
-    ->sum('receiving_amount');
+    $receiving_amount = Load::where('customer_id', $customer->id)
+        ->where('invoice_status', 'Paid Record')
+        ->sum('receiving_amount');
 
-$usedAmount = $loadcreateamount - $receiving_amount;
+    $remainingCredit = $totalCreditLimit - $loadcreateamount;
 
     // Calculate totals using aggregates for better performance
     $totalFinalRate = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
@@ -1305,29 +1304,12 @@ public function accountupdateCustomer(Request $request, $id)
     | Calculate Used Credit
     |--------------------------------------------------------------------------
     */
-    $loads = Load::where('customer_id', $customer->id)->get();
+    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
+    $receiving_amount = Load::where('customer_id', $customer->id)
+        ->where('invoice_status', 'Paid Record')
+        ->sum('receiving_amount');
 
-    $usedAmount = 0;
-
-    foreach ($loads as $load) {
-
-        $rate = (float) ($load->shipper_load_final_rate ?? 0);
-
-        if (in_array($load->invoice_status, ['Paid Record', 'Paid'], true)) {
-
-            $remaining = (float) ($load->remaining_amount ?? 0);
-
-            if ($remaining <= 0 && $load->receiving_amount !== null) {
-                $remaining = max(0, $rate - (float) $load->receiving_amount);
-            }
-
-            $usedAmount += $remaining;
-
-        } else {
-
-            $usedAmount += $rate;
-        }
-    }
+    $usedAmount = $loadcreateamount;
 
     /*
     |--------------------------------------------------------------------------
@@ -1434,15 +1416,7 @@ public function accountupdateCustomer(Request $request, $id)
         array_column($updatedInvoiceCreditLogs, 'credit_limit')
     );
 
-    $remainingCredit = max(0, $totalCreditLimit - $usedAmount);
-
-    // A value entered in the "Remaining Credit Limit" modal is an exact
-    // balance, not an additional credit amount. Keep the audit log, but do
-    // not add that value to the existing remaining balance.
-    // if (!empty($newRemainingCreditLogs)) {
-    //     $latestRemainingCredit = end($newRemainingCreditLogs);
-    //     $remainingCredit = max(0, (float) $latestRemainingCredit['credit_limit']);
-    // }
+    $remainingCredit = $totalCreditLimit - $usedAmount;
 
     /*
     |--------------------------------------------------------------------------
@@ -1460,8 +1434,6 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
-    $customer->customer_mc_ff = $request->input('customer_mc_ff');
-    $customer->customer_mc_ff_input = $request->input('customer_mc_ff_input');
     $customer->customer_address = $request->input('customer_address');
     $customer->customer_city = $request->input('customer_city');
     $customer->customer_zip = $request->input('customer_zip');
@@ -1504,6 +1476,7 @@ public function saveInternalNotes(Request $request)
         'notes' => 'nullable|string',
     ]);
 
+    // Find the record and update the notes
     $delivered = Load::find($request->id);
 
     $subject = "Save the internal notes for load";
@@ -1723,33 +1696,48 @@ public function updateInvoiceStatus(Request $request, $id)
     }
 
     public function updateReceivingAmount(Request $request)
-    {
-        $request->validate([
-            'load_id' => 'required|integer',
-            'receiving_amount' => 'required|numeric|min:0'
-        ]);
-    
-        $load = Load::find($request->load_id);
-    
-        if ($load) {
-            $this->applyPaymentAmounts($load, floatval($request->receiving_amount));
-            $load->save();
+{
+    $request->validate([
+        'load_id' => 'required|integer',
+        'receiving_amount' => 'required|numeric|min:0'
+    ]);
 
-            $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
-            addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
-    
-            return response()->json([
-                'success' => true,
-                'remaining_amount' => number_format($load->remaining_amount, 2),
-                'load_advance_rec_amount' => number_format($load->load_advance_rec_amount, 2)
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Load not found'
-            ]);
+    $load = Load::find($request->load_id);
+
+    if ($load) {
+        $receiving = floatval($request->receiving_amount);
+        $this->applyPaymentAmounts($load, $receiving);
+
+        // Amount receive hote hi status ko Paid Record karo, taaki Invoiced
+        // tab se hat jaye aur sirf Invoiced/Paid tab me dikhe.
+        if ($receiving > 0) {
+            $load->invoice_status = 'Paid Record';
+            if (!$load->invoice_status_date) {
+                $load->invoice_status_date = now()->format('Y-m-d H:i:s');
+            }
+            if (!$load->payment_receiving_date) {
+                $load->payment_receiving_date = now()->format('Y-m-d H:i:s');
+            }
         }
+
+        $load->save();
+
+        $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
+        addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+
+        return response()->json([
+            'success' => true,
+            'invoice_status' => $load->invoice_status,
+            'remaining_amount' => number_format($load->remaining_amount, 2),
+            'load_advance_rec_amount' => number_format($load->load_advance_rec_amount, 2)
+        ]);
+    } else {
+        return response()->json([
+            'success' => false,
+            'message' => 'Load not found'
+        ]);
     }
+}
 	
 	public function updateadvReceivingAmount(Request $request)
     {
@@ -5998,12 +5986,6 @@ public function searchLoadsOnInvoice(Request $request)
 
 public function uploadmailDocument(Request $request)
 {
-    $request->validate([
-        'load_no' => ['required'],
-        'document' => ['required', 'array', 'min:1'],
-        'document.*' => ['file', 'mimes:pdf', 'max:20480'],
-    ]);
-
     $id = $request->input('load_no');
 
     if ($request->hasFile('document')) {
@@ -6024,11 +6006,11 @@ public function uploadmailDocument(Request $request)
             // Generate a unique file name to avoid conflicts
             $fileName = uniqid() . '_' . $cleanName;
             $file->move($targetDir, $fileName);
-            $uploadPaths[] = 'uploads/delivery-order/' . $id . '/' . $fileName;
+            $uploadPaths[] = '/uploads/delivery-order/' . $id . '/' . $fileName;
         }
 
         // Update the load record with merged document paths
-        $load = Load::where('load_number', $id)->firstOrFail();
+        $load = Load::findOrFail($id);
 
         $oldFiles = json_decode($load->load_delivery_do_file, true) ?? [];
         $merged = array_merge($oldFiles, $uploadPaths);
@@ -6141,7 +6123,7 @@ public function carrier_verification_save(Request $request)
             $file->move($targetDir, $fileName);
 
             // Store relative public path
-            $uploadPaths[] = "uploads/carrierbankdocs/{$id}/{$fileName}";
+            $uploadPaths[] = "/uploads/carrierbankdocs/{$id}/{$fileName}";
         }
 
         // Fetch record
