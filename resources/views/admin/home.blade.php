@@ -742,42 +742,37 @@ $(document).on('click', '.custom-pagination a', function (e) {
     if (!href) return;
 
     let activeTab = $('.nav-link.active').attr('href');
-    let resultContainer = '', tableSelector = '', ajaxUrl = '', pageParam = '';
+    let resultContainer = '', tableSelector = '', pageName = '';
 
     if (activeTab === '#all_load') {
-        resultContainer = '#all_load-search'; tableSelector = '#datatable-buttons-all_load';
-        ajaxUrl = '/admin/all_search'; pageParam = 'all_load';
+        resultContainer = '#all_load-search'; tableSelector = '#datatable-buttons-all_load'; pageName = 'all_load';
     } else if (activeTab === '#open') {
-        resultContainer = '#open-search'; tableSelector = '#datatable-buttons-open';
-        ajaxUrl = '/admin/open_search'; pageParam = 'open';
+        resultContainer = '#open-search'; tableSelector = '#datatable-buttons-open'; pageName = 'open';
     } else if (activeTab === '#delivered') {
-        resultContainer = '#delivered-search'; tableSelector = '#datatable-buttons-delivered';
-        ajaxUrl = '/admin/delivered_search'; pageParam = 'delivered';
+        resultContainer = '#delivered-search'; tableSelector = '#datatable-buttons-delivered'; pageName = 'delivered';
     } else if (activeTab === '#completed') {
-        resultContainer = '#shipper-search'; tableSelector = '#datatable-buttons-completed';
-        ajaxUrl = '/admin/complete_search'; pageParam = 'completed';
+        resultContainer = '#shipper-search'; tableSelector = '#datatable-buttons-completed'; pageName = 'completed';
     } else if (activeTab === '#invoiced') {
-        resultContainer = '#invoiced-search'; tableSelector = '#datatable-buttons-invoiced';
-        ajaxUrl = '/admin/invoice_search'; pageParam = 'invoiced';
+        resultContainer = '#invoiced-search'; tableSelector = '#datatable-buttons-invoiced'; pageName = 'invoiced';
     } else if (activeTab === '#invoiced_paid') {
-        resultContainer = '#invoiced_paid-search'; tableSelector = '#datatable-buttons-invoiced_paid';
-        ajaxUrl = '/admin/invoice_paid_search'; pageParam = 'invoiced_paid';
+        resultContainer = '#invoiced_paid-search'; tableSelector = '#datatable-buttons-invoiced_paid'; pageName = 'invoiced_paid';
     } else {
         return;
     }
 
-    // href se sirf page number nikalo (e.g. ?all_load=3)
+    // href se correct page param nikalo (setPageName ke hisaab se)
     let urlObj = new URL(href, window.location.origin);
-    let pageNum = urlObj.searchParams.get(pageParam) || '1';
+    let pageNum = urlObj.searchParams.get(pageName) || urlObj.searchParams.get('page') || '1';
 
     $('.loader-container').removeClass('hide');
 
     $.ajax({
-        url: ajaxUrl,
+        url: '/admin/search_by_filter',
         type: 'GET',
         dataType: 'json',
         data: {
-            [pageParam]: pageNum,
+            tab: activeTab,
+            page: pageNum,
             office: $('#officeSelect').val(),
             manager: $('#managerSelect').val(),
             teamLeader: $('#teamLeaderSelect').val(),
@@ -787,10 +782,8 @@ $(document).on('click', '.custom-pagination a', function (e) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
-
             $(resultContainer).html(response.html);
             $(resultContainer).closest('.tab-pane').find('.custom-pagination').html(response.pagination);
-
             $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'rtip',
@@ -798,7 +791,6 @@ $(document).on('click', '.custom-pagination a', function (e) {
                 paging: false,
                 pageLength: 50,
             });
-
             $('.loader-container').addClass('hide');
         },
         error: function (xhr) {

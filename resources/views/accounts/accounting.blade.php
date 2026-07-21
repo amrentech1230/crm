@@ -389,36 +389,39 @@ table.dataTable tbody > tr.selected td p {
     e.preventDefault();
 
     let url = $(this).attr('href');
-
-    // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
-        let resultContainer = '';
-        let tableSelector = '';
+    let resultContainer = '';
+    let tableSelector = '';
+    let searchInputSelector = '';
 
-        if (activeTab === '#open') {
-            resultContainer = '#open-search';
-            tableSelector = '#datatable-buttons-open';
+    if (activeTab === '#open') {
+        resultContainer = '#open-search';
+        tableSelector = '#datatable-buttons-open';
+        searchInputSelector = '#opens input[name="query"]';
+    } else if (activeTab === '#completed') {
+        resultContainer = '#completed-search';
+        tableSelector = '#datatable-buttons-completed';
+        searchInputSelector = '#completeds input[name="query"]';
+    } else if (activeTab === '#invoiced') {
+        resultContainer = '#invoiced-search';
+        tableSelector = '#datatable-buttons-invoiced';
+        searchInputSelector = '#invoiceds input[name="query"]';
+    } else if (activeTab === '#invoiced_paid') {
+        resultContainer = '#invoiced_paid-search';
+        tableSelector = '#datatable-buttons-invoiced_paid';
+        searchInputSelector = '#invoiced_paids input[name="query"]';
+    } else {
+        return;
+    }
 
-        } else if (activeTab === '#completed') {
-            resultContainer = '#completed-search';
-            tableSelector = '#datatable-buttons-completed';
+    let currentQuery = $(searchInputSelector).val() || '';
 
-        } else if (activeTab === '#invoiced') {
-            resultContainer = '#invoiced-search';
-            tableSelector = '#datatable-buttons-invoiced';
-
-        } else if (activeTab === '#invoiced_paid') {
-            resultContainer = '#invoiced_paid-search';
-            tableSelector = '#datatable-buttons-invoiced_paid';
-
-        } else {
-            return; // Exit if it's not one of the expected tabs
-        }
     $.ajax({
         url: url,
         type: 'GET',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            query: currentQuery
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
@@ -430,12 +433,11 @@ table.dataTable tbody > tr.selected td p {
             $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'rtip',
-				pageLength: 100, 
+                pageLength: 100,
                 paging: false,
                 buttons: [ 'colvis' ],
             });
 
-            // Optional: update the browser URL
             window.history.pushState("", "", url);
         }
     });
