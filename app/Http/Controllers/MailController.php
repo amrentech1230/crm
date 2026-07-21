@@ -84,7 +84,11 @@ class MailController extends Controller
     private function prepareAttachments(array $files, $loadNo): array
     {
         $deliveryRoot = realpath(public_path('uploads/delivery-order'));
-        if ($deliveryRoot === false) {
+        $uploadsRoot  = realpath(public_path('uploads'));
+
+        $allowedRoots = array_filter([$deliveryRoot, $uploadsRoot]);
+
+        if (empty($allowedRoots)) {
             throw new \RuntimeException('No delivery documents are available to attach.');
         }
 
@@ -93,11 +97,29 @@ class MailController extends Controller
             $relativePath = ltrim(str_replace('\\', '/', $file), '/');
             $path = realpath(public_path($relativePath));
 
-            if ($path === false || !str_starts_with($path, $deliveryRoot . DIRECTORY_SEPARATOR) || !is_readable($path)) {
-                throw new \RuntimeException('One or more selected documents are unavailable. Please refresh and select them again.');
+            if ($path === false || !is_readable($path)) {
+                \Log::warning('Mail attachment skipped (not found): ' . $file);
+                continue;
+            }
+
+            $allowed = false;
+            foreach ($allowedRoots as $root) {
+                if (str_starts_with($path, $root . DIRECTORY_SEPARATOR) || str_starts_with($path, $root . '/')) {
+                    $allowed = true;
+                    break;
+                }
+            }
+
+            if (!$allowed) {
+                \Log::warning('Mail attachment rejected (outside allowed path): ' . $file);
+                continue;
             }
 
             $paths[] = $path;
+        }
+
+        if (empty($paths)) {
+            throw new \RuntimeException('No valid documents found to attach. Please upload documents and try again.');
         }
 
         if (count($paths) <= 1) {
