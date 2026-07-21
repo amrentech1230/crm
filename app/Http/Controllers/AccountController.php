@@ -1143,15 +1143,13 @@ public function editCustomer($id)
     $credits = json_decode($customer->credit_limit_log, true);
     $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true);
 
-    if (is_array($credits)) {
+    // remaining_credit_logs ko priority do (yahi crmcargoconvoy pe use hota hai)
+    if (is_array($remainingCreditLogs) && count($remainingCreditLogs) > 0) {
+        $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
+    } elseif (is_array($credits)) {
         $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
     } else {
         $totalCreditLimit = 0;
-    }
-
-    // If credit_limit_log is empty, fallback to remaining_credit_logs for assigned credit.
-    if ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
-        $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
     }
 
     // Calculate used credit from actual paid loads rather than relying on remaining_credit alone.
@@ -1407,8 +1405,12 @@ public function accountupdateCustomer(Request $request, $id)
     */
     $totalCreditLimit = array_sum(array_column($updatedCreditLogs, 'credit_limit'));
     $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $updatedRemainingAll = array_merge($remainingCreditLogs, $newRemainingCreditLogs);
 
-    if ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
+    // remaining_credit_logs ko priority do
+    if (!empty($updatedRemainingAll)) {
+        $totalCreditLimit = array_sum(array_column($updatedRemainingAll, 'credit_limit'));
+    } elseif ($totalCreditLimit <= 0 && is_array($remainingCreditLogs)) {
         $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
     }
 
