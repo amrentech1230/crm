@@ -119,7 +119,7 @@ class MailController extends Controller
         }
 
         if (empty($paths)) {
-            throw new \RuntimeException('No valid documents found to attach. Please upload documents and try again.');
+            return [[], []];
         }
 
         if (count($paths) <= 1) {
