@@ -1183,7 +1183,7 @@ public function editCustomer($id)
         ->where('invoice_status', 'Paid Record')
         ->sum('receiving_amount');
 
-    $remainingCredit = $totalCreditLimit - $loadcreateamount;
+    $remainingCredit = ($totalCreditLimit - $loadcreateamount) + $receiving_amount;
 
     // Calculate totals using aggregates for better performance
     $totalFinalRate = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
@@ -1416,7 +1416,7 @@ public function accountupdateCustomer(Request $request, $id)
         array_column($updatedInvoiceCreditLogs, 'credit_limit')
     );
 
-    $remainingCredit = $totalCreditLimit - $usedAmount;
+    $remainingCredit = ($totalCreditLimit - $usedAmount) + $receiving_amount;
 
     /*
     |--------------------------------------------------------------------------
