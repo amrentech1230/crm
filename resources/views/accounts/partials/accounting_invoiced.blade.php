@@ -495,8 +495,6 @@ function markAsBackDeliveredRecord(loadId) {
         });
     }
 }
-
-
         function updateRemainingAmount(invoiceId, receiving_amount) {
             
             var shipperLoadFinalRate = parseFloat($('#receiving_amount_' + invoiceId).data(
