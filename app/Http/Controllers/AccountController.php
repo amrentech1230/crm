@@ -1143,59 +1143,30 @@ public function editCustomer($id)
     $credits = json_decode($customer->credit_limit_log, true);
     $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true);
 
-    // remaining_credit_logs ko priority do (yahi crmcargoconvoy pe use hota hai)
-    if (is_array($remainingCreditLogs) && count($remainingCreditLogs) > 0) {
-        $totalCreditLimit = array_sum(array_column($remainingCreditLogs, 'credit_limit'));
-    } elseif (is_array($credits)) {
-        $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
-    } else {
-        $totalCreditLimit = 0;
-    }
-
-    // Calculate used credit from actual paid loads rather than relying on remaining_credit alone.
-    // $loads = Load::where('customer_id', $customer->id)->get();
- $usedAmount = 0;
-
-    // foreach ($loads as $load) {
-    //     $rate = (float) ($load->shipper_load_final_rate ?? 0);
-    //     $invoiceStatus = trim((string) ($load->invoice_status ?? ''));
-
-    //     if ($invoiceStatus === 'Paid') {
-    //         $usedAmount += $rate;
-    //     } elseif ($invoiceStatus === 'Paid Record') {
-    //         if ($load->receiving_amount !== null && is_numeric($load->receiving_amount)) {
-    //             $usedAmount += (float) $load->receiving_amount;
-    //         } elseif ($load->remaining_amount !== null && is_numeric($load->remaining_amount)) {
-    //             $usedAmount += max(0, $rate - (float) $load->remaining_amount);
-    //         } else {
-    //             $usedAmount += $rate;
-    //         }
-    //     } elseif ($invoiceStatus === '') {
-    //         // Blank invoice_status loads should also reduce remaining customer credit.
-    //         $usedAmount += $rate;
-    //     }
-    // }
+    // Assigned Credit Limit = credit_limit_log sum (same as live site)
+    $totalCreditLimit = is_array($credits) ? array_sum(array_column($credits, 'credit_limit')) : 0;
 
     $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
     $receiving_amount = Load::where('customer_id', $customer->id)
         ->where('invoice_status', 'Paid Record')
         ->sum('receiving_amount');
 
-    $remainingCredit = ($totalCreditLimit - $loadcreateamount) + $receiving_amount;
+    // Exhausted = loadcreateamount - receiving_amount
+    $usedAmount = $loadcreateamount - $receiving_amount;
 
-    // Calculate totals using aggregates for better performance
-    $totalFinalRate = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-    $recordPaidAmount = Load::where('customer_id', $customer->id)
-                            ->where('invoice_status', 'Paid Record')
-                            ->sum('shipper_load_final_rate');
-
-    // Calculate sum of `shipper_load_final_rate` for loads with `invoice_status == 'Paid'`
+    // customerAging = Paid invoice loads sum
     $customerAging = Load::where('customer_id', $customer->id)
                          ->where('invoice_status', 'Paid')
                          ->sum('shipper_load_final_rate');
 
+    // Remaining = Assigned - Exhausted - customerAging
+    $remainingCredit = $totalCreditLimit - $usedAmount - $customerAging;
 
-    // Calculate sum of `shipper_load_final_rate` for the last 30 days where `invoice_status == 'Paid'`
+    $totalFinalRate = $loadcreateamount;
+    $recordPaidAmount = Load::where('customer_id', $customer->id)
+                            ->where('invoice_status', 'Paid Record')
+                            ->sum('shipper_load_final_rate');
+
     $last30Days = Load::where('customer_id', $customer->id)
                         ->where('invoice_status', 'Paid')
                         ->whereRaw('STR_TO_DATE(invoice_date, "%Y-%m-%d") BETWEEN ? AND ?', [
@@ -1203,10 +1174,7 @@ public function editCustomer($id)
                             now()->toDateString()
                             ])->sum('shipper_load_final_rate');
 
-    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-    $receiving_amount = Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount');
-
-    $after_used_remaing_amount =  $totalCreditLimit - $loadcreateamount;
+    $after_used_remaing_amount = $totalCreditLimit - $loadcreateamount;
     $afterpaymentremaingamount = $after_used_remaing_amount + $receiving_amount;
 
                       
@@ -2521,7 +2489,6 @@ private function applyAccountingSearch($query, array $terms)
 
         return response()->json(['success' => true, 'message' => 'Marked as Paid successfully']);
     }
-    
 public function saverateChecks(Request $request)
     {
         // Find the load by ID
