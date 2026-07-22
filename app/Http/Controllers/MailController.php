@@ -5,8 +5,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Mail\Message;
-use Symfony\Component\Process\Process;
 use Dompdf\Dompdf;
+use setasign\Fpdi\Fpdi;
 
 class MailController extends Controller
 {
@@ -150,21 +150,56 @@ class MailController extends Controller
             $temporaryFiles[] = $imagePdf;
         }
 
-        $mergedFile = $temporaryDirectory . DIRECTORY_SEPARATOR . 'invoice-load-' . $loadNo . '-' . uniqid('', true) . '.pdf';
-        $process = new Process(array_merge(['pdfunite'], $pdfPaths, [$mergedFile]));
-        $process->setTimeout(120);
-        $process->run();
+        if (empty($pdfPaths)) {
+            return [[], []];
+        }
 
-        if (!$process->isSuccessful() || !is_file($mergedFile) || filesize($mergedFile) === 0) {
-            @unlink($mergedFile);
-            foreach ($temporaryFiles as $temporaryFile) {
-                @unlink($temporaryFile);
+        $mergedFile = $temporaryDirectory . DIRECTORY_SEPARATOR . 'invoice-load-' . $loadNo . '-' . uniqid('', true) . '.pdf';
+        $mergeSucceeded = $this->mergePdfFiles($pdfPaths, $mergedFile);
+
+        if (!$mergeSucceeded || !is_file($mergedFile) || filesize($mergedFile) === 0) {
+            if (is_file($mergedFile)) {
+                @unlink($mergedFile);
             }
-            throw new \RuntimeException('Could not merge the selected documents. Please ensure each PDF is valid and try again.');
+
+            \Log::warning('Merged PDF could not be created for load ' . $loadNo . '.');
+            return [$paths, $temporaryFiles];
         }
 
         $temporaryFiles[] = $mergedFile;
         return [[$mergedFile], $temporaryFiles];
+    }
+
+    /**
+     * Merge PDF files into one using FPDI (pure PHP, no external binaries).
+     * By this point every entry in $pdfPaths is already a real PDF (images
+     * were converted earlier via convertImageToPdf).
+     */
+    private function mergePdfFiles(array $pdfPaths, string $mergedFile): bool
+    {
+        try {
+            $pdf = new Fpdi();
+
+            foreach ($pdfPaths as $path) {
+                $pageCount = $pdf->setSourceFile($path);
+
+                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                    $templateId = $pdf->importPage($pageNo);
+                    $size = $pdf->getTemplateSize($templateId);
+
+                    $orientation = ($size['width'] > $size['height']) ? 'L' : 'P';
+                    $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+                    $pdf->useTemplate($templateId);
+                }
+            }
+
+            $pdf->Output('F', $mergedFile);
+        } catch (\Throwable $e) {
+            \Log::error('FPDI merge failed: ' . $e->getMessage());
+            return false;
+        }
+
+        return is_file($mergedFile) && filesize($mergedFile) > 0;
     }
 
     private function convertImageToPdf(string $imagePath, string $pdfPath): void
