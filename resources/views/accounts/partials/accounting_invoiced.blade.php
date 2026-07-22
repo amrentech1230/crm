@@ -90,6 +90,8 @@
 											<input type="hidden" id="load_no" name="load_no" value="{{$invoice->load_number}}">
 											<input type="hidden" name="refrance_no" value="{{$invoice->load_workorder}}">
 											<input type="hidden" name="invoice_no" value="{{$invoice->invoice_number}}">
+                                            <input type="hidden" name="load_workorder" value="{{ $invoice->load_workorder }}">
+                                            <input type="hidden" name="customer_refrence_number" value="{{ $invoice->customer_refrence_number }}">
 											
 											<strong>Upload new documents:</strong><br><br>
 											<input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}"  onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" multiple>

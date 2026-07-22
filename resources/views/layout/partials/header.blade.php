@@ -533,6 +533,15 @@
                 </li>
                 @endif
 
+                @if(isset($userMenus) && in_array('All load status', $userMenus))
+                    <li>
+                        <a href="{{route('all.status.loads')}}" class=" waves-effect">
+                            <i class="fas fa-truck-moving"></i>
+                            <span>All load status</span>
+                        </a>
+                    </li>
+                @endif
+
 
             </ul>
         </div>

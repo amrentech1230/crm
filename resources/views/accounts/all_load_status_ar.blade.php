@@ -88,6 +88,12 @@
     .hide_blur_privacy.blurred {
         filter: blur(6px);
     }
+
+    /* This page exposes only the All Loads tab. */
+    .nav-tabs .nav-item:not(:first-child),
+    .tab-content > .tab-pane:not(#all_load) {
+        display: none !important;
+    }
 </style>
 <div class="page-content">
     <div class="container-fluid">
@@ -220,42 +226,7 @@
                                 <a class="nav-link active" data-bs-toggle="tab" href="#all_load" role="tab"
                                     aria-selected="true">
                                     <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
-                                    <span class="d-none d-sm-block">All</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#open" role="tab" aria-selected="false"
-                                    tabindex="-1">
-                                    <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
-                                    <span class="d-none d-sm-block">Open</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#delivered" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
-                                    <span class="d-none d-sm-block">Delivered</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#completed" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    <span class="d-block d-sm-none"><i class="far fa-envelope"></i></span>
-                                    <span class="d-none d-sm-block">Completed</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#invoiced" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    <span class="d-block d-sm-none"><i class="far fa-envelope"></i></span>
-                                    <span class="d-none d-sm-block">Invoiced</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#invoiced_paid" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    <span class="d-block d-sm-none"><i class="fas fa-cog"></i></span>
-                                    <span class="d-none d-sm-block">Invoiced / Paid</span>
+                                    <span class="d-none d-sm-block">All Loads Status</span>
                                 </a>
                             </li>
                         </ul>
@@ -824,7 +795,7 @@
             if (target === '#all_load') {
                 $('form.app-search .position-relative').attr('id', 'all_loads');
                 inputSelector = '#all_loads input[name="query"]';
-                ajaxUrl = '/admin/all_search'z
+                ajaxUrl = '/admin/all_search';
                 resultContainer = '#all_load-search';
                 tableSelector = '#datatable-buttons-all_load';
             } else if (target === '#open') {

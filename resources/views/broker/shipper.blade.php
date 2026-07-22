@@ -80,11 +80,7 @@
                                 @include('broker.partials.shipper_table')
                             </tbody>
                         </table>
-<<<<<<< HEAD
                         <div class="custom-pagination pagination-conatainer">
-=======
-                        <div class="custom-pagination pagination-container">
->>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                             {{ $shipper->links() }}
                         </div>
                     </div>

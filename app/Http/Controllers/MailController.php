@@ -17,6 +17,7 @@ class MailController extends Controller
         $load_no = $request->input('load_no');
         $refrance_no = $request->input('refrance_no');
         $invoice_no = $request->input('invoice_no');
+        $cf = $request->input('customer_refrence_number');
         $username = Auth::user()->name;
 		
 		$emailArray = array_map('trim', explode(',', $email));
@@ -29,7 +30,8 @@ class MailController extends Controller
                 $message->to($emailArray)
                         ->from('ar@cargoconvoy.co', 'Cargoconvoy')
                         ->replyTo('ar@cargoconvoy.co')
-                        ->subject('Invoice For Load #'.$load_no.' (#'.$invoice_no.') REF #'.$refrance_no)
+                        ->subject('Invoice For Load #'.$load_no.' (#'.$invoice_no.') REF #'.$refrance_no.' | Customer Ref #'.$cf)
+                        
                         ->html($htmlBody); 
 				
 				if (!empty(array_filter($ccArray))) {

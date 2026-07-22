@@ -186,6 +186,7 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
 	Route::get('account/broker-public-doc/{id}', [AccountController::class, 'accountingCompletedPublicDoc'])->name('CompletedPublicDoc');
     Route::get('account/accounting_open_search', [AccountController::class, 'accounting_open_search'])->name('accounting_open_search');
     Route::get('account/accounting_completed_search', [AccountController::class, 'accounting_completed_search'])->name('accounting_completed_search');
+    Route::get('account/accounting_delivered_search', [AccountController::class, 'accounting_delivered_search'])->name('accounting_delivered_search');
     Route::get('account/accounting_invoiced_search', [AccountController::class, 'accounting_invoiced_search'])->name('accounting_invoiced_search');
     Route::get('account/accounting_invoiced_paid_search', [AccountController::class, 'accounting_invoiced_paid_search'])->name('accounting_invoiced_paid_search');
 	
@@ -245,11 +246,7 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::post('account/update-invoice-status/{id}', [AccountController::class, 'updateInvoiceStatus'])->name('update.invoice.status');
 
     Route::post('account/update-invoice-status-as-paid-record/{id}', [AccountController::class, 'updateInvoiceStatusAsPaidRecord'])->name('update.invoice.status.as.paid.record');
-<<<<<<< HEAD
      Route::post('account/update-invoice-status-as-short/{id}', [AccountController::class, 'updateInvoiceStatusAsShort'])->name('update.invoice.status.as.short');
-=======
-    Route::post('account/update-invoice-status-as-short/{id}', [AccountController::class, 'updateInvoiceStatusAsShort'])->name('update.invoice.status.as.short');
->>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
 
     Route::post('account/load/update-receiving-amount', [AccountController::class, 'updateReceivingAmount'])->name('load.updateReceivingAmount');
 
@@ -321,7 +318,9 @@ Route::post('account/load/update-remaining-amount', [AccountController::class, '
         Route::post('account/factoring/update/{id}', [AccountController::class, 'factoring_update'])->name('factoring.update');
         Route::delete('account/factoring/delete/{id}', [AccountController::class, 'factoring_delete'])->name('factoring.delete');
         Route::post('account/assign-customer', [AccountController::class, 'assignCustomer'])->name('assign.customer');
-    /*---------- Broker ----------*/
+        route::get('account/all-status-loads', [AccountController::class, 'all_load_status_ar'])->name('all.status.loads');
+        
+        /*---------- Broker ----------*/
 
     Route::get('broker/home', function () {
         return view('home');
