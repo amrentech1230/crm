@@ -112,7 +112,7 @@
                                                         @endphp
                                                         @if(!file_exists($filePath)) @continue @endif
                                                         <label class="mail-document-card" title="Click to select or deselect">
-                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice') || Str::startsWith($fileName, 'load_invoice')) checked @endif>
+                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" checked >
                                                             <a class="mail-document-preview" href="{{ asset($file) }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
                                                                 @if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
                                                                     <img src="{{ asset($file) }}" alt="{{ $fileName }}" style="max-width:100%;max-height:150px;object-fit:contain;">
