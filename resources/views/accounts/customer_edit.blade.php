@@ -64,14 +64,14 @@
                         <div class="row clearfix">
                            <div class="col-md-3">
                               <div class="form-group">
-                                 <label for="customer_hold">Customer Hold Status<code>*</code></label>
+                                 <label for="customer_hold">Company Hold Status<code>*</code></label>
                                  <input type="checkbox" name="customer_hold_status" value="hold" {{ $customer->customer_hold_status == 'hold' ? 'checked' : '' }}>
                                  <span style="color:red">{{ $customer->customer_hold_status == 'hold' ? 'Hold' : 'Unhold' }}</span>
                               </div>
                            </div>
                            <div class="col-md-3">
                               <div class="form-group">
-                                 <label for="customer_name">Customer Name<code>*</code></label>
+                                 <label for="customer_name">Company Name<code>*</code></label>
                                  <input type="text" class="form-control" id="customer_name"
                                     name="customer_name" value="{{ $customer->customer_name }}" >
                                     @if ($errors->has('customer_name'))
@@ -561,7 +561,7 @@
                         <thead>
                             <tr>
                                 <th>Load Number</th>
-                                <th>Customer Name</th>
+                                <th>Company Name</th>
                                 <th>Invoice No.</th>
                                 <th>Invoice Date</th>
                                 <th>Agent</th>
@@ -607,7 +607,7 @@
                         <thead>
                             <tr>
                                 <th>Load Number</th>
-                                <th>Customer Name</th>
+                                <th>Company Name</th>
                                 <th>Invoice No.</th>
                                 <th>Invoice Date</th>
                                 <th>Agent</th>

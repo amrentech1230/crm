@@ -121,14 +121,14 @@
 
                                             </select>
                                         </td>
-                                     <td>
-    @if($customerApprovalFormBroker->duplicate == 'Yes')
-        <input type="checkbox" checked disabled>
-        <span style="color:green; font-size:12px;">Assigned</span>
-    @else
-        <input type="checkbox" class="assign-agent" data-id="{{ $customerApprovalFormBroker->id }}">
-    @endif
-</td>
+                                    <td>
+                                        @if($customerApprovalFormBroker->duplicate == 'Yes')
+                                            <input type="checkbox" checked disabled>
+                                            <span style="color:green; font-size:12px;">Assigned</span>
+                                        @else
+                                            <input type="checkbox" class="assign-agent" data-id="{{ $customerApprovalFormBroker->id }}">
+                                        @endif
+                                    </td>
 
                                         <td><input type="file" name="credit_doc_upload[]"
                                                 class="form-control credit-doc-upload"

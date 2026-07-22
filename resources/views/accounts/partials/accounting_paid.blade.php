@@ -20,9 +20,13 @@
             </td>
 
                 @php
+<<<<<<< HEAD
+                    $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
+=======
                     $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
                     $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
                     $difference = (float)$shipper_val - (float)$receiving_val;
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                 @endphp
                 <td style="min-width:120px;" id="payment-status-{{ $record->id }}">
                     <div id="payment-status-label-{{ $record->id }}" style="font-weight:700; margin-bottom:5px; display: {{ $difference > 0 ? 'none' : 'block' }}; color: {{ $difference > 0 ? 'green' : 'green' }};">
@@ -43,9 +47,13 @@
             </td>
 
             @php
+<<<<<<< HEAD
+                $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
+=======
                 $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
                 $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
                 $difference = (float)$shipper_val - (float)$receiving_val;
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                 $paymentIsComplete = abs($difference) < 0.005;
             @endphp
             <td class="dynamic-data">
@@ -68,6 +76,18 @@
 
 <td class="dynamic-data">
     @php
+<<<<<<< HEAD
+        $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
+    @endphp
+
+    @if($difference > 0)
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color: red; font-weight: 600;">{{ number_format($difference, 2) }}</span>
+            <label style="margin:0; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="mark-paid-checkbox" data-id="{{ $record->id }}" data-shipper="{{ $record->shipper_load_final_rate }}"> Mark Paid
+            </label>
+        </div>
+=======
         $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
         $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
         $difference = (float)$shipper_val - (float)$receiving_val;
@@ -81,6 +101,7 @@
         <label style="margin-top:4px; font-weight:600; cursor:pointer; font-size:0.9em; display:inline-block;">
             <input type="checkbox" class="mark-paid-checkbox" data-id="{{ $record->id }}" data-shipper="{{ $record->shipper_load_final_rate }}"> Mark Paid
         </label>
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
     @elseif($difference < 0)
         <span style="background-color:#d4edda; color:#28a745; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
             Excess: ${{ number_format(abs($difference), 2) }}
@@ -177,7 +198,10 @@
 
         var now = new Date();
         // Format as YYYY-MM-DD HH:MM:SS
+<<<<<<< HEAD
+=======
 
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
         var yyyy = now.getFullYear();
         var mm = String(now.getMonth() + 1).padStart(2, '0');
         var dd = String(now.getDate()).padStart(2, '0');

@@ -130,6 +130,8 @@
                                             <th>CPR Check</th>
                                             <th>Macro Sent</th>
                                             <th>Customer Short Pay</th>
+                                            <th>Macro Status</th>
+                                            <th>Macro Number</th>
 
                                         </tr>
                                     </thead>
@@ -148,6 +150,9 @@
 										<a href="{{route('CreditReportingExcel')}}">
 											<button class="btn btn-primary waves-effect waves-light mb-3 exlbtn" >All Limit Excel</button>
 										</a>
+                                        <a href="{{ route('customers.exportCreditLimitLog') }}" class="btn btn-success">
+                                            <i class="fa fa-download"></i> Download Credit Limit Log
+                                        </a>
 									</span>
                                     <thead>
                                         <tr>

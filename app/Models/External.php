@@ -28,7 +28,8 @@ class External extends Model
     'carrier_notes',
 	'mc_check',
     'carrier_file_upload',
-	'carrier_block'	// if storing file path
+	'carrier_block',	// if storing file path
+    'doc_upload'
 ];
 
 

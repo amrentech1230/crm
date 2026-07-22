@@ -112,7 +112,15 @@ li{
                                             <p><b>Phone #:</b>@if($load->user){{ $load->user->emergency_contact }}@endif</p>
                                         </td>
                                         <td style="width:35% !important">
-                                        <p><b>W/O:</b>{{ $load->load_workorder }}</p>
+                                        @php
+                                            $words = explode(' ', $load->load_workorder);
+                                            $chunks = array_chunk($words, 5);
+                                        @endphp
+
+                                        <p>
+                                            <b>W/O:</b><br>
+                                            {{$load->load_workorder}}
+                                        </p>
                                         </td>
                                     </tr>
                                     <tr>
@@ -135,6 +143,10 @@ li{
                                     </tr>
                                     <tr>
                                         <td style="width:65% !important">
+                                            <p>
+                                                <b>C.r/f #:</b><br>
+                                                {{ $load->customer_refrence_number }}
+                                            </p>
                                         </td>
                                         <td style="width:35% !important">
                                             <p><b>Today's Date:</b> {{ now()->setTimezone('America/New_York')->format('m-d-Y') }}</p>
@@ -151,7 +163,7 @@ li{
                             </div>
                         </div>
                       
-                        <div class="detail" style="width: 100%;">
+                        <div class="detail" style="width: 100%;margin-top: 100px;">
                             <table style="width:100%">
                                 <thead>
                                     <tr>

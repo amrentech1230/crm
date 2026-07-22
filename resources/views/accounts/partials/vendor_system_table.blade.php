@@ -200,16 +200,23 @@ $rowClass = 'row-completed';
             <option value="Check" @if($vendor->payment_method == 'Check') selected @endif>Check</option>
             <option value="Wire" @if($vendor->payment_method == 'Wire') selected @endif>Wire</option>
             <option value="Buyout" @if($vendor->payment_method == 'Buyout') selected @endif>Buyout</option>
+            <option value="Administratively Closed – No Carrier Response / Documents Not Received"
+            @if($vendor->payment_method == 'Administratively Closed – No Carrier Response / Documents Not Received') selected @endif>
+            Administratively Closed – No Carrier Response / Documents Not Received
+        </option>
         </select>
     </td>
 
-    <td class="dynamic-data">
-        @if ($vendor->carrier_mark_as_paid != 'Paid')
+<td class="dynamic-data">
+    @if (
+        $vendor->carrier_mark_as_paid != 'Paid' &&
+        $vendor->payment_method != 'Administratively Closed – No Carrier Response / Documents Not Received'
+    )
         <input type="checkbox" class="carrier_mark_as_paid" data-id="{{ $vendor->id }}">
-        @else
+    @elseif($vendor->carrier_mark_as_paid == 'Paid')
         Paid
-        @endif
-    </td>
+    @endif
+</td>
     <td>{{ $vendor->load_carrier_due_date_on }}</td>
 
 
@@ -905,7 +912,6 @@ $rowClass = 'row-completed';
 
 <script>
 $(document).on('change', '.carrier_mark_as_paid', function () {
-
     var checkbox = $(this);
     var loadId = checkbox.data('id');
 
@@ -918,13 +924,8 @@ $(document).on('change', '.carrier_mark_as_paid', function () {
                 id: loadId
             },
             success: function (response) {
-
                 if (response.status === 'success') {
-                    // Replace checkbox with text
                     checkbox.closest('td').html('<span style="color:green;font-weight:600;">Paid</span>');
-                    
-                    // Reload once if needed
-                    // location.reload();
                 } else {
                     alert('Error: ' + response.message);
                     checkbox.prop('checked', false);
