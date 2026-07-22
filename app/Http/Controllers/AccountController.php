@@ -5341,9 +5341,7 @@ public function customerDetailsReportingExcell()
 
         $paymentDate = $load->payment_receiving_date ? Carbon::parse($load->payment_receiving_date)->format('Y-m-d') : '';
         $markDate    = $load->invoice_status_date ? Carbon::parse($load->invoice_status_date)->format('Y-m-d') : '';
-
         $isCancelled = strcasecmp((string) $load->load_status, 'Cancelled') === 0;
-
         // Difference mirrors the AR tab: shipper final rate minus amount received.
         $difference      = $shipperRate - $receivingAmount;
         $remainingAmount = $difference > 0 ? $difference : 0.0;      // customer still owes
