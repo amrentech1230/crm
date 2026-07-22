@@ -86,7 +86,7 @@
 											<label>Email:</label>
 											<input type="text" class="form-control" id="email" name="email" value="{{$invoice->customer?->customer_email}}" required><br><br> 
 											<label>CC Email:</label>
-											<input type="text" class="form-control" id="ccemail" name="ccemail" value="ar@cargoconvoy.co"><br><br>
+											<input type="text" class="form-control" id="ccemail" name="ccemail" value="ar@cargoconvoy.co , {{ $invoice->users?->email ? ',' . $invoice->users->email : '' }}"><br><br>
 											<input type="hidden" id="load_no" name="load_no" value="{{$invoice->load_number}}">
 											<input type="hidden" name="refrance_no" value="{{$invoice->load_workorder}}">
 											<input type="hidden" name="invoice_no" value="{{$invoice->invoice_number}}">

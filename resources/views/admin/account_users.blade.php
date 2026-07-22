@@ -131,6 +131,13 @@
     z-index: 9999;
     top: 10px;
 }
+
+.table tbody td span, .table tbody td a, .table tbody td p {
+    padding: unset !important;
+    font-size: 12px !important;
+    line-height: 1.8;
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>

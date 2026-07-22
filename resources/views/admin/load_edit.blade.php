@@ -1495,7 +1495,7 @@ $notes = json_decode($post->vendorInternalNotes, true);
                         
 
 
-                        <input type="submit" class="btn btn-info" value="update Load">
+                        <input type="submit" class="btn btn-info" value="Update Load">
                        
                     </form>
 <div class="modal fade" id="customerInfoModal" tabindex="-1" role="dialog" aria-hidden="true">

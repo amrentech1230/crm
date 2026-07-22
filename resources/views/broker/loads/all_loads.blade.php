@@ -197,17 +197,91 @@
 
 
 
-    @if(!empty($loads->shipper_load_final_rate))
-    <td class="dynamic-data">{{ $loads->shipper_load_final_rate }}</td>
-    @else
-    <td class="dynamic-data"> - </td>
+@php
+    $finalRate = (float) ($loads->load_shipper_rate ?? 0);
+    $fscRate = (float) ($loads->load_fsc_rate ?? 0);
+
+    // Calculate FSC amount
+    $fscAmount = ($finalRate * $fscRate) / 100;
+
+    $otherCharges = json_decode($loads->shipper_load_other_charge, true);
+
+    if (!is_array($otherCharges)) {
+        $otherCharges = [];
+    }
+
+    $totalOtherCharges = 0;
+@endphp
+
+<td class="dynamic-data">
+    <div>
+        <strong>Customer Base Rate:</strong>
+        ${{ number_format($finalRate, 2) }}
+    </div>
+
+    @if($fscRate > 0)
+        <div>
+            FSC ({{ $fscRate }}%) :
+            <strong>${{ number_format($fscAmount, 2) }}</strong>
+        </div>
     @endif
 
-    @if(!empty($loads->load_final_carrier_fee))
-    <td class="dynamic-data">{{ $loads->load_final_carrier_fee }}</td>
-    @else
-    <td class="dynamic-data"> - </td>
+    @foreach($otherCharges as $charge)
+        @php
+            $amount = (float) ($charge['amount'] ?? 0);
+            $totalOtherCharges += $amount;
+        @endphp
+
+        <div>
+            {{ $charge['type'] ?? '-' }} :
+            <strong>${{ number_format($amount, 2) }}</strong>
+        </div>
+    @endforeach
+
+    <hr style="margin:5px 0;">
+
+    <div>
+        <strong>Total:</strong>
+        ${{ number_format($finalRate + $fscAmount + $totalOtherCharges, 2) }}
+    </div>
+</td>
+
+@php
+    $carrierFee = (float) ($loads->load_carrier_fee ?? 0);
+
+    $carrierCharges = json_decode($loads->carrier_load_other_charge, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($carrierCharges)) {
+        $carrierCharges = [];
+    }
+
+    $totalOtherCharges = 0;
+@endphp
+
+<td class="dynamic-data">
+    <div>
+        <strong>Carrier Base Rate:</strong> ${{ number_format($carrierFee, 2) }}
+    </div>
+
+    @foreach($carrierCharges as $charge)
+        @php
+            $amount = (float) ($charge['amount'] ?? 0);
+            $totalOtherCharges += $amount;
+        @endphp
+
+        <div style="font-size:12px;color:#555;">
+            {{ $charge['type'] ?? '-' }} :
+            <strong>${{ number_format($amount, 2) }}</strong>
+        </div>
+    @endforeach
+
+    @if($totalOtherCharges > 0)
+        <hr style="margin:4px 0;">
+        <div>
+            <strong>Total: ${{ number_format($carrierFee + $totalOtherCharges, 2) }}</strong>
+        </div>
     @endif
+</td>
 
     @php
     $shipperRate = floatval($loads->shipper_load_final_rate);
@@ -290,9 +364,13 @@
                     <a href="{{route('clone.load', $loads->load_number)}}" target="_blank">
                         <i class="fas fa-clone dynamic-data" style="margin:0 10px; font-size: 20px;"></i> Clone
                     </a>
-                    @if($loads->load_final_carrier_fee == 0 || $loads->load_final_carrier_fee == null)
+                    @if($loads->load_final_carrier_fee == 0 || $loads->load_final_carrier_fee == null || $loads->cpr_check == 'Not Approved' || $loads->cpr_check == 'Not Verified' || $loads->cpr_check == 'Not Received')
                     <a href="javascript:void(0);" style="color: #0c7ce6; cursor:not-allowed" title="Your Carrier Rate is 0">
                         <i class="fas fa-file-pdf dynamic-data" style="margin:0 10px; font-size: 20px;"></i> Carrier RC
+                    </a>
+                    @elseif($loads->cpr_check == 'Verified')
+                    <a href="{{route('rc.download.pdf', $loads->load_number)}}" target="_blank">
+                        <i class="fas fa-file-pdf dynamic-data" style="margin:0 10px; font-size: 20px;"></i>Carrier RC
                     </a>
                     @else
                     <a href="{{route('rc.download.pdf', $loads->load_number)}}" target="_blank">

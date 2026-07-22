@@ -105,6 +105,92 @@
 			</div>
 			<!-- end card -->
 		</div>
+				<div class="col-xl-3 col-md-6">
+			<div class="card">
+				<div class="card-body">
+					<div class="d-flex">
+						<div class="flex-grow-1">
+							<p class="text-truncate font-size-14 mb-2">Total Revenue</p>
+							<h4 class="mb-2">${{ $revenue }}</h4>
+							
+						</div>
+						<div class="avatar-sm">
+							<span class="avatar-title bg-light text-primary rounded-3">
+								<i class="mdi mdi-currency-usd font-size-24"></i>
+							</span>
+						</div>
+					</div>
+				</div>
+				<!-- end cardbody -->
+			</div>
+			<!-- end card -->
+		</div>
+		<!-- end col -->
+		<div class="col-xl-3 col-md-6">
+			<div class="card">
+				<div class="card-body">
+					<div class="d-flex">
+						<div class="flex-grow-1">
+							<p class="text-truncate font-size-14 mb-2">Total Margin</p>
+							<h4 class="mb-2">${{ $finalTotal }}</h4>
+							
+						</div>
+						<div class="avatar-sm">
+							<span class="avatar-title bg-light text-success rounded-3">
+								<i class="mdi mdi-currency-usd font-size-24"></i>
+							</span>
+						</div>
+					</div>
+				</div>
+				<!-- end cardbody -->
+			</div>
+			<!-- end card -->
+		</div>
+		<!-- end col -->
+		<div class="col-xl-3 col-md-6">
+			<div class="card">
+				<div class="card-body">
+					<div class="d-flex">
+						<div class="flex-grow-1">
+							<p class="text-truncate font-size-14 mb-2">Yesterday Loads
+							</p>
+							<h4 class="mb-2">{{ $loadCount }}</h4>
+							
+						</div>
+						<div class="avatar-sm">
+							<span class="avatar-title bg-light text-primary rounded-3">
+								<i class="ri-shopping-cart-2-line font-size-24"></i>
+							</span>
+						</div>
+					</div>
+				</div>
+				<!-- end cardbody -->
+			</div>
+			<!-- end card -->
+		</div>
+		<!-- end col -->
+		<div class="col-xl-3 col-md-6">
+			<div class="card">
+				<div class="card-body">
+					<div class="d-flex">
+						<div class="flex-grow-1">
+							<p class="text-truncate font-size-14 mb-2">Total Customer
+								Added
+							</p>
+							<h4 class="mb-2">{{ $newCoustmerAdded }}</h4>
+							
+						</div>
+						<div class="avatar-sm">
+							<span class="avatar-title bg-light text-success rounded-3">
+								<i class="ri-user-3-line font-size-24"></i>
+							</span>
+						</div>
+					</div>
+				</div>
+				<!-- end cardbody -->
+			</div>
+			<!-- end card -->
+		</div>
 		<!-- end col -->
 	</div>
 	<!-- end row -->

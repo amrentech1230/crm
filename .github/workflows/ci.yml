@@ -1,0 +1,64 @@
+name: CI
+
+# Runs on every pull request targeting devN or main.
+# Acts as the quality gate before code is merged (and therefore deployed).
+on:
+  pull_request:
+    branches: [devN, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, pdo, pdo_mysql, sqlite3, pdo_sqlite, gd, zip, bcmath, intl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-
+
+      # Hard gate: dependencies must install cleanly.
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Informational for now. Once the codebase is Pint-formatted
+      # (run `vendor/bin/pint` locally once and commit), remove
+      # `continue-on-error` to make style a hard requirement.
+      - name: Check code style (Laravel Pint)
+        continue-on-error: true
+        run: vendor/bin/pint --test
+
+      # Informational until a real test suite exists (see DEPLOYMENT.md).
+      # Uses an in-memory SQLite DB so no external services are needed.
+      - name: Run tests
+        continue-on-error: true
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan test

@@ -139,6 +139,7 @@
 										<a href="{{route('CarrierReportingExcel')}}">
 											<button class="btn btn-primary waves-effect waves-light mb-3 exlbtn" >All Carrier Excel</button>
 										</a>
+
 									</span>
                                     <thead>
                                         <tr>
@@ -171,6 +172,7 @@
 										<a href="{{route('customerReportingExcell')}}">
 											<button class="btn btn-primary waves-effect waves-light mb-3 exlbtn" >All Customer Excel</button>
 										</a>
+
 									</span>
                                     <thead>
                                         <tr>
@@ -380,6 +382,8 @@
                                             <th>CPR Check</th>
                                             <th>Macro Sent</th>
                                             <th>Customer Short Pay</th>
+                                            <th>Macro Status</th>
+                                            <th>Macro Number</th>
 
                                         </tr>
                                     </thead>

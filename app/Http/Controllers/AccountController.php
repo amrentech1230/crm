@@ -30,6 +30,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Pagination\Paginator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+
 
 class AccountController extends Controller
 {
@@ -100,7 +102,11 @@ class AccountController extends Controller
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
 									$query->orWhere('load_number', 'like', "%{$term}%");
+<<<<<<< HEAD
 								}
+=======
+								}                     
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -1868,45 +1874,103 @@ $searchTerms = array_filter(
         return view('accounts.partials.accounting_complete', compact('complete'))->render();
     }
 
+    /**
+     * Parse an accounting search-box value into individual search terms.
+     *
+     * Terms are separated by commas / newlines (NOT spaces) so multi-word
+     * values such as a customer name stay intact. A run of space-separated
+     * numbers like "21021 21022 21023" is exploded into individual terms so a
+     * pasted list of load numbers works.
+     *
+     * @return array<int,string>
+     */
+    private function parseAccountingSearch($q)
+    {
+        $terms = [];
+
+        $parts = preg_split('/[\r\n,]+/', (string) $q);
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            // A run of space-separated numbers => several individual terms
+            $tokens = preg_split('/\s+/', $part);
+            if (count($tokens) > 1
+                && count(array_filter($tokens, fn($t) => is_numeric($t))) === count($tokens)) {
+                foreach ($tokens as $t) {
+                    $terms[] = $t;
+                }
+                continue;
+            }
+
+            // Otherwise keep the value (single id or multi-word name) intact
+            $terms[] = $part;
+        }
+
+        return array_values(array_unique($terms));
+    }
+
+    /**
+     * Apply the accounting search terms to a query.
+     *
+     * A purely numeric term is treated as a load # / invoice # and matched
+     * EXACTLY on those two fields only — this keeps a load-number search precise
+     * (10 load numbers => 10 loads) and prevents collisions where the number
+     * happens to equal another load's work order or customer reference.
+     *
+     * A text term (e.g. work order "OOLU9555049", a customer reference, or a
+     * customer / dispatcher name) is matched with a contains-search on the
+     * alphanumeric / name fields.
+     */
+    private function applyAccountingSearch($query, array $terms)
+    {
+        $query->where(function ($q) use ($terms) {
+            foreach ($terms as $term) {
+                if (is_numeric($term)) {
+                    $q->orWhere('load_number', $term)
+                      ->orWhere('invoice_number', $term);
+                } else {
+                    $q->orWhere('load_workorder', 'like', "%{$term}%")
+                      ->orWhere('customer_refrence_number', 'like', "%{$term}%")
+                      ->orWhere('load_bill_to', 'like', "%{$term}%")
+                      ->orWhere('load_dispatcher', 'like', "%{$term}%");
+                }
+            }
+        });
+
+        return $query;
+    }
+
     public function accounting_invoiced_search(Request $request){
 
         $q = $request->input('query');
-        
-        if (!empty($q)) {
-            
-                    // Split the query by commas to get multiple terms
-        $searchTerms = array_filter(
-            preg_split('/[\s,]+/', $q),
-            fn($term) => !empty(trim($term))
-        );
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-                        }
-                    })
+        if (!empty($q)) {
+
+            $terms = $this->parseAccountingSearch($q);
+
+            if (!empty($terms)) {
+                // Exact match on ids, contains-match on customer/dispatcher name
+                $invoiced = $this->applyAccountingSearch(
+                        Load::where('invoice_status','Paid')->with(['user','customer','carrier']),
+                        $terms
+                    )
                     ->orderBy('loads.id', 'desc')
                     ->get();
-                    // print_r($invoiced); die;
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
                 $invoiced = collect();
             }
         } else {
-            
+
             // If query is empty, return a paginated result without any filter
              $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
-       
+
             }
-        
+
         return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
     }
 
@@ -1914,13 +1978,10 @@ $searchTerms = array_filter(
 
         $q = $request->input('query');
         if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-       $searchTerms = array_filter(
-    preg_split('/[\s,]+/', $q),
-    fn($term) => !empty(trim($term))
-);
 
+            $terms = $this->parseAccountingSearch($q);
 
+<<<<<<< HEAD
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
                 $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
@@ -1935,6 +1996,14 @@ $searchTerms = array_filter(
 
                         }
                     })
+=======
+            if (!empty($terms)) {
+                // Exact match on ids, contains-match on customer/dispatcher name
+                $paid = $this->applyAccountingSearch(
+                        Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier']),
+                        $terms
+                    )
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                     ->orderBy('loads.id', 'desc')
                     ->get();
             } else {
@@ -3609,8 +3678,8 @@ public function deleteCarrierFile(Request $request)
     
         } elseif ($id == 'Cpr') {
             $data = Load::with('user')->orderByRaw('CAST(load_number AS UNSIGNED) DESC')->get();
-            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note'];
-            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', ''];
+            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note', 'MC Number'];
+            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', '', 'load_mc_no'];
          
         } else {
             return response()->json(['message' => 'Invalid data type.'], 400);
@@ -6279,4 +6348,285 @@ public function customerApprovalupdateStatus(Request $request)
         // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
+
+    public function uploadCarrierDocuments(Request $request)
+{
+    $request->validate([
+        'carrier_id'    => 'required|integer',
+        'doc_upload.*'  => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx,xlsx,xls|max:20480',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    // Upload new files
+    if ($request->hasFile('doc_upload')) {
+
+        foreach ($request->file('doc_upload') as $file) {
+
+            $originalName = $file->getClientOriginalName();
+
+            $fileName = time().'_'.uniqid().'_'.preg_replace('/\s+/', '_', $originalName);
+
+            $destination = public_path('carrier_doc');
+
+            if (!File::exists($destination)) {
+                File::makeDirectory($destination, 0755, true);
+            }
+
+            $file->move($destination, $fileName);
+
+            $documents[] = [
+                'original_name' => $originalName,
+                'file_name'     => $fileName,
+                'file_path'     => 'carrier_doc/'.$fileName,
+            ];
+        }
+    }
+
+    // Save JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                      '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'html'    => $html,
+        'message' => 'Documents uploaded successfully.'
+    ]);
+}
+
+public function deleteCarrierDocument(Request $request)
+{
+    $request->validate([
+        'carrier_id' => 'required|integer',
+        'doc_index'  => 'required|integer',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Get existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    $docIndex = $request->doc_index;
+
+    if (!isset($documents[$docIndex])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Document not found.'
+        ]);
+    }
+
+    // Delete physical file
+    $filePath = public_path($documents[$docIndex]['file_path']);
+
+    if (file_exists($filePath)) {
+        @unlink($filePath);
+    }
+
+    // Remove from array
+    unset($documents[$docIndex]);
+
+    // Re-index array
+    $documents = array_values($documents);
+
+    // Save updated JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build updated HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                    '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Document deleted successfully.',
+        'html'    => $html
+    ]);
+}
+
+public function exportCreditLimitLog()
+{
+    $customers = Customer::select('customer_name', 'remaining_credit_logs')->get();
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Headers
+    $sheet->setCellValue('A1', 'Customer Name');
+    $sheet->setCellValue('B1', 'Remaining Credit Logs');
+
+    // Header Style
+    $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+
+    $row = 2;
+
+    foreach ($customers as $customer) {
+
+        $sheet->setCellValue('A' . $row, $customer->customer_name);
+
+        $logs = json_decode($customer->remaining_credit_logs, true);
+
+        $logText = '';
+
+        if (!empty($logs) && is_array($logs)) {
+
+            foreach ($logs as $index => $log) {
+
+                $amount = (float)($log['credit_limit'] ?? 0);
+
+                // Currency format
+                $creditLimit = $amount < 0
+                    ? '-$' . number_format(abs($amount), 2)
+                    : '$' . number_format($amount, 2);
+
+                // Date format
+                $creditTime = !empty($log['credit_time'])
+                    ? date('M d Y', strtotime($log['credit_time']))
+                    : '';
+
+                $logText .= ($index + 1) . ". Credit Limit: {$creditLimit} | {$creditTime}" . PHP_EOL;
+            }
+
+        } else {
+
+            $logText = 'No Logs';
+
+        }
+
+        $sheet->setCellValue('B' . $row, trim($logText));
+
+        // Wrap text
+        $sheet->getStyle('B' . $row)
+              ->getAlignment()
+              ->setWrapText(true);
+
+        // Top align
+        $sheet->getStyle('A' . $row . ':B' . $row)
+              ->getAlignment()
+              ->setVertical(Alignment::VERTICAL_TOP);
+
+        $row++;
+    }
+
+    // Auto-size columns
+    foreach (range('A', 'B') as $column) {
+        $sheet->getColumnDimension($column)->setAutoSize(true);
+    }
+
+    // Freeze header
+    $sheet->freezePane('A2');
+
+    $filename = 'Remaining_Credit_Logs_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+    // Download
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
+}
 }

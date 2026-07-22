@@ -1,0 +1,94 @@
+name: Deploy to Staging
+
+# Auto-deploys the devN branch to the Staging environment on every push
+# (i.e. whenever a PR is merged into devN). Can also be run manually.
+on:
+  push:
+    branches: [devN]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two staging deploys at once; queue them instead of cancelling
+# so a running deploy always finishes cleanly.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy devN -> Staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.DEPLOY_URL }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_BRANCH: devN
+          PHP_BIN: ${{ vars.PHP_BIN }}
+          COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            # Allow overriding the php/composer binaries per environment
+            # (e.g. PHP_BIN=php8.2 on some Hostinger setups). Defaults are fine
+            # when `php` and `composer` are already on the deploy user's PATH.
+            PHP_BIN="${PHP_BIN:-php}"
+            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+
+            echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            echo "==> Fetching latest code"
+            git fetch --all --prune
+            git reset --hard "origin/$DEPLOY_BRANCH"
+
+            # The site user's umask is restrictive (files land as 660/dirs 770),
+            # but nginx serves static assets as another user and needs to read
+            # them. Make the web root readable/traversable by all, or every
+            # deploy 404s the CSS/JS/images.
+            echo "==> Ensuring web-root files are readable by nginx"
+            chmod -R a+rX public
+
+            echo "==> Installing PHP dependencies (production)"
+            $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            echo "==> Enabling maintenance mode"
+            $PHP_BIN artisan down --retry=15 || true
+            # Ensure the app is brought back up even if a later step fails.
+            trap '$PHP_BIN artisan up || true' EXIT
+
+            echo "==> Running database migrations"
+            $PHP_BIN artisan migrate --force
+
+            echo "==> Rebuilding caches (route:cache skipped — see note)"
+            $PHP_BIN artisan optimize:clear
+            $PHP_BIN artisan config:cache
+            $PHP_BIN artisan event:cache
+            $PHP_BIN artisan view:cache
+            # NOTE: 'php artisan route:cache' is intentionally NOT run — routes/web.php
+            # currently has duplicate route names, which make route caching fail.
+            # Switch this block back to a single 'php artisan optimize' once the
+            # duplicate route names are cleaned up.
+            $PHP_BIN artisan storage:link || true
+
+            echo "==> Restarting queue workers (Supervisor picks up new code)"
+            $PHP_BIN artisan queue:restart
+
+            echo "==> Disabling maintenance mode"
+            $PHP_BIN artisan up
+            trap - EXIT
+
+            echo "==> Staging deploy complete"

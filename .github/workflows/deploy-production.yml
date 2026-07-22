@@ -1,0 +1,90 @@
+name: Deploy to Production
+
+# Deploys the main branch to Production on every push (i.e. when devN is
+# merged into main). The `production` GitHub Environment should have
+# "Required reviewers" enabled so this run pauses for manual approval
+# before the deploy step executes. See DEPLOYMENT.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy main -> Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_BRANCH: main
+          PHP_BIN: ${{ vars.PHP_BIN }}
+          COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            PHP_BIN="${PHP_BIN:-php}"
+            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+
+            echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            echo "==> Fetching latest code"
+            git fetch --all --prune
+            git reset --hard "origin/$DEPLOY_BRANCH"
+
+            # The site user's umask is restrictive (files land as 660/dirs 770),
+            # but nginx serves static assets as another user and needs to read
+            # them. Make the web root readable/traversable by all, or every
+            # deploy 404s the CSS/JS/images.
+            echo "==> Ensuring web-root files are readable by nginx"
+            chmod -R a+rX public
+
+            echo "==> Installing PHP dependencies (production)"
+            $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            echo "==> Enabling maintenance mode"
+            $PHP_BIN artisan down --retry=15 || true
+            trap '$PHP_BIN artisan up || true' EXIT
+
+            echo "==> Running database migrations"
+            $PHP_BIN artisan migrate --force
+
+            echo "==> Rebuilding caches (route:cache skipped — see note)"
+            $PHP_BIN artisan optimize:clear
+            $PHP_BIN artisan config:cache
+            $PHP_BIN artisan event:cache
+            $PHP_BIN artisan view:cache
+            # NOTE: 'php artisan route:cache' is intentionally NOT run — routes/web.php
+            # currently has duplicate route names, which make route caching fail.
+            # Switch this block back to a single 'php artisan optimize' once the
+            # duplicate route names are cleaned up.
+            $PHP_BIN artisan storage:link || true
+
+            echo "==> Restarting queue workers (Supervisor picks up new code)"
+            $PHP_BIN artisan queue:restart
+
+            echo "==> Disabling maintenance mode"
+            $PHP_BIN artisan up
+            trap - EXIT
+
+            echo "==> Production deploy complete"

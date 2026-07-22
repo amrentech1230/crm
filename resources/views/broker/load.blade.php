@@ -2314,7 +2314,12 @@ $(document).ready(function () {
                             }
 
                             $(resultContainer).html(response);
+<<<<<<< HEAD
+                            $('.custom-pagination').hide();
+
+=======
 $('.custom-pagination').hide();
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
@@ -2338,11 +2343,16 @@ $('.custom-pagination').hide();
                             $('.loader-container').addClass('hide');
                         }
                     });
+<<<<<<< HEAD
+                               } else {
+=======
                 } else {
+>>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                     // $(resultContainer).html('');
                      $(resultContainer).html('');
     $('.custom-pagination').show();
                 }
+
             }, 300);
 
             $(this).data('timer', wait);
