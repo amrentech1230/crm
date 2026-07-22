@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Customer;
+use App\Models\Manger;
 use App\Models\Consignee;
 use App\Models\Shipper;
 use App\Models\External;
@@ -13,6 +14,7 @@ use App\Models\Load;
 use App\Models\User;
 use App\Models\Office;
 use App\Models\Factoring;
+use App\Models\TeamLeader;
 use App\Models\CarrierVerification;
 use App\Models\CustomerApprovalForm;
 use App\Models\Cmt;
@@ -97,16 +99,12 @@ class AccountController extends Controller
 							->setPageName('invoiced');
 						
 						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
-					}else if($request->input('target') == '#invoiced_paid'){
+					}elseif($request->input('target') == '#invoiced_paid'){
 						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
 									$query->orWhere('load_number', 'like', "%{$term}%");
-<<<<<<< HEAD
 								}
-=======
-								}                     
->>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -114,18 +112,31 @@ class AccountController extends Controller
 							->setPageName('paid');
 						
 						return view('accounts.partials.accounting_paid', compact('paid'))->render();
-					}
+					}else if($request->input('target') == '#delivered'){
+                        $delivered = Load::where('load_status', 'Delivered')
+                            ->with(['user', 'customer', 'carrier', 'user.officedata'])
+                            ->where(function($query) use ($searchTerms) {
+                                foreach ($searchTerms as $term) {
+                                    $query->orWhere('load_number', 'like', "%{$term}%");
+                                }
+                            })
+                            ->orderBy("loads.id", "desc")
+                            ->paginate(100)
+                            ->setPageName('delivered');
+                        
+                        return view('accounts.partials.accounting_delivered', compact('delivered'))->render();
+                    }
                 
 			}
             }
                
         } 
-        return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
+        return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid', 'delivered'));
     }
 
     public function accounting(Request $request)
     {
-        $tabs = ['open', 'complete', 'invoiced', 'paid'];
+        $tabs = ['open','delivered', 'complete', 'invoiced', 'paid'];
 
         foreach ($tabs as $tab) {
             if ($request->has($tab)) {
@@ -169,6 +180,17 @@ class AccountController extends Controller
 
         $complete = $completeQuery->paginate(50)->setPageName('complete');
 
+        // Delivered tab query
+        $deliveredQuery = Load::where('load_status', 'Delivered')
+            ->with(['user', 'customer', 'carrier', 'user.officedata'])
+            ->orderBy("loads.id", "desc");
+
+        if (!empty($numbersArray)) {
+            $deliveredQuery->whereIn('load_number', $numbersArray);
+        }
+
+        $delivered = $deliveredQuery->paginate(50)->setPageName('delivered');
+
         // Invoiced tab query
         $invoicedQuery = Load::where('invoice_status', 'Paid')
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
@@ -194,17 +216,19 @@ class AccountController extends Controller
         // Handle AJAX tab switching
         if ($request->ajax()) {
             if ($request->input('tab') == '#open') {
-                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid'))->render();
+                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid', 'delivered'))->render();
             } else if ($request->input('tab') == '#completed') {
                 return view('accounts.partials.accounting_complete', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced') {
                 return view('accounts.partials.accounting_invoiced', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced_paid') {
                 return view('accounts.partials.accounting_paid', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            }
+            } else if ($request->input('tab') == '#delivered') {
+                return view('accounts.partials.accounting_delivered', compact('open', 'complete', 'invoiced', 'paid'))->render();
+        }
         }
 
-        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid'));
+        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid', 'delivered'));
     }
 
 	
@@ -1874,6 +1898,50 @@ $searchTerms = array_filter(
         return view('accounts.partials.accounting_complete', compact('complete'))->render();
     }
 
+        public function accounting_delivered_search(Request $request){
+
+        $q = $request->input('query');
+        if (!empty($q)) {
+            // Split the query by commas to get multiple terms
+			$searchTerms = array_filter(
+				preg_split('/[\s,]+/', $q),
+				fn($term) => !empty(trim($term))
+			);
+
+
+            if (count($searchTerms) > 0) {
+                // Search for non-empty terms with 'orWhere'
+                $delivered =Load::where('load_status','Delivered')->with(['user','customer','carrier'])->where(function($query) {
+                    $query->where('invoice_status', '')
+                          ->orWhereNull('invoice_status');
+                    })->where(function($query) use ($searchTerms) {
+                        foreach ($searchTerms as $term) {
+                            $query->orWhere('load_number', 'like', "%$term%");
+                            $query->orwhere('load_workorder', 'like', "%$term%");
+                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
+                            $query->orwhere('loaD_bill_to', 'like', "%$term%");
+                            $query->orwhere('invoice_number', 'like', "%$term%");
+                            $query->orwhere('load_dispatcher', 'like', "%$term%");
+
+                        }
+                    })
+                    ->orderBy('loads.id', 'desc')
+                    ->get();
+            } else {
+                // If no valid terms, return an empty collection or handle accordingly
+                $delivered = collect();
+            }
+        } else {
+            // If query is empty, return a paginated result without any filter
+              $delivered = Load::where('load_status','Delivered')->with(['user','customer','carrier'])->where(function($query) {
+                    $query->where('invoice_status', '')
+                          ->orWhereNull('invoice_status');
+                })->orderBy("loads.id", "desc")->paginate(100);
+        }
+        
+        return view('accounts.partials.accounting_delivered', compact('delivered'))->render();
+    }
+
     /**
      * Parse an accounting search-box value into individual search terms.
      *
@@ -1981,7 +2049,6 @@ $searchTerms = array_filter(
 
             $terms = $this->parseAccountingSearch($q);
 
-<<<<<<< HEAD
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
                 $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
@@ -1996,14 +2063,6 @@ $searchTerms = array_filter(
 
                         }
                     })
-=======
-            if (!empty($terms)) {
-                // Exact match on ids, contains-match on customer/dispatcher name
-                $paid = $this->applyAccountingSearch(
-                        Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier']),
-                        $terms
-                    )
->>>>>>> bef57e28efb46535089cdce0265b8ceaa9d375cc
                     ->orderBy('loads.id', 'desc')
                     ->get();
             } else {
@@ -6629,4 +6688,56 @@ public function exportCreditLimitLog()
     $writer->save('php://output');
     exit;
 }
+
+public function all_load_status_ar(Request $request){
+$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
+
+		foreach ($tabs as $tab) {
+			if ($request->has($tab)) {
+				Paginator::currentPageResolver(function () use ($request, $tab) {
+					return $request->input($tab);
+				});
+				break; // Stop after finding the matching tab
+			}
+		}
+        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50)->setPageName('all_load'); 
+        $allagent = User::pluck('name');
+        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50)->setPageName('open'); 
+        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50)->setPageName('delivered'); 
+        $complete = Load::where('load_status', 'Completed')
+                    ->where(function ($query) {
+                        $query->where('invoice_status', '')
+                            ->orWhereNull('invoice_status');
+                    })
+                    ->with(['user', 'customer', 'carrier'])
+                    ->orderBy("loads.id", "desc")
+                    ->paginate(50)->setPageName('completed');
+        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced'); 
+        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced_paid'); 
+        $manager = Manger::get();
+        $teamlead = TeamLeader::get();
+        $office = Office::get();
+		$agent = User::where('role_id', 21)->get();
+		
+		if ($request->ajax()) {
+			
+			if($request->input('tab') == '#all_load'){
+				return view('admin.home.all_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#open'){
+				return view('admin.home.open_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#delivered'){
+				return view('admin.home.delivered', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#completed'){
+				return view('admin.home.completed', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced'){
+				return view('admin.home.invoiced', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced_paid'){
+				return view('admin.home.invoiced_paid', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}
+				
+		}
+         return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
+
+}
+
 }
