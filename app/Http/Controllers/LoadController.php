@@ -254,7 +254,10 @@ if (!empty($term)) {
         $postData = $post->getAttributes();
 
 
-        $allCustomers = Customer::where('user_id', $user_id)->get();
+        // $allCustomers = Customer::where('user_id', $user_id)->get();
+        $allCustomers = Customer::where('user_id', $user_id)
+    ->where('status', 'Approved')
+    ->get();
 
         $invoicechargestotal = 0;
 
@@ -567,15 +570,11 @@ if (!empty($term)) {
      */
     public function create(Request $request)
     {
-       
-        
         $request->validate([
             'load_bill_to' => 'required|string',
             'load_delivery_do_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'shipper_load_final_rate' => 'required|numeric|gt:0',
         ]);
-
-
 
             $yourModel = new Load();
 
@@ -725,7 +724,14 @@ if (!empty($term)) {
             $yourModel->load_consignee_contact = json_encode($load_consignee_contact) ?? '';
             $yourModel->load_consigneer_notes = json_encode($load_consignee_notes);
 
-            $customer_data = Customer::where('id', $request->input('load_bill_to'))->first();
+            // $customer_data = Customer::where('id', $request->input('load_bill_to'))->first();
+            $customer_data = Customer::where('id', $request->input('load_bill_to'))
+               ->where('status', 'Approved')
+               ->first();
+
+              if (!$customer_data) {
+              return redirect()->back()->with('error', 'Selected customer is not approved. Please select a valid approved customer.');
+            }
 
             $yourModel->user_id = Auth::id();
             $yourModel->load_bill_to = $request->input('load_bill_to', null);
@@ -743,12 +749,12 @@ if (!empty($term)) {
 
             $finalRate = (float) $request->input('shipper_load_final_rate');
 
-            // ✅ Validate first
+            // Validate first
             if ($finalRate == 0) {
                 return back()->with('error', "Customer load final rate cannot be 0.");
             }
 
-            // ✅ Then assign
+            // Then assign
             $yourModel->shipper_load_final_rate = $finalRate;
             
             $yourModel->load_carrier = $request->input('load_carrier') ?? '';
@@ -1837,29 +1843,137 @@ public function raiseTicketStore(Request $request)
     return back()->with('success', 'Ticket raised successfully!');
 }
 
+    private function buildPartyInfoText($partyJson, $locationJson): string
+    {
+        $parties = json_decode($partyJson ?? '', true) ?: [];
+        $locations = json_decode($locationJson ?? '', true) ?: [];
+
+        $lines = [];
+        foreach ($parties as $index => $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $location = trim((string) ($item['location'] ?? ($locations[$index]['location'] ?? '')));
+
+            if ($name !== '') {
+                $lines[] = $name;
+            }
+            if ($location !== '') {
+                $lines[] = $location;
+            }
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    private function buildPartyInfoFromRequest(Request $request, string $namePrefix, string $locationPrefix): string
+    {
+        $partyNames = [];
+        $partyLocations = [];
+
+        foreach ($request->all() as $key => $value) {
+            if (preg_match('/^' . preg_quote($namePrefix, '/') . '(\d*)$/', $key, $matches)) {
+                $index = $matches[1] ?: 0;
+                $partyNames[$index]['name'] = trim((string) $value);
+            } elseif (preg_match('/^' . preg_quote($locationPrefix, '/') . '(\d*)$/', $key, $matches)) {
+                $index = $matches[1] ?: 0;
+                $partyLocations[$index]['location'] = trim((string) $value);
+            }
+        }
+
+        $lines = [];
+        foreach ($partyNames as $index => $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $location = trim((string) ($partyLocations[$index]['location'] ?? ''));
+
+            if ($name !== '') {
+                $lines[] = $name;
+            }
+            if ($location !== '') {
+                $lines[] = $location;
+            }
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
     public function generateBolPdf(Request $request, $id)
     {
-        // Fetch the original load to get base data like load number
         $originalLoad = Load::findOrFail($id);
 
-        // Create a new stdClass object to hold the data for the PDF view.
-        // Using stdClass is cleaner than replicating a model when the data structure is different.
         $load = new \stdClass();
+        foreach ($originalLoad->toArray() as $key => $value) {
+            $load->{$key} = $value;
+        }
 
-        // Assign data from the original load
+        foreach ($request->except('_token') as $key => $value) {
+            $load->{$key} = $value;
+        }
+
+        if ($request->has('ship_date')) {
+            $load->ship_date = (string) $request->input('ship_date');
+        }
+
+        if ($request->has('delivery_date')) {
+            $load->delivery_date = (string) $request->input('delivery_date');
+        }
+
+        $shipperInfo = trim((string) ($request->input('shipper_info') ?? ''));
+        if ($shipperInfo === '') {
+            $shipperInfo = $this->buildPartyInfoFromRequest(
+                $request,
+                'load_shipper_',
+                'load_shipper_location_'
+            );
+        }
+        if ($shipperInfo === '') {
+            $shipperInfo = $this->buildPartyInfoText(
+                $originalLoad->load_shipperr,
+                $originalLoad->load_shipper_location
+            );
+        }
+        $load->shipper_info = $shipperInfo;
+
+        $consigneeInfo = trim((string) ($request->input('consignee_info') ?? ''));
+        if ($consigneeInfo === '') {
+            $consigneeInfo = $this->buildPartyInfoFromRequest(
+                $request,
+                'load_consignee_',
+                'load_consignee_location_'
+            );
+        }
+        if ($consigneeInfo === '') {
+            $consigneeInfo = $this->buildPartyInfoText(
+                $originalLoad->load_consignee,
+                $originalLoad->load_consignee_location
+            );
+        }
+        $load->consignee_info = $consigneeInfo;
+
         $load->load_number = $originalLoad->load_number;
+        $submittedFreight = $request->input('freight', []);
+        $load->freight_items = is_array($submittedFreight) ? $submittedFreight : [];
 
-        // Overwrite with data from the submitted form
-        $load->load_workorder = $request->input('load_workorder');
-        $load->shipper_info = $request->input('shipper_info');
-        $load->consignee_info = $request->input('consignee_info');
-        $load->transportation_company = $request->input('transportation_company');
-        $load->notes = $request->input('notes');
-        $load->freight_items = $request->input('freight', []); // Get freight items
+        $bolSnapshot = [
+            'shipper_info' => $shipperInfo,
+            'consignee_info' => $consigneeInfo,
+            'third_party_billing' => trim((string) ($request->input('third_party_billing') ?? '')),
+            'transportation_company' => trim((string) ($request->input('transportation_company') ?? '')),
+            'freight_items' => $load->freight_items,
+            'notes' => trim((string) ($request->input('notes') ?? '')),
+            'cod_amount' => trim((string) ($request->input('cod_amount') ?? '')),
+            'cod_fee' => trim((string) ($request->input('cod_fee') ?? '')),
+            'declared_value' => trim((string) ($request->input('declared_value') ?? '')),
+        ];
 
-        // You can add more fields here as needed
-        $load->ship_date = $request->input('ship_date');
-        $load->delivery_date = $request->input('delivery_date');
+        $existingInternalNotes = json_decode((string) ($originalLoad->internal_notes ?? ''), true);
+        if (!is_array($existingInternalNotes)) {
+            $existingInternalNotes = [];
+        }
+
+        $existingInternalNotes['bol_pdf_snapshot'] = $bolSnapshot;
+        $originalLoad->internal_notes = json_encode($existingInternalNotes);
+        $originalLoad->save();
+
+        $load->internal_notes = $originalLoad->internal_notes;
 
         $options = new Options();
         $options->set('defaultFont', 'Arial'); // Use a common font

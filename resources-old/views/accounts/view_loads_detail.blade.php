@@ -18,12 +18,12 @@
         <div class="row">
             <div class="col-12">
                 <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-                    <h4 class="mb-sm-0">View Load</h4>
+                    <h4 class="mb-sm-0">View Load Logs</h4>
 
                     <div class="page-title-right">
                         <ol class="breadcrumb m-0">
                             <li class="breadcrumb-item"><a href="javascript: void(0);">CCI</a></li>
-                            <li class="breadcrumb-item active">View Load</li>
+                            <li class="breadcrumb-item active">View Load Logs</li>
                         </ol>
                     </div>
 
@@ -37,7 +37,7 @@
                     <div class="card-body">
 
                         <!-- Title -->
-                        <h4 class="card-title mb-4">Load Details</h4>
+                        <h4 class="card-title mb-4">Load Logs Details</h4>
 
                         <!-- Load Info Grid -->
                         <div class="row">
@@ -81,62 +81,56 @@
                         <h4 class="card-title mb-3">Activity Logs</h4>
 
                         <div class="accordion accordion-flush" id="accordionLogs">
-                            <!-- Log Entry 1 -->
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="logHeadingOne">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#logCollapseOne" aria-expanded="false"
                                         aria-controls="logCollapseOne">
-                                        Log Entry #1
+                                        All Logs
                                     </button>
                                 </h2>
                                 <div id="logCollapseOne" class="accordion-collapse collapse"
                                     aria-labelledby="logHeadingOne" data-bs-parent="#accordionLogs">
                                     <div class="accordion-body">
-                                        This is the first log entry. You can describe what happened here in detail.
+                                        @if($alllogs->isEmpty())
+                                            <div class="alert alert-light mb-0">No activity has been recorded for this load yet.</div>
+                                        @else
+                                            <div class="d-flex flex-column gap-3 p-3">
+                                                @foreach($alllogs as $log)
+                                                    @php
+                                                        $logDate = $log->updated_at ? \Carbon\Carbon::parse($log->updated_at)->setTimezone('America/New_York')->format('d-m-Y h:i A') : '-';
+                                                        $changes = getdiffrance($log->old_json, $log->new_json);
+                                                    @endphp
+
+                                                    <div class="border rounded p-3 bg-white shadow-sm">
+                                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                                            <div>
+                                                                <div class="fw-semibold">{{ $log->message ?: 'Load activity' }}</div>
+                                                                <div class="small text-muted mt-1">
+                                                                    <span class="me-3"><i class="fas fa-user"></i> {{ $log->user_name ?: 'System' }}</span>
+                                                                    <span><i class="fas fa-clock"></i> {{ $logDate }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <span class="badge bg-primary-subtle text-primary">{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->setTimezone('America/New_York')->format('d-m-Y') : '-' }}</span>
+                                                        </div>
+
+                                                        <div class="mt-3">
+                                                            <div class="small fw-semibold text-dark">Details</div>
+                                                            <div class="mt-2">{!! $changes !!}</div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Log Entry 2 -->
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="logHeadingTwo">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#logCollapseTwo" aria-expanded="false"
-                                        aria-controls="logCollapseTwo">
-                                        Log Entry #2
-                                    </button>
-                                </h2>
-                                <div id="logCollapseTwo" class="accordion-collapse collapse"
-                                    aria-labelledby="logHeadingTwo" data-bs-parent="#accordionLogs">
-                                    <div class="accordion-body">
-                                        This is the second log entry. Provide meaningful tracking info here.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Log Entry 3 -->
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="logHeadingThree">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#logCollapseThree" aria-expanded="false"
-                                        aria-controls="logCollapseThree">
-                                        Log Entry #3
-                                    </button>
-                                </h2>
-                                <div id="logCollapseThree" class="accordion-collapse collapse"
-                                    aria-labelledby="logHeadingThree" data-bs-parent="#accordionLogs">
-                                    <div class="accordion-body">
-                                        This is the third log entry. You might include timestamps, users, or status
-                                        info.
-                                    </div>
-                                </div>
-                            </div>
-                        </div> <!-- End Accordion -->
-
-                    </div>
-                </div>
+                        </div>
+                    </div> <!-- end card-body -->
+                </div> <!-- end card -->
             </div> <!-- end col -->
         </div> <!-- end row -->
+    </div> <!-- container-fluid -->
+</div> <!-- page-content -->
 
-        @endsection
+@endsection

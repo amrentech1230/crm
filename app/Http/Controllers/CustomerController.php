@@ -452,7 +452,7 @@ if ($request->has('download') && $request->download === 'excel') {
         $yourModel->customer_blacklisted = $request->input('customer_blacklisted') ?? '';
         $yourModel->customer_status = $request->input('customer_status') ?? '';
         $yourModel->customer_corporation = $request->input('customer_corporation') ?? '';
-        $yourModel->status = 'Not Approved';
+        // $yourModel->status = 'Not Approved';
         $yourModel->commenter_name = '';
 
         // Handle file uploads (replace old files if needed)

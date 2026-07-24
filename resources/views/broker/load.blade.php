@@ -1347,7 +1347,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
 
         $(document).ready(function () {
-			$('#load_bill_to').select2(); // Initialize Select2
+			$('#load_bill_to').select2({ width: '100%', dropdownParent: $('body') }); // Initialize Select2
 
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {

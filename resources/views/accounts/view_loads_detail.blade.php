@@ -119,7 +119,7 @@
 
                                                         <div class="mt-3">
                                                             <div class="small fw-semibold text-dark">Details</div>
-                                                            <div class="mt-2">{!! $changes !!}</div>
+                                                            <div class="mt-2">{!! trim($changes) !== '' ? $changes : '<div class="text-muted">No details found.</div>' !!}</div>
                                                         </div>
                                                     </div>
                                                 @endforeach

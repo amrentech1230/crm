@@ -314,7 +314,8 @@ $(document).ready(function() {
     $('.select2').select2({
         placeholder: "Select Factoring",
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        dropdownParent: $('body')
     });
 });
 </script>

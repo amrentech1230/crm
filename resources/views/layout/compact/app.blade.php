@@ -137,32 +137,26 @@ table.dataTable tbody > tr.selected td p {
 }
 
 
-.loader-container {
+#crm-loader {
     position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
+    background: #0f0f0f;
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    text-align: center;
-    color: #333;
-    /* background: rgba(255,255,255,0.9); */
-    /* background: rgba(0, 0, 0, 0.5); */
-     background-color: #fff;
-
 }
 
-.hide {
-    display: none !important;
+.loader-container {
+    text-align: center;
+    color: #fff;
 }
 
 .spinner {
     width: 60px;
     height: 60px;
-    border: 4px solid rgba(0,0,0,0.1);
+    border: 4px solid rgba(255,255,255,0.1);
     border-top: 4px solid #a6ce3a;
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -183,12 +177,12 @@ table.dataTable tbody > tr.selected td p {
     </head>
 
     <body data-topbar="dark">
-    <!-- <div class="loader-container hide">
-        <div>
-            <div class="spinner"></div>
-            <h3>Loading CCI CRM...</h3>
-        </div>
-    </div> -->
+    <!-- <div id="crm-loader">
+    <div class="loader-container">
+        <div class="spinner"></div>
+        <h3>Loading CCI CRM...</h3>
+    </div>
+</div> -->
     <!-- <body data-layout="horizontal" data-topbar="dark"> -->
 
         <!-- Begin page -->
@@ -307,20 +301,53 @@ table.dataTable tbody > tr.selected td p {
         <script> 
 		
 			$(document).ready(function () {
-				// Initialize Select2 for selects inside modals
-				$('.modal').each(function () {
-					var $popup = $(this);
+				function getDropdownParent($select) {
+					var $modal = $select.closest('.modal');
 
-					$popup.find('select.mySelect2, #country, #state').select2({
-						dropdownParent: $popup
+					if ($modal.length) {
+						return $modal;
+					}
+
+					var $container = $select.closest('.form-group, .input-group');
+					return $container.length ? $container : $('body');
+				}
+
+				function initializeModalSelects($popup) {
+					$popup.find('select.select2, select.mySelect2, #country, #state').each(function () {
+						var $select = $(this);
+
+						if ($select.data('select2')) {
+							$select.select2('destroy');
+						}
+
+						$select.select2({
+							dropdownParent: $popup,
+							width: '100%'
+						});
 					});
+				}
+
+				// Keep Select2 dropdowns inside their modal so they follow modal scrolling.
+				$('.modal').each(function () {
+					initializeModalSelects($(this));
 				});
 
-				// Initialize Select2 for selects NOT inside any modal
-				$('select.mySelect2, #country, #state').each(function () {
-					// Only initialize if not already initialized inside a modal
-					if ($(this).closest('.modal').length === 0) {
-						$(this).select2(); // No dropdownParent needed
+				$('.modal').on('shown.bs.modal', function () {
+					initializeModalSelects($(this));
+				});
+
+				// Keep non-modal dropdowns inside their nearest field container.
+				$('select.select2, select.mySelect2, #country, #state').each(function () {
+					var $select = $(this);
+
+					if ($select.closest('.modal').length === 0) {
+						if ($select.data('select2')) {
+							$select.select2('destroy');
+						}
+						$select.select2({
+							dropdownParent: getDropdownParent($select),
+							width: '100%'
+						});
 					}
 				});
 			});
@@ -361,24 +388,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script>
 
-
-<!-- <script>
-document.addEventListener('contextmenu', function (e) {
-    e.preventDefault();
-    alert('Right-click is disabled on this page.');
-});
-
-document.addEventListener('keydown', function (e) {
-    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
-        e.preventDefault();
-        alert('Viewing page source is disabled.');
-    }
-});
-</script> -->
 <script>
 window.addEventListener("load", function () {
-    // document.querySelector(".loader-container")?.classList.add("hide");
-     document.getElementById("crm-loader").style.display = "none";
+    document.getElementById("crm-loader").style.display = "none";
 });
 </script>
 

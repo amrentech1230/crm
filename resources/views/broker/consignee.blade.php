@@ -305,8 +305,8 @@
 <script>
 $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {
