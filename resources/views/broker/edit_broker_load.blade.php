@@ -2458,9 +2458,7 @@ $(document).ready(function() {
 $(document).on('change', 'input[name^="load_consignee_appointment_"]', function () {
     let deliveryInput = $(this);
     let row = deliveryInput.closest('.row'); 
-
     let pickupInput = row.find('input[name^="load_shipper_appointment_"]');
-
     let pickupValue = pickupInput.val();
     let deliveryValue = deliveryInput.val();
 
