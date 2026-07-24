@@ -1358,16 +1358,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Shipper</h6>
 @php
     $shippers = json_decode($post->load_shipperr, true);
+    $shipperLocs = json_decode($post->load_shipper_location, true);
 
     $shipperText = '';
 
     if($shippers && is_array($shippers)) {
 
-        foreach($shippers as $item) {
+        foreach($shippers as $index => $item) {
 
             $shipperText .= ($item['name'] ?? '') . "\n";
 
-            if(!empty($item['location'])) {
+            // Get location from load_shipper_location JSON
+            if($shipperLocs && isset($shipperLocs[$index]['location']) && !empty($shipperLocs[$index]['location'])) {
+                $shipperText .= $shipperLocs[$index]['location'] . "\n";
+            } elseif(!empty($item['location'])) {
                 $shipperText .= $item['location'] . "\n";
             }
 
@@ -1387,16 +1391,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Consignee</h6>
 @php
     $consignees = json_decode($post->load_consignee, true);
+    $consigneeLocs = json_decode($post->load_consignee_location, true);
 
     $consigneeText = '';
 
     if($consignees && is_array($consignees)) {
 
-        foreach($consignees as $item) {
+        foreach($consignees as $index => $item) {
 
             $consigneeText .= ($item['name'] ?? '') . "\n";
 
-            if(!empty($item['location'])) {
+            // Get location from load_consignee_location JSON
+            if($consigneeLocs && isset($consigneeLocs[$index]['location']) && !empty($consigneeLocs[$index]['location'])) {
+                $consigneeText .= $consigneeLocs[$index]['location'] . "\n";
+            } elseif(!empty($item['location'])) {
                 $consigneeText .= $item['location'] . "\n";
             }
 

@@ -106,11 +106,15 @@
             $pdfShipperText = $bolData['shipper'] ?? '';
         } else {
             $shippers = json_decode($load->load_shipperr, true);
+            $shipperLocations = json_decode($load->load_shipper_location, true);
             $pdfShipperText = '';
             if($shippers && is_array($shippers)) {
-                foreach($shippers as $item) {
+                foreach($shippers as $index => $item) {
                     $pdfShipperText .= ($item['name'] ?? '') . "\n";
-                    if(!empty($item['location'])) {
+                    // Get location from load_shipper_location JSON
+                    if($shipperLocations && isset($shipperLocations[$index]['location']) && !empty($shipperLocations[$index]['location'])) {
+                        $pdfShipperText .= $shipperLocations[$index]['location'] . "\n";
+                    } elseif(!empty($item['location'])) {
                         $pdfShipperText .= $item['location'] . "\n";
                     }
                     $pdfShipperText .= "\n";
@@ -124,11 +128,15 @@
             $pdfConsigneeText = $bolData['consignee'] ?? '';
         } else {
             $consignees = json_decode($load->load_consignee, true);
+            $consigneeLocations = json_decode($load->load_consignee_location, true);
             $pdfConsigneeText = '';
             if($consignees && is_array($consignees)) {
-                foreach($consignees as $item) {
+                foreach($consignees as $index => $item) {
                     $pdfConsigneeText .= ($item['name'] ?? '') . "\n";
-                    if(!empty($item['location'])) {
+                    // Get location from load_consignee_location JSON
+                    if($consigneeLocations && isset($consigneeLocations[$index]['location']) && !empty($consigneeLocations[$index]['location'])) {
+                        $pdfConsigneeText .= $consigneeLocations[$index]['location'] . "\n";
+                    } elseif(!empty($item['location'])) {
                         $pdfConsigneeText .= $item['location'] . "\n";
                     }
                     $pdfConsigneeText .= "\n";
