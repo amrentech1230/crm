@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Load extends Model
 {
     protected $guarded = [];
+
+    protected $casts = [
+        'bol_edit_data' => 'array',
+    ];
     
     public function user()
     {

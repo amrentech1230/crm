@@ -1188,6 +1188,14 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
     Bill Of Lading
 </a>
 
+@php
+    // Load saved BOL edit data if it exists
+    $bolSaved = null;
+    if (!empty($post->bol_edit_data)) {
+        $bolSaved = is_array($post->bol_edit_data) ? $post->bol_edit_data : json_decode($post->bol_edit_data, true);
+    }
+@endphp
+
 <!-- Modal -->
 <div class="modal fade" id="bolModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -1198,6 +1206,10 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <h5 class="modal-title">Bill Of Lading</h5>
 
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success" id="saveBolBtn" onclick="saveBolData()" style="display:none;">
+                        Save for PDF
+                    </button>
+
                     <button type="button" class="btn btn-primary" onclick="downloadBOL()">
                         Download PDF
                     </button>
@@ -1277,7 +1289,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>Load Number</th>
                                     <td>
                                         <input name="load_number" class="editable-field border-0 w-100"
-                                            value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
+                                            value="{{ $bolSaved['load_number'] ?? $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
                                 </tr>
@@ -1286,7 +1298,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>BOL Number</th>
                                     <td>
                                         <input name="load_workorder" class="editable-field border-0 w-100"
-                                            value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
+                                            value="{{ $bolSaved['load_workorder'] ?? ($post->load_workorder ?? '') }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
                                 </tr>
@@ -1299,7 +1311,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                         @endphp
                                     <td>
                                         <input name="ship_date" class="editable-field border-0 w-100"
-                                            value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
+                                            value="{{ $bolSaved['ship_date'] ?? (isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '') }}"
                                             readonly style="font-weight: 900; color: #555;">
                                     </td>
                                 </tr>
@@ -1328,7 +1340,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 @endphp
 
 <input name="delivery_date" class="editable-field border-0 w-100"
-    value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
+    value="{{ $bolSaved['delivery_date'] ?? $formattedDate }}" style="font-weight: 900; color: #555;"
     readonly>
                                     </td>
                                 </tr>
@@ -1345,28 +1357,34 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Shipper</h6>
 @php
-    $shippers = json_decode($post->load_shipperr, true);
+    if (!empty($bolSaved['shipper_info'])) {
+        $shipperText = $bolSaved['shipper_info'];
+    } else {
+        $shippers = json_decode($post->load_shipperr, true);
+        $shipperLocs = json_decode($post->load_shipper_location, true);
 
-    $shipperText = '';
+        $shipperText = '';
 
-    if($shippers && is_array($shippers)) {
+        if($shippers && is_array($shippers)) {
+            foreach($shippers as $index => $item) {
+                $shipperText .= ($item['name'] ?? '') . "\n";
 
-        foreach($shippers as $item) {
+                if($shipperLocs && isset($shipperLocs[$index]['location']) && !empty($shipperLocs[$index]['location'])) {
+                    $shipperText .= $shipperLocs[$index]['location'] . "\n";
+                } elseif(!empty($item['location'])) {
+                    $shipperText .= $item['location'] . "\n";
+                }
 
-            $shipperText .= ($item['name'] ?? '') . "\n";
-
-            if(!empty($item['location'])) {
-                $shipperText .= $item['location'] . "\n";
+                $shipperText .= "\n";
             }
-
-            $shipperText .= "\n";
         }
+        $shipperText = trim($shipperText);
     }
 @endphp
 
 <textarea name="shipper_info" class="form-control editable-field border-0"
     rows="6"
-    readonly>{{ trim($shipperText) }}</textarea>
+    readonly>{{ $shipperText }}</textarea>
                             </div>
                         </div>
 
@@ -1374,27 +1392,33 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Consignee</h6>
 @php
-    $consignees = json_decode($post->load_consignee, true);
+    if (!empty($bolSaved['consignee_info'])) {
+        $consigneeText = $bolSaved['consignee_info'];
+    } else {
+        $consignees = json_decode($post->load_consignee, true);
+        $consigneeLocs = json_decode($post->load_consignee_location, true);
 
-    $consigneeText = '';
+        $consigneeText = '';
 
-    if($consignees && is_array($consignees)) {
+        if($consignees && is_array($consignees)) {
+            foreach($consignees as $index => $item) {
+                $consigneeText .= ($item['name'] ?? '') . "\n";
 
-        foreach($consignees as $item) {
+                if($consigneeLocs && isset($consigneeLocs[$index]['location']) && !empty($consigneeLocs[$index]['location'])) {
+                    $consigneeText .= $consigneeLocs[$index]['location'] . "\n";
+                } elseif(!empty($item['location'])) {
+                    $consigneeText .= $item['location'] . "\n";
+                }
 
-            $consigneeText .= ($item['name'] ?? '') . "\n";
-
-            if(!empty($item['location'])) {
-                $consigneeText .= $item['location'] . "\n";
+                $consigneeText .= "\n";
             }
-
-            $consigneeText .= "\n";
         }
+        $consigneeText = trim($consigneeText);
     }
 @endphp
                                 <textarea name="consignee_info" class="form-control editable-field border-0"
                                     rows="5"
-                                    readonly>{{ trim($consigneeText) }}</textarea>
+                                    readonly>{{ $consigneeText }}</textarea>
                             </div>
                         </div>
 
@@ -1409,7 +1433,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                                 <textarea name="third_party_billing" class="form-control editable-field border-0"
                                     rows="5"
-                                    readonly></textarea>
+                                    readonly>{{ $bolSaved['third_party_billing'] ?? '' }}</textarea>
                             </div>
                         </div>
 
@@ -1419,7 +1443,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                                 <textarea name="transportation_company" class="form-control editable-field border-0"
                                 rows="5"
-                                readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
+                                readonly>{{ $bolSaved['transportation_company'] ?? ("MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '')) }}</textarea>
                             </div>
                         </div>
 
@@ -1444,53 +1468,66 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
     <tbody id="freightTableBody">
 
+        @php
+            $freightItems = (!empty($bolSaved['freight_items']) && is_array($bolSaved['freight_items']))
+                ? $bolSaved['freight_items']
+                : [['pieces' => '#Unit 1', 'description' => '', 'weight' => '', 'type' => '', 'nmfc' => '', 'hm' => '', 'class' => '']];
+        @endphp
+
+        @foreach($freightItems as $fIndex => $fItem)
         <tr>
 
             <td>
-                <input name="freight[0][pieces]" type="text"
+                <input name="freight[{{ $fIndex }}][pieces]" type="text"
                     class="form-control editable-field unit-number"
-                    value="#Unit 1">
+                    value="{{ $fItem['pieces'] ?? '#Unit ' . ($fIndex + 1) }}">
             </td>
 
             <td>
-                <input name="freight[0][description]" type="text"
+                <input name="freight[{{ $fIndex }}][description]" type="text"
                     class="form-control editable-field"
-                    placeholder="Description">
+                    placeholder="Description"
+                    value="{{ $fItem['description'] ?? '' }}">
             </td>
 
             <td>
-                <input name="freight[0][weight]" type="number"
+                <input name="freight[{{ $fIndex }}][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
+                    value="{{ $fItem['weight'] ?? '' }}"
                     onkeyup="updateTotals()"
                     onchange="updateTotals()">
             </td>
 
             <td>
-                <input name="freight[0][type]" type="text"
+                <input name="freight[{{ $fIndex }}][type]" type="text"
                     class="form-control editable-field"
-                    placeholder="Type">
+                    placeholder="Type"
+                    value="{{ $fItem['type'] ?? '' }}">
             </td>
 
             <td>
-                <input name="freight[0][nmfc]" type="text"
+                <input name="freight[{{ $fIndex }}][nmfc]" type="text"
                     class="form-control editable-field"
-                    placeholder="NMFC">
+                    placeholder="NMFC"
+                    value="{{ $fItem['nmfc'] ?? '' }}">
             </td>
 
             <td>
-                <input name="freight[0][hm]" type="text"
+                <input name="freight[{{ $fIndex }}][hm]" type="text"
                     class="form-control editable-field"
-                    placeholder="HM">
+                    placeholder="HM"
+                    value="{{ $fItem['hm'] ?? '' }}">
             </td>
 
             <td>
 
                 <div class="d-flex gap-2">
 
-                    <input name="freight[0][class]" type="text"
+                    <input name="freight[{{ $fIndex }}][class]" type="text"
                         class="form-control editable-field"
-                        placeholder="Class">
+                        placeholder="Class"
+                        value="{{ $fItem['class'] ?? '' }}">
 
                     <button type="button"
                         class="btn btn-danger btn-sm pdf-hide"
@@ -1503,6 +1540,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
             </td>
 
         </tr>
+        @endforeach
 
     </tbody>
 
@@ -1560,7 +1598,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <textarea name="notes" class="form-control editable-field border-0"
                 rows="7"
-                readonly>{{ $post->notes ?? '' }}</textarea>
+                readonly>{{ $bolSaved['notes'] ?? ($post->notes ?? '') }}</textarea>
 
         </td>
 
@@ -1572,7 +1610,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Amount:</strong> <input name="cod_amount" type="text"
-                class="form-control editable-field border-0" value="$0.00"
+                class="form-control editable-field border-0" value="{{ $bolSaved['cod_amount'] ?? '$0.00' }}"
                 readonly>
                     </td>
                 </tr>
@@ -1580,7 +1618,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Fee:</strong> <input name="cod_fee" type="text"
-                class="form-control editable-field border-0" value="Collect"
+                class="form-control editable-field border-0" value="{{ $bolSaved['cod_fee'] ?? 'Collect' }}"
                 readonly>
                     </td>
                 </tr>
@@ -1588,7 +1626,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>Declared Value:</strong> <input name="declared_value" type="text"
-                class="form-control editable-field border-0" value=" $0.00"
+                class="form-control editable-field border-0" value="{{ $bolSaved['declared_value'] ?? '$0.00' }}"
                 readonly>
                     </td>
                 </tr>
@@ -1637,18 +1675,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         <td>
             <input name="shipper_signature" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['shipper_signature'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
             <input name="carrier_signature" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['carrier_signature'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
             <input name="signature_date" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['signature_date'] ?? '' }}"
                 readonly>
         </td>
 
@@ -1677,18 +1718,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         <td>
             <input name="shipper_per" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['shipper_per'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
             <input name="carrier_per" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['carrier_per'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
             <input name="signature_time" type="text"
                 class="form-control editable-field border-0"
+                value="{{ $bolSaved['signature_time'] ?? '' }}"
                 readonly>
         </td>
 
@@ -1709,21 +1753,25 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <td>
         <input name="consignee_name_signature" type="text"
             class="form-control editable-field border-0"
+            value="{{ $bolSaved['consignee_name_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
         <input name="consignee_date_signature" type="text"
             class="form-control editable-field border-0"
+            value="{{ $bolSaved['consignee_date_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
         <input name="consignee_signature" type="text"
             class="form-control editable-field border-0"
+            value="{{ $bolSaved['consignee_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
         <input name="consignee_pieces_received" type="text"
             class="form-control editable-field border-0"
+            value="{{ $bolSaved['consignee_pieces_received'] ?? '' }}"
             readonly>
     </td>
 </tr>
@@ -2505,6 +2553,9 @@ function enableEdit() {
 
     });
 
+    // Show the Save for PDF button
+    document.getElementById('saveBolBtn').style.display = 'inline-block';
+
 }
 
 </script>
@@ -2617,6 +2668,10 @@ updateTotals();
 
 async function downloadBOL() {
 
+    // First save the BOL data via AJAX
+    await saveBolDataSilent();
+
+    // Then submit form for PDF download
     const bolArea = document.getElementById('bolDownloadArea');
     const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
 
@@ -2647,6 +2702,63 @@ async function downloadBOL() {
     form.submit();
     document.body.removeChild(form);
 
+}
+
+// Save BOL data via AJAX (with alert)
+async function saveBolData() {
+    try {
+        let result = await saveBolDataSilent();
+        if (result && result.success) {
+            alert('BOL data saved successfully! It will appear in the downloaded PDF.');
+        } else {
+            alert('Error saving BOL data. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error saving BOL data:', error);
+        alert('Error saving BOL data. Please try again.');
+    }
+}
+
+// Save BOL data silently (no alert) - used by both save and download
+async function saveBolDataSilent() {
+    const bolArea = document.getElementById('bolDownloadArea');
+    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
+
+    let formData = {};
+    namedFields.forEach(field => {
+        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
+            return;
+        }
+        // Handle freight array fields
+        const match = field.name.match(/^freight\[(\d+)\]\[(\w+)\]$/);
+        if (match) {
+            if (!formData['freight']) formData['freight'] = {};
+            if (!formData['freight'][match[1]]) formData['freight'][match[1]] = {};
+            formData['freight'][match[1]][match[2]] = field.value ?? '';
+        } else {
+            formData[field.name] = field.value ?? '';
+        }
+    });
+
+    // Convert freight object to array
+    if (formData['freight']) {
+        formData['freight'] = Object.values(formData['freight']);
+    }
+
+    try {
+        let response = await fetch("{{ route('broker.load.bol.save', $post->id) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(formData)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error saving BOL data:', error);
+        return null;
+    }
 }
 
 </script>

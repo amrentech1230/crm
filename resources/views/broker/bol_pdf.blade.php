@@ -313,17 +313,17 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                     <table class="no-border">
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Amount:</span> $0.00
+                                <span class="fw-bold">C.O.D. Amount:</span> {{ $load->cod_amount ?? ($savedBolData['cod_amount'] ?? '$0.00') }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Fee:</span> Collect
+                                <span class="fw-bold">C.O.D. Fee:</span> {{ $load->cod_fee ?? ($savedBolData['cod_fee'] ?? 'Collect') }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">Declared Value:</span> $0.00
+                                <span class="fw-bold">Declared Value:</span> {{ $load->declared_value ?? ($savedBolData['declared_value'] ?? '$0.00') }}
                             </td>
                         </tr>
                         <tr>
@@ -337,6 +337,19 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
         </table>
 
         <!-- Signatures -->
+        @php
+            $bolSaved = $savedBolData;
+            $sigShipper = $load->shipper_signature ?? ($bolSaved['shipper_signature'] ?? '');
+            $sigCarrier = $load->carrier_signature ?? ($bolSaved['carrier_signature'] ?? '');
+            $sigDate = $load->signature_date ?? ($bolSaved['signature_date'] ?? '');
+            $sigPerShipper = $load->shipper_per ?? ($bolSaved['shipper_per'] ?? '');
+            $sigPerCarrier = $load->carrier_per ?? ($bolSaved['carrier_per'] ?? '');
+            $sigTime = $load->signature_time ?? ($bolSaved['signature_time'] ?? '');
+            $conNameSign = $load->consignee_name_signature ?? ($bolSaved['consignee_name_signature'] ?? '');
+            $conDateSign = $load->consignee_date_signature ?? ($bolSaved['consignee_date_signature'] ?? '');
+            $conSignature = $load->consignee_signature ?? ($bolSaved['consignee_signature'] ?? '');
+            $conPiecesReceived = $load->consignee_pieces_received ?? ($bolSaved['consignee_pieces_received'] ?? '');
+        @endphp
         <table>
             <tr>
                 <th style="width: 25%;">Shipper</th>
@@ -345,9 +358,9 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <th style="width: 25%;" rowspan="2">Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $sigShipper }}</td>
+                <td class="signature-box">{{ $sigCarrier }}</td>
+                <td class="signature-box">{{ $sigDate }}</td>
             </tr>
             <tr>
                 <th>Per</th>
@@ -356,9 +369,9 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <td class="signature-box"></td>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $sigPerShipper }}</td>
+                <td class="signature-box">{{ $sigPerCarrier }}</td>
+                <td class="signature-box">{{ $sigTime }}</td>
                 <td class="signature-box"></td>
             </tr>
         </table>
@@ -371,10 +384,10 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <th>Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $conNameSign }}</td>
+                <td class="signature-box">{{ $conDateSign }}</td>
+                <td class="signature-box">{{ $conSignature }}</td>
+                <td class="signature-box">{{ $conPiecesReceived }}</td>
             </tr>
         </table>
     </div>
