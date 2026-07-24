@@ -29,8 +29,9 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 9999;
+    z-index: 1040;
     top: 10px;
+    pointer-events: none;
 }
 
 #mc-error-message{
@@ -43,8 +44,9 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 9999;
+    z-index: 1040;
     top: 10px;
+    pointer-events: none;
 }
 
  input:invalid {
@@ -55,6 +57,36 @@
     border-radius: .25em;
     border: 2px solid;
 }
+.select2-hidden-accessible {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    display: block !important;
+}
+.select2-container {
+    z-index: 99999 !important;
+}
+
+.select2-dropdown {
+    z-index: 99999 !important;
+}
+
+/* Keep native selects visibly identifiable and clickable. */
+select.form-control {
+    appearance: auto !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    cursor: pointer;
+    padding-right: 2rem !important;
+}
+
+
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -115,7 +147,7 @@
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
                                         <div class="input-group">
-                                            <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to"   @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly  @endif>
+                                            <select id="load_bill_to" class="form-control" name="load_bill_to"   @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly  @endif>
                                                 <option value="">Select Customer</option>
                                                     @foreach($allcustomer as $cust)
 													   @if($post->user->id == $cust->user_id)
@@ -181,7 +213,7 @@
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
     <label>Customer Payment Status</label>
-    <select class="form-control select2" name="load_status" style="width: 100%;">
+    <select class="form-control" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
                 Invoiced
@@ -284,7 +316,7 @@
                                     <div class="form-group">
                                         <label>Equipment Type
                                             <code>*</code></label>
-                                        <select class="form-control mySelect2" name="load_equipment_type"
+                                        <select class="form-control" name="load_equipment_type"
                                             id="load_equipment_type" style="width: 100%;" required>
 
                                             <option value="">Select Equipment </option>
@@ -1811,22 +1843,21 @@ $(document).ready(function () {
 </script>
 <script>
 
-    $(document).ready(function () {
-		 $('#load_bill_to').select2(); // Initialize Select2
-		$('#load_bill_to').on('change', function() {
-			var customer_id =  $(this).find('option:selected').data('id');
-			$('#customer_id').val(customer_id);
-            $('#load_shipper_rate').prop('readonly', false);
-            $('#load_shipper_rate').val(0);
-			$('#shipper_load_final_rate').val(0);
-			
-        });
-		
-        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-            e.preventDefault();
-        });
+ 
+	$(document).ready(function () {
+
+    $('#load_bill_to').on('change', function() {
+        var customer_id =  $(this).find('option:selected').data('id');
+        $('#customer_id').val(customer_id);
+        $('#load_shipper_rate').prop('readonly', false);
+        $('#load_shipper_rate').val(0);
+        $('#shipper_load_final_rate').val(0);
     });
 
+    $('#shipper_load_final_rate').on('keydown paste input', function (e) {
+        e.preventDefault();
+    });
+});
 
         $(document).ready(function () {
             
@@ -2429,10 +2460,10 @@ $(document).on('click', '#carrierInfoBtn', function() {
 
 </script>
 
+
 <style>
 .is-invalid {
     border: 1px solid red;
     background: #ffe5e5;
 }
 </style>
-

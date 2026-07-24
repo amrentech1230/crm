@@ -2698,6 +2698,7 @@ th {
 
 .select2-container {
   display: block;
+   z-index: 99999 !important;
 }
 .select2-container .select2-selection--single {
   background-color: var(--bs-secondary-bg);
@@ -2761,6 +2762,7 @@ th {
   background-color: var(--bs-secondary-bg);
   -webkit-box-shadow: 1px 0px 20px rgba(0, 0, 0, 0.05);
           box-shadow: 1px 0px 20px rgba(0, 0, 0, 0.05);
+           z-index: 99999 !important;
 }
 
 .select2-search input {

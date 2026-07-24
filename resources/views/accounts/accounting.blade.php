@@ -13,8 +13,9 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 9999;
+    z-index: 1040;
     top: 10px;
+    pointer-events: none;
 }
 #search-active .pagination-container{
     display:none !important;
@@ -29,8 +30,9 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 9999;
+    z-index: 1040;
     top: 10px;
+    pointer-events: none;
 }
 td.dynamic-data a {
     /* color: #a6ce3a !important; */

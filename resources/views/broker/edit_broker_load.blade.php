@@ -1221,28 +1221,20 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
 <div class="col-md-8">
 
-    @php
-        $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-        $logoBase64 = base64_encode(file_get_contents($logoUrl));
-    @endphp
+   @php
+    $logoPath = public_path('images/cargoLogo.png');
+    $logoBase64 = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
+@endphp
 
-    <div style="
-        display:flex;
-        align-items:flex-start;
-        gap:15px;
-    ">
-
-        <!-- Logo -->
-        <div>
-            <img 
-                src="data:image/png;base64,{{ $logoBase64 }}"
-                alt="logo"
-                style="
-                    width:150px;
-                    display:block;
-                "
-            >
-        </div>
+<div>
+    @if($logoBase64)
+        <img 
+            src="data:image/png;base64,{{ $logoBase64 }}"
+            alt="logo"
+            style="width:150px; display:block;"
+        >
+    @endif
+</div>
 
         <!-- Content -->
         <div style="line-height:1.3;">
@@ -1372,7 +1364,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     }
 @endphp
 
-<textarea class="form-control editable-field border-0"
 <textarea name="shipper_info" class="form-control editable-field border-0"
     rows="6"
     readonly>{{ trim($shipperText) }}</textarea>
@@ -1426,7 +1417,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Transportation Company</h6>
 
-                                <textarea class="form-control editable-field border-0"
                                 <textarea name="transportation_company" class="form-control editable-field border-0"
                                 rows="5"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
@@ -1457,21 +1447,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         <tr>
 
             <td>
-                <input type="text"
                 <input name="freight[0][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit 1">
             </td>
 
             <td>
-                <input type="text"
                 <input name="freight[0][description]" type="text"
                     class="form-control editable-field"
                     placeholder="Description">
             </td>
 
             <td>
-                <input type="number"
                 <input name="freight[0][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
@@ -1480,21 +1467,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
             </td>
 
             <td>
-                <input type="text"
                 <input name="freight[0][type]" type="text"
                     class="form-control editable-field"
                     placeholder="Type">
             </td>
 
             <td>
-                <input type="text"
                 <input name="freight[0][nmfc]" type="text"
                     class="form-control editable-field"
                     placeholder="NMFC">
             </td>
 
             <td>
-                <input type="text"
                 <input name="freight[0][hm]" type="text"
                     class="form-control editable-field"
                     placeholder="HM">
@@ -1504,7 +1488,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                 <div class="d-flex gap-2">
 
-                    <input type="text"
                     <input name="freight[0][class]" type="text"
                         class="form-control editable-field"
                         placeholder="Class">
@@ -1575,7 +1558,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <h6 class="fw-bold mb-2">Notes:</h6>
 
-            <textarea class="form-control editable-field border-0"
             <textarea name="notes" class="form-control editable-field border-0"
                 rows="7"
                 readonly>{{ $post->notes ?? '' }}</textarea>
@@ -1589,7 +1571,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                 <tr>
                     <td>
-                        <strong>C.O.D. Amount:</strong> <input type="text"
                         <strong>C.O.D. Amount:</strong> <input name="cod_amount" type="text"
                 class="form-control editable-field border-0" value="$0.00"
                 readonly>
@@ -1598,7 +1579,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                 <tr>
                     <td>
-                        <strong>C.O.D. Fee:</strong> <input type="text"
                         <strong>C.O.D. Fee:</strong> <input name="cod_fee" type="text"
                 class="form-control editable-field border-0" value="Collect"
                 readonly>
@@ -1607,7 +1587,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                 <tr>
                     <td>
-                        <strong>Declared Value:</strong> <input type="text"
                         <strong>Declared Value:</strong> <input name="declared_value" type="text"
                 class="form-control editable-field border-0" value=" $0.00"
                 readonly>
@@ -1656,21 +1635,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <tr>
 
         <td>
-            <input type="text"
             <input name="shipper_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
-            <input type="text"
             <input name="carrier_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
-            <input type="text"
             <input name="signature_date" type="text"
                 class="form-control editable-field border-0"
                 readonly>
@@ -1699,21 +1675,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <tr>
 
         <td>
-            <input type="text"
             <input name="shipper_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
-            <input type="text"
             <input name="carrier_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
-            <input type="text"
             <input name="signature_time" type="text"
                 class="form-control editable-field border-0"
                 readonly>
@@ -1734,25 +1707,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
 <tr>
     <td>
-        <input type="text"
         <input name="consignee_name_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
-        <input type="text"
         <input name="consignee_date_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
-        <input type="text"
         <input name="consignee_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
-        <input type="text"
         <input name="consignee_pieces_received" type="text"
             class="form-control editable-field border-0"
             readonly>
@@ -2546,84 +2515,50 @@ function enableEdit() {
 <script>
 
 function addFreightRow() {
-
     let tableBody = document.getElementById('freightTableBody');
-
     let rowCount = tableBody.rows.length + 1;
 
     let row = `
         <tr>
-
             <td>
-                <input type="text"
                 <input name="freight[${rowCount-1}][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit ${rowCount}">
             </td>
-
             <td>
-                <input type="text"
                 <input name="freight[${rowCount-1}][description]" type="text"
-                    class="form-control editable-field"
-                    placeholder="Description">
+                    class="form-control editable-field" placeholder="Description">
             </td>
-
             <td>
-                <input type="number"
                 <input name="freight[${rowCount-1}][weight]" type="number"
                     class="form-control editable-field weight-field"
-                    placeholder="Weight"
-                    onkeyup="updateTotals()"
-                    onchange="updateTotals()">
+                    placeholder="Weight" onkeyup="updateTotals()" onchange="updateTotals()">
             </td>
-
             <td>
-                <input type="text"
                 <input name="freight[${rowCount-1}][type]" type="text"
-                    class="form-control editable-field"
-                    placeholder="Type">
+                    class="form-control editable-field" placeholder="Type">
             </td>
-
             <td>
-                <input type="text"
                 <input name="freight[${rowCount-1}][nmfc]" type="text"
-                    class="form-control editable-field"
-                    placeholder="NMFC">
+                    class="form-control editable-field" placeholder="NMFC">
             </td>
-
             <td>
-                <input type="text"
                 <input name="freight[${rowCount-1}][hm]" type="text"
-                    class="form-control editable-field"
-                    placeholder="HM">
+                    class="form-control editable-field" placeholder="HM">
             </td>
-
             <td>
-
                 <div class="d-flex gap-2">
-
-                    <input type="text"
                     <input name="freight[${rowCount-1}][class]" type="text"
-                        class="form-control editable-field"
-                        placeholder="Class">
-
-                    <button type="button"
-                        class="btn btn-danger btn-sm pdf-hide"
-                        onclick="removeRow(this)">
-                        ×
-                    </button>
-
+                        class="form-control editable-field" placeholder="Class">
+                    <button type="button" class="btn btn-danger btn-sm pdf-hide"
+                        onclick="removeRow(this)">×</button>
                 </div>
-
             </td>
-
         </tr>
     `;
 
     tableBody.insertAdjacentHTML('beforeend', row);
-
     updateTotals();
-
 }
 
 function removeRow(button) {
@@ -2687,35 +2622,33 @@ updateTotals();
 async function downloadBOL() {
 
     const bolArea = document.getElementById('bolDownloadArea');
-    const fields = bolArea.querySelectorAll('input, textarea');
+    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
 
-    // Create a new hidden form
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = "{{ route('broker.load.bol.pdf', $post->id) }}";
-    form.style.display = 'none'; // Hide the form
+    form.style.display = 'none';
 
-    // Add CSRF token
     const csrfToken = document.createElement('input');
     csrfToken.type = 'hidden';
     csrfToken.name = '_token';
     csrfToken.value = '{{ csrf_token() }}';
     form.appendChild(csrfToken);
 
-    // Append all input/textarea values from the modal to the form
-    fields.forEach(field => {
+    namedFields.forEach(field => {
+        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
+            return;
+        }
+
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = field.name;
-        input.value = field.value;
+        input.value = field.value ?? '';
         form.appendChild(input);
     });
 
-    // Append the form to the body and submit it
     document.body.appendChild(form);
     form.submit();
-
-    // Clean up: remove the form after submission
     document.body.removeChild(form);
 
 }
