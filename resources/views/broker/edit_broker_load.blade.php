@@ -2511,7 +2511,6 @@ function enableEdit() {
 }
 
 </script>
-
 <script>
 
 function addFreightRow() {
