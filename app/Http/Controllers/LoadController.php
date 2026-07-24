@@ -1895,6 +1895,48 @@ public function raiseTicketStore(Request $request)
         return trim(implode("\n", $lines));
     }
 
+    /**
+     * Save BOL edit data for PDF download (persists for future downloads).
+     */
+    public function saveBolEditData(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+
+        $bolData = [
+            'load_number'            => $request->input('load_number', $load->load_number),
+            'load_workorder'         => $request->input('load_workorder', $load->load_workorder ?? ''),
+            'ship_date'              => $request->input('ship_date', ''),
+            'delivery_date'          => $request->input('delivery_date', ''),
+            'shipper_info'           => $request->input('shipper_info', ''),
+            'consignee_info'         => $request->input('consignee_info', ''),
+            'third_party_billing'    => $request->input('third_party_billing', ''),
+            'transportation_company' => $request->input('transportation_company', ''),
+            'freight_items'          => $request->input('freight', []),
+            'notes'                  => $request->input('notes', ''),
+            'cod_amount'             => $request->input('cod_amount', '$0.00'),
+            'cod_fee'                => $request->input('cod_fee', 'Collect'),
+            'declared_value'         => $request->input('declared_value', '$0.00'),
+            'shipper_signature'      => $request->input('shipper_signature', ''),
+            'carrier_signature'      => $request->input('carrier_signature', ''),
+            'signature_date'         => $request->input('signature_date', ''),
+            'shipper_per'            => $request->input('shipper_per', ''),
+            'carrier_per'            => $request->input('carrier_per', ''),
+            'signature_time'         => $request->input('signature_time', ''),
+            'consignee_name_signature'  => $request->input('consignee_name_signature', ''),
+            'consignee_date_signature'  => $request->input('consignee_date_signature', ''),
+            'consignee_signature'       => $request->input('consignee_signature', ''),
+            'consignee_pieces_received' => $request->input('consignee_pieces_received', ''),
+        ];
+
+        $load->bol_edit_data = json_encode($bolData);
+        $load->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'BOL data saved successfully.',
+        ]);
+    }
+
     public function generateBolPdf(Request $request, $id)
     {
         $originalLoad = Load::findOrFail($id);
@@ -1971,6 +2013,34 @@ public function raiseTicketStore(Request $request)
 
         $existingInternalNotes['bol_pdf_snapshot'] = $bolSnapshot;
         $originalLoad->internal_notes = json_encode($existingInternalNotes);
+
+        // Also persist to bol_edit_data for future PDF downloads and modal pre-fill
+        $bolEditData = [
+            'load_number'            => $load->load_number,
+            'load_workorder'         => $request->input('load_workorder', $originalLoad->load_workorder ?? ''),
+            'ship_date'              => $load->ship_date ?? '',
+            'delivery_date'          => $load->delivery_date ?? '',
+            'shipper_info'           => $shipperInfo,
+            'consignee_info'         => $consigneeInfo,
+            'third_party_billing'    => $bolSnapshot['third_party_billing'],
+            'transportation_company' => $bolSnapshot['transportation_company'],
+            'freight_items'          => $load->freight_items,
+            'notes'                  => $bolSnapshot['notes'],
+            'cod_amount'             => $bolSnapshot['cod_amount'],
+            'cod_fee'                => $bolSnapshot['cod_fee'],
+            'declared_value'         => $bolSnapshot['declared_value'],
+            'shipper_signature'      => trim((string) ($request->input('shipper_signature') ?? '')),
+            'carrier_signature'      => trim((string) ($request->input('carrier_signature') ?? '')),
+            'signature_date'         => trim((string) ($request->input('signature_date') ?? '')),
+            'shipper_per'            => trim((string) ($request->input('shipper_per') ?? '')),
+            'carrier_per'            => trim((string) ($request->input('carrier_per') ?? '')),
+            'signature_time'         => trim((string) ($request->input('signature_time') ?? '')),
+            'consignee_name_signature'  => trim((string) ($request->input('consignee_name_signature') ?? '')),
+            'consignee_date_signature'  => trim((string) ($request->input('consignee_date_signature') ?? '')),
+            'consignee_signature'       => trim((string) ($request->input('consignee_signature') ?? '')),
+            'consignee_pieces_received' => trim((string) ($request->input('consignee_pieces_received') ?? '')),
+        ];
+        $originalLoad->bol_edit_data = json_encode($bolEditData);
         $originalLoad->save();
 
         $load->internal_notes = $originalLoad->internal_notes;
