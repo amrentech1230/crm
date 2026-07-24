@@ -207,15 +207,17 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>3rd Party Billing</h6>
-                    <!-- Assuming 3rd party billing info is not directly in $load for now -->
-                    <div style="min-height: 80px;"></div>
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $load->third_party_billing ?? ($savedBolData['third_party_billing'] ?? '') }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
-Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->transportation_company ?? ($savedBolData['transportation_company'] ?? '') }}</pre>
+                    @php
+                        $transportText = trim((string) ($load->transportation_company ?? ($savedBolData['transportation_company'] ?? '')));
+                        if ($transportText === '') {
+                            $transportText = "MC #: " . ($load->load_mc_no ?? '') . "\nCarrier Name: " . ($load->load_carrier ?? '');
+                        }
+                    @endphp
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $transportText }}</pre>
                 </td>
             </tr>
         </table>

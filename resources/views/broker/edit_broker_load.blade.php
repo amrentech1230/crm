@@ -2668,8 +2668,12 @@ updateTotals();
 
 async function downloadBOL() {
 
-    // First save the BOL data via AJAX
-    await saveBolDataSilent();
+    // First save the BOL data via AJAX (ignore errors, PDF download still works)
+    try {
+        await saveBolDataSilent();
+    } catch (e) {
+        console.warn('BOL save failed, proceeding with download:', e);
+    }
 
     // Then submit form for PDF download
     const bolArea = document.getElementById('bolDownloadArea');
@@ -2700,7 +2704,13 @@ async function downloadBOL() {
 
     document.body.appendChild(form);
     form.submit();
-    document.body.removeChild(form);
+
+    // Remove form after a delay to ensure submission goes through
+    setTimeout(function() {
+        if (form.parentNode) {
+            document.body.removeChild(form);
+        }
+    }, 1000);
 
 }
 

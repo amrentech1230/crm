@@ -1946,6 +1946,7 @@ public function raiseTicketStore(Request $request)
             $load->{$key} = $value;
         }
 
+        // Overlay form-submitted data onto the load object
         foreach ($request->except('_token') as $key => $value) {
             $load->{$key} = $value;
         }
@@ -1958,6 +1959,9 @@ public function raiseTicketStore(Request $request)
             $load->delivery_date = (string) $request->input('delivery_date');
         }
 
+        // Determine shipper info - from request, or from saved bol_edit_data, or from DB
+        $savedBolEdit = is_array($originalLoad->bol_edit_data) ? $originalLoad->bol_edit_data : (json_decode($originalLoad->bol_edit_data ?? '', true) ?: []);
+
         $shipperInfo = trim((string) ($request->input('shipper_info') ?? ''));
         if ($shipperInfo === '') {
             $shipperInfo = $this->buildPartyInfoFromRequest(
@@ -1965,6 +1969,9 @@ public function raiseTicketStore(Request $request)
                 'load_shipper_',
                 'load_shipper_location_'
             );
+        }
+        if ($shipperInfo === '') {
+            $shipperInfo = $savedBolEdit['shipper_info'] ?? '';
         }
         if ($shipperInfo === '') {
             $shipperInfo = $this->buildPartyInfoText(
@@ -1983,6 +1990,9 @@ public function raiseTicketStore(Request $request)
             );
         }
         if ($consigneeInfo === '') {
+            $consigneeInfo = $savedBolEdit['consignee_info'] ?? '';
+        }
+        if ($consigneeInfo === '') {
             $consigneeInfo = $this->buildPartyInfoText(
                 $originalLoad->load_consignee,
                 $originalLoad->load_consignee_location
@@ -1992,18 +2002,77 @@ public function raiseTicketStore(Request $request)
 
         $load->load_number = $originalLoad->load_number;
         $submittedFreight = $request->input('freight', []);
+        if (empty($submittedFreight) && !empty($savedBolEdit['freight_items'])) {
+            $submittedFreight = $savedBolEdit['freight_items'];
+        }
         $load->freight_items = is_array($submittedFreight) ? $submittedFreight : [];
+
+        // Use saved bol_edit_data as fallback for other fields
+        if (!$request->has('notes') && !empty($savedBolEdit['notes'])) {
+            $load->notes = $savedBolEdit['notes'];
+        }
+        if (!$request->has('third_party_billing') && !empty($savedBolEdit['third_party_billing'])) {
+            $load->third_party_billing = $savedBolEdit['third_party_billing'];
+        }
+        if (!$request->has('transportation_company') && !empty($savedBolEdit['transportation_company'])) {
+            $load->transportation_company = $savedBolEdit['transportation_company'];
+        }
+        if (!$request->has('cod_amount') && !empty($savedBolEdit['cod_amount'])) {
+            $load->cod_amount = $savedBolEdit['cod_amount'];
+        }
+        if (!$request->has('cod_fee') && !empty($savedBolEdit['cod_fee'])) {
+            $load->cod_fee = $savedBolEdit['cod_fee'];
+        }
+        if (!$request->has('declared_value') && !empty($savedBolEdit['declared_value'])) {
+            $load->declared_value = $savedBolEdit['declared_value'];
+        }
+        if (!$request->has('shipper_signature') && !empty($savedBolEdit['shipper_signature'])) {
+            $load->shipper_signature = $savedBolEdit['shipper_signature'];
+        }
+        if (!$request->has('carrier_signature') && !empty($savedBolEdit['carrier_signature'])) {
+            $load->carrier_signature = $savedBolEdit['carrier_signature'];
+        }
+        if (!$request->has('signature_date') && !empty($savedBolEdit['signature_date'])) {
+            $load->signature_date = $savedBolEdit['signature_date'];
+        }
+        if (!$request->has('shipper_per') && !empty($savedBolEdit['shipper_per'])) {
+            $load->shipper_per = $savedBolEdit['shipper_per'];
+        }
+        if (!$request->has('carrier_per') && !empty($savedBolEdit['carrier_per'])) {
+            $load->carrier_per = $savedBolEdit['carrier_per'];
+        }
+        if (!$request->has('signature_time') && !empty($savedBolEdit['signature_time'])) {
+            $load->signature_time = $savedBolEdit['signature_time'];
+        }
+        if (!$request->has('consignee_name_signature') && !empty($savedBolEdit['consignee_name_signature'])) {
+            $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'];
+        }
+        if (!$request->has('consignee_date_signature') && !empty($savedBolEdit['consignee_date_signature'])) {
+            $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'];
+        }
+        if (!$request->has('consignee_signature') && !empty($savedBolEdit['consignee_signature'])) {
+            $load->consignee_signature = $savedBolEdit['consignee_signature'];
+        }
+        if (!$request->has('consignee_pieces_received') && !empty($savedBolEdit['consignee_pieces_received'])) {
+            $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'];
+        }
+        if (!$request->has('ship_date') && !empty($savedBolEdit['ship_date'])) {
+            $load->ship_date = $savedBolEdit['ship_date'];
+        }
+        if (!$request->has('delivery_date') && !empty($savedBolEdit['delivery_date'])) {
+            $load->delivery_date = $savedBolEdit['delivery_date'];
+        }
 
         $bolSnapshot = [
             'shipper_info' => $shipperInfo,
             'consignee_info' => $consigneeInfo,
-            'third_party_billing' => trim((string) ($request->input('third_party_billing') ?? '')),
-            'transportation_company' => trim((string) ($request->input('transportation_company') ?? '')),
+            'third_party_billing' => trim((string) ($load->third_party_billing ?? '')),
+            'transportation_company' => trim((string) ($load->transportation_company ?? '')),
             'freight_items' => $load->freight_items,
-            'notes' => trim((string) ($request->input('notes') ?? '')),
-            'cod_amount' => trim((string) ($request->input('cod_amount') ?? '')),
-            'cod_fee' => trim((string) ($request->input('cod_fee') ?? '')),
-            'declared_value' => trim((string) ($request->input('declared_value') ?? '')),
+            'notes' => trim((string) ($load->notes ?? '')),
+            'cod_amount' => trim((string) ($load->cod_amount ?? '')),
+            'cod_fee' => trim((string) ($load->cod_fee ?? '')),
+            'declared_value' => trim((string) ($load->declared_value ?? '')),
         ];
 
         $existingInternalNotes = json_decode((string) ($originalLoad->internal_notes ?? ''), true);
