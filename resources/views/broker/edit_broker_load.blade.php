@@ -2668,49 +2668,21 @@ updateTotals();
 
 async function downloadBOL() {
 
-    // First save the BOL data via AJAX (ignore errors, PDF download still works)
+    // First save the BOL data via AJAX
     try {
-        await saveBolDataSilent();
-    } catch (e) {
-        console.warn('BOL save failed, proceeding with download:', e);
-    }
-
-    // Then submit form for PDF download
-    const bolArea = document.getElementById('bolDownloadArea');
-    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = "{{ route('broker.load.bol.pdf', $post->id) }}";
-    form.style.display = 'none';
-
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = '{{ csrf_token() }}';
-    form.appendChild(csrfToken);
-
-    namedFields.forEach(field => {
-        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
+        let result = await saveBolDataSilent();
+        if (!result || !result.success) {
+            alert('Error saving BOL data. Please try again.');
             return;
         }
+    } catch (e) {
+        console.error('BOL save failed:', e);
+        alert('Error saving BOL data. Please try again.');
+        return;
+    }
 
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = field.name;
-        input.value = field.value ?? '';
-        form.appendChild(input);
-    });
-
-    document.body.appendChild(form);
-    form.submit();
-
-    // Remove form after a delay to ensure submission goes through
-    setTimeout(function() {
-        if (form.parentNode) {
-            document.body.removeChild(form);
-        }
-    }, 1000);
+    // Now download the PDF (GET request - reads from saved bol_edit_data)
+    window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
 
 }
 

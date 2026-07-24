@@ -1937,197 +1937,127 @@ public function raiseTicketStore(Request $request)
         ]);
     }
 
-    public function generateBolPdf(Request $request, $id)
+    public function generateBolPdf($id)
     {
         $originalLoad = Load::findOrFail($id);
 
+        // Build the $load stdClass from original load data
         $load = new \stdClass();
         foreach ($originalLoad->toArray() as $key => $value) {
             $load->{$key} = $value;
         }
 
-        // Overlay form-submitted data onto the load object
-        foreach ($request->except('_token') as $key => $value) {
-            $load->{$key} = $value;
+        // Read saved BOL edit data (saved via the Save for PDF / Download PDF button)
+        $savedBolEdit = is_array($originalLoad->bol_edit_data)
+            ? $originalLoad->bol_edit_data
+            : (json_decode($originalLoad->bol_edit_data ?? '', true) ?: []);
+
+        // If we have saved BOL edit data, overlay it onto $load for the PDF
+        if (!empty($savedBolEdit)) {
+            // Shipper info
+            $load->shipper_info = $savedBolEdit['shipper_info'] ?? '';
+
+            // Consignee info
+            $load->consignee_info = $savedBolEdit['consignee_info'] ?? '';
+
+            // Dates
+            if (!empty($savedBolEdit['ship_date'])) {
+                $load->ship_date = $savedBolEdit['ship_date'];
+            }
+            if (!empty($savedBolEdit['delivery_date'])) {
+                $load->delivery_date = $savedBolEdit['delivery_date'];
+            }
+
+            // Freight items
+            if (!empty($savedBolEdit['freight_items']) && is_array($savedBolEdit['freight_items'])) {
+                $load->freight_items = $savedBolEdit['freight_items'];
+            }
+
+            // Notes and other fields
+            if (isset($savedBolEdit['notes'])) {
+                $load->notes = $savedBolEdit['notes'];
+            }
+            if (!empty($savedBolEdit['third_party_billing'])) {
+                $load->third_party_billing = $savedBolEdit['third_party_billing'];
+            }
+            if (!empty($savedBolEdit['transportation_company'])) {
+                $load->transportation_company = $savedBolEdit['transportation_company'];
+            }
+            if (!empty($savedBolEdit['cod_amount'])) {
+                $load->cod_amount = $savedBolEdit['cod_amount'];
+            }
+            if (!empty($savedBolEdit['cod_fee'])) {
+                $load->cod_fee = $savedBolEdit['cod_fee'];
+            }
+            if (!empty($savedBolEdit['declared_value'])) {
+                $load->declared_value = $savedBolEdit['declared_value'];
+            }
+
+            // Signature fields
+            if (!empty($savedBolEdit['shipper_signature'])) {
+                $load->shipper_signature = $savedBolEdit['shipper_signature'];
+            }
+            if (!empty($savedBolEdit['carrier_signature'])) {
+                $load->carrier_signature = $savedBolEdit['carrier_signature'];
+            }
+            if (!empty($savedBolEdit['signature_date'])) {
+                $load->signature_date = $savedBolEdit['signature_date'];
+            }
+            if (!empty($savedBolEdit['shipper_per'])) {
+                $load->shipper_per = $savedBolEdit['shipper_per'];
+            }
+            if (!empty($savedBolEdit['carrier_per'])) {
+                $load->carrier_per = $savedBolEdit['carrier_per'];
+            }
+            if (!empty($savedBolEdit['signature_time'])) {
+                $load->signature_time = $savedBolEdit['signature_time'];
+            }
+            if (!empty($savedBolEdit['consignee_name_signature'])) {
+                $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'];
+            }
+            if (!empty($savedBolEdit['consignee_date_signature'])) {
+                $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'];
+            }
+            if (!empty($savedBolEdit['consignee_signature'])) {
+                $load->consignee_signature = $savedBolEdit['consignee_signature'];
+            }
+            if (!empty($savedBolEdit['consignee_pieces_received'])) {
+                $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'];
+            }
         }
 
-        if ($request->has('ship_date')) {
-            $load->ship_date = (string) $request->input('ship_date');
-        }
-
-        if ($request->has('delivery_date')) {
-            $load->delivery_date = (string) $request->input('delivery_date');
-        }
-
-        // Determine shipper info - from request, or from saved bol_edit_data, or from DB
-        $savedBolEdit = is_array($originalLoad->bol_edit_data) ? $originalLoad->bol_edit_data : (json_decode($originalLoad->bol_edit_data ?? '', true) ?: []);
-
-        $shipperInfo = trim((string) ($request->input('shipper_info') ?? ''));
-        if ($shipperInfo === '') {
-            $shipperInfo = $this->buildPartyInfoFromRequest(
-                $request,
-                'load_shipper_',
-                'load_shipper_location_'
-            );
-        }
-        if ($shipperInfo === '') {
-            $shipperInfo = $savedBolEdit['shipper_info'] ?? '';
-        }
-        if ($shipperInfo === '') {
-            $shipperInfo = $this->buildPartyInfoText(
+        // Fallback: if shipper_info is still empty, build from DB fields
+        if (empty($load->shipper_info)) {
+            $load->shipper_info = $this->buildPartyInfoText(
                 $originalLoad->load_shipperr,
                 $originalLoad->load_shipper_location
             );
         }
-        $load->shipper_info = $shipperInfo;
 
-        $consigneeInfo = trim((string) ($request->input('consignee_info') ?? ''));
-        if ($consigneeInfo === '') {
-            $consigneeInfo = $this->buildPartyInfoFromRequest(
-                $request,
-                'load_consignee_',
-                'load_consignee_location_'
-            );
-        }
-        if ($consigneeInfo === '') {
-            $consigneeInfo = $savedBolEdit['consignee_info'] ?? '';
-        }
-        if ($consigneeInfo === '') {
-            $consigneeInfo = $this->buildPartyInfoText(
+        // Fallback: if consignee_info is still empty, build from DB fields
+        if (empty($load->consignee_info)) {
+            $load->consignee_info = $this->buildPartyInfoText(
                 $originalLoad->load_consignee,
                 $originalLoad->load_consignee_location
             );
         }
-        $load->consignee_info = $consigneeInfo;
 
-        $load->load_number = $originalLoad->load_number;
-        $submittedFreight = $request->input('freight', []);
-        if (empty($submittedFreight) && !empty($savedBolEdit['freight_items'])) {
-            $submittedFreight = $savedBolEdit['freight_items'];
+        // Ensure freight_items is an array
+        if (!isset($load->freight_items) || !is_array($load->freight_items)) {
+            $load->freight_items = [];
         }
-        $load->freight_items = is_array($submittedFreight) ? $submittedFreight : [];
-
-        // Use saved bol_edit_data as fallback for other fields
-        if (!$request->has('notes') && !empty($savedBolEdit['notes'])) {
-            $load->notes = $savedBolEdit['notes'];
-        }
-        if (!$request->has('third_party_billing') && !empty($savedBolEdit['third_party_billing'])) {
-            $load->third_party_billing = $savedBolEdit['third_party_billing'];
-        }
-        if (!$request->has('transportation_company') && !empty($savedBolEdit['transportation_company'])) {
-            $load->transportation_company = $savedBolEdit['transportation_company'];
-        }
-        if (!$request->has('cod_amount') && !empty($savedBolEdit['cod_amount'])) {
-            $load->cod_amount = $savedBolEdit['cod_amount'];
-        }
-        if (!$request->has('cod_fee') && !empty($savedBolEdit['cod_fee'])) {
-            $load->cod_fee = $savedBolEdit['cod_fee'];
-        }
-        if (!$request->has('declared_value') && !empty($savedBolEdit['declared_value'])) {
-            $load->declared_value = $savedBolEdit['declared_value'];
-        }
-        if (!$request->has('shipper_signature') && !empty($savedBolEdit['shipper_signature'])) {
-            $load->shipper_signature = $savedBolEdit['shipper_signature'];
-        }
-        if (!$request->has('carrier_signature') && !empty($savedBolEdit['carrier_signature'])) {
-            $load->carrier_signature = $savedBolEdit['carrier_signature'];
-        }
-        if (!$request->has('signature_date') && !empty($savedBolEdit['signature_date'])) {
-            $load->signature_date = $savedBolEdit['signature_date'];
-        }
-        if (!$request->has('shipper_per') && !empty($savedBolEdit['shipper_per'])) {
-            $load->shipper_per = $savedBolEdit['shipper_per'];
-        }
-        if (!$request->has('carrier_per') && !empty($savedBolEdit['carrier_per'])) {
-            $load->carrier_per = $savedBolEdit['carrier_per'];
-        }
-        if (!$request->has('signature_time') && !empty($savedBolEdit['signature_time'])) {
-            $load->signature_time = $savedBolEdit['signature_time'];
-        }
-        if (!$request->has('consignee_name_signature') && !empty($savedBolEdit['consignee_name_signature'])) {
-            $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'];
-        }
-        if (!$request->has('consignee_date_signature') && !empty($savedBolEdit['consignee_date_signature'])) {
-            $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'];
-        }
-        if (!$request->has('consignee_signature') && !empty($savedBolEdit['consignee_signature'])) {
-            $load->consignee_signature = $savedBolEdit['consignee_signature'];
-        }
-        if (!$request->has('consignee_pieces_received') && !empty($savedBolEdit['consignee_pieces_received'])) {
-            $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'];
-        }
-        if (!$request->has('ship_date') && !empty($savedBolEdit['ship_date'])) {
-            $load->ship_date = $savedBolEdit['ship_date'];
-        }
-        if (!$request->has('delivery_date') && !empty($savedBolEdit['delivery_date'])) {
-            $load->delivery_date = $savedBolEdit['delivery_date'];
-        }
-
-        $bolSnapshot = [
-            'shipper_info' => $shipperInfo,
-            'consignee_info' => $consigneeInfo,
-            'third_party_billing' => trim((string) ($load->third_party_billing ?? '')),
-            'transportation_company' => trim((string) ($load->transportation_company ?? '')),
-            'freight_items' => $load->freight_items,
-            'notes' => trim((string) ($load->notes ?? '')),
-            'cod_amount' => trim((string) ($load->cod_amount ?? '')),
-            'cod_fee' => trim((string) ($load->cod_fee ?? '')),
-            'declared_value' => trim((string) ($load->declared_value ?? '')),
-        ];
-
-        $existingInternalNotes = json_decode((string) ($originalLoad->internal_notes ?? ''), true);
-        if (!is_array($existingInternalNotes)) {
-            $existingInternalNotes = [];
-        }
-
-        $existingInternalNotes['bol_pdf_snapshot'] = $bolSnapshot;
-        $originalLoad->internal_notes = json_encode($existingInternalNotes);
-
-        // Also persist to bol_edit_data for future PDF downloads and modal pre-fill
-        $bolEditData = [
-            'load_number'            => $load->load_number,
-            'load_workorder'         => $request->input('load_workorder', $originalLoad->load_workorder ?? ''),
-            'ship_date'              => $load->ship_date ?? '',
-            'delivery_date'          => $load->delivery_date ?? '',
-            'shipper_info'           => $shipperInfo,
-            'consignee_info'         => $consigneeInfo,
-            'third_party_billing'    => $bolSnapshot['third_party_billing'],
-            'transportation_company' => $bolSnapshot['transportation_company'],
-            'freight_items'          => $load->freight_items,
-            'notes'                  => $bolSnapshot['notes'],
-            'cod_amount'             => $bolSnapshot['cod_amount'],
-            'cod_fee'                => $bolSnapshot['cod_fee'],
-            'declared_value'         => $bolSnapshot['declared_value'],
-            'shipper_signature'      => trim((string) ($request->input('shipper_signature') ?? '')),
-            'carrier_signature'      => trim((string) ($request->input('carrier_signature') ?? '')),
-            'signature_date'         => trim((string) ($request->input('signature_date') ?? '')),
-            'shipper_per'            => trim((string) ($request->input('shipper_per') ?? '')),
-            'carrier_per'            => trim((string) ($request->input('carrier_per') ?? '')),
-            'signature_time'         => trim((string) ($request->input('signature_time') ?? '')),
-            'consignee_name_signature'  => trim((string) ($request->input('consignee_name_signature') ?? '')),
-            'consignee_date_signature'  => trim((string) ($request->input('consignee_date_signature') ?? '')),
-            'consignee_signature'       => trim((string) ($request->input('consignee_signature') ?? '')),
-            'consignee_pieces_received' => trim((string) ($request->input('consignee_pieces_received') ?? '')),
-        ];
-        $originalLoad->bol_edit_data = json_encode($bolEditData);
-        $originalLoad->save();
-
-        $load->internal_notes = $originalLoad->internal_notes;
 
         $options = new Options();
-        $options->set('defaultFont', 'Arial'); // Use a common font
-        $options->set('isRemoteEnabled', true); // Enable remote image loading for logo
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
         $html = view('broker.bol_pdf', compact('load'))->render();
         $dompdf->loadHtml($html);
 
-        // (Optional) Set paper size and orientation
         $dompdf->setPaper('letter', 'portrait');
-
         $dompdf->render();
 
-        // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
