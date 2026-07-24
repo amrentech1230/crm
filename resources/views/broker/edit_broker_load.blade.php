@@ -2456,7 +2456,6 @@ $(document).ready(function() {
 
 <script>
 $(document).on('change', 'input[name^="load_consignee_appointment_"]', function () {
-
     let deliveryInput = $(this);
     let row = deliveryInput.closest('.row'); 
 
