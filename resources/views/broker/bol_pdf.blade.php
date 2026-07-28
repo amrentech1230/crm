@@ -82,11 +82,24 @@
                 <td style="width: 65%; border: none;">
                     <div style="display: flex; align-items: flex-start; gap: 15px;">
                         <div>
-                            @php
-                                $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-                                $logoBase64 = base64_encode(file_get_contents($logoUrl));
-                            @endphp
-                            <img class="logo" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">
+                                                  @php
+                                    $logoPath = public_path('images/cargo.png');
+
+                                    if (file_exists($logoPath)) {
+                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
+                                    } else {
+                                        $logoBase64 = '';
+                                        // Optional: dd($logoPath); // Check the resolved path
+                                    }
+                                @endphp
+                           <img 
+                src="data:image/png;base64,{{ $logoBase64 }}"
+                alt="logo"
+                style="
+                    width:150px;
+                    display:block;
+                "
+            >
                         </div>
                         <div class="company-info">
                             <h3>CARGO CONVOY INC</h3>
@@ -136,37 +149,11 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
-                    @php
-                        $shippers = json_decode($load->load_shipperr, true);
-                        $shipperText = '';
-                        if($shippers && is_array($shippers)) {
-                            foreach($shippers as $item) {
-                                $shipperText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $shipperText .= $item['location'] . "\n";
-                                }
-                                $shipperText .= "\n";
-                            }
-                        }
-                    @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($shipperText) }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->load_shipperr_display ?? '' }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
-                    @php
-                        $consignees = json_decode($load->load_consignee, true);
-                        $consigneeText = '';
-                        if($consignees && is_array($consignees)) {
-                            foreach($consignees as $item) {
-                                $consigneeText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $consigneeText .= $item['location'] . "\n";
-                                }
-                                $consigneeText .= "\n";
-                            }
-                        }
-                    @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($consigneeText) }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->load_consignee_display ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -176,13 +163,11 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>3rd Party Billing</h6>
-                    <!-- Assuming 3rd party billing info is not directly in $load for now -->
-                    <div style="min-height: 80px;"></div>
+                    <div style="min-height: 80px;">{{ $load->third_party_billing_display ?? '' }}</div>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
-Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->transportation_company_display ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -201,41 +186,43 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 </tr>
             </thead>
             <tbody>
-                <!-- Placeholder for freight items. If freight data is stored in $load, iterate here. -->
-                <tr>
-                    <td>#Unit 1</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                {{--
-                @foreach(json_decode($load->freight_items, true) as $item)
-                <tr>
-                    <td>{{ $item['pieces'] ?? '' }}</td>
-                    <td>{{ $item['description'] ?? '' }}</td>
-                    <td>{{ $item['weight'] ?? '' }}</td>
-                    <td>{{ $item['type'] ?? '' }}</td>
-                    <td>{{ $item['nmfc'] ?? '' }}</td>
-                    <td>{{ $item['hm'] ?? '' }}</td>
-                    <td>{{ $item['class'] ?? '' }}</td>
-                </tr>
-                @endforeach
-                --}}
+                @php
+                    $totalPieces = 0;
+                    $totalWeight = 0;
+                @endphp
+                @if(isset($load->freight_items_edited) && is_array($load->freight_items_edited))
+                    @foreach($load->freight_items_edited as $item)
+                        <tr>
+                            <td>{{ $item['pieces'] ?? '' }}</td>
+                            <td>{{ $item['description'] ?? '' }}</td>
+                            <td>{{ $item['weight'] ?? '' }}</td>
+                            <td>{{ $item['type'] ?? '' }}</td>
+                            <td>{{ $item['nmfc'] ?? '' }}</td>
+                            <td>{{ $item['hm'] ?? '' }}</td>
+                            <td>{{ $item['class'] ?? '' }}</td>
+                        </tr>
+                        @php
+                            $totalPieces += (int)filter_var($item['pieces'], FILTER_SANITIZE_NUMBER_INT);
+                            $totalWeight += (float)($item['weight'] ?? 0);
+                        @endphp
+                    @endforeach
+                @else
+                    <tr>
+                        <td colspan="7" style="text-align: center;">No freight items available.</td>
+                    </tr>
+                @endif
             </tbody>
             <tfoot>
                 <tr>
                     <td class="text-center">
                         <span class="fw-bold">Total Pieces</span><br>
                         <!-- Calculate total pieces if freight data is available -->
-                        1
+                        {{ $totalPieces }}
                     </td>
                     <td colspan="2" class="text-center">
                         <span class="fw-bold">Total Weight</span><br>
                         <!-- Calculate total weight if freight data is available -->
-                        0.00
+                        {{ number_format($totalWeight, 2) }}
                     </td>
                     <td colspan="4" class="text-center">
                         <span class="fw-bold">Emergency Response Phone</span><br>
@@ -250,23 +237,23 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
             <tr>
                 <td style="width: 70%;">
                     <h6 class="fw-bold">Notes:</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $load->notes ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $load->notes_text ?? $load->notes ?? '' }}</pre>
                 </td>
                 <td style="width: 30%; padding: 0;">
                     <table class="no-border">
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Amount:</span> $0.00
+                                <span class="fw-bold">C.O.D. Amount:</span> {{ $load->cod_amount ?? '$0.00' }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Fee:</span> Collect
+                                <span class="fw-bold">C.O.D. Fee:</span> {{ $load->cod_fee ?? 'Collect' }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">Declared Value:</span> $0.00
+                                <span class="fw-bold">Declared Value:</span> {{ $load->declared_value ?? '$0.00' }}
                             </td>
                         </tr>
                         <tr>
