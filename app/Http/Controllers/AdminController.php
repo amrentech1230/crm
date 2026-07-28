@@ -488,7 +488,7 @@ class AdminController extends Controller
             'modalOfficeName' => 'required|exists:offices,id',
             'modaldepartmentName' => 'required|exists:departments,id',
             //'modalmangerName' => 'required|exists:users,id',
-            //'modalleaderName' => 'required|exists:users,id',
+            'modalleaderName' => 'required|exists:users,id',
             'Role' => 'required|exists:roles,id',
             'EmergencyContact' => 'required|string|max:15',
         ]);

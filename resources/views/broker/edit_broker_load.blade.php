@@ -146,7 +146,7 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Status</label>
-                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status }}" value="{{ $post->load_status }}"
+                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status ?? '' }}"
                                             readonly style="width: 100%;">
                                     </div>
                                 </div>
@@ -232,6 +232,7 @@
                             </div>
                         </div>
 
+                        <!-- Customer section -->
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 16px; text-align: left; font-weight: 700; margin-left: 0; font-family: 'Poppins';">
@@ -361,7 +362,7 @@
 
 
                                                         <!-- Container for new rows -->
-                                                        <div id="chargeRowsContainer"></div>
+                                                        <div id="chargeRowsContainer" data-row-index="{{ count($shipperCharges) }}"></div>
                                                     </div>
                                                 </div>
                                                 <div class="text-center mb-2 mt-2">
@@ -1221,10 +1222,16 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
 <div class="col-md-8">
 
-    @php
-        $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-        $logoBase64 = base64_encode(file_get_contents($logoUrl));
-    @endphp
+                               @php
+                                    $logoPath = public_path('images/cargo.png');
+
+                                    if (file_exists($logoPath)) {
+                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
+                                    } else {
+                                        $logoBase64 = '';
+                                        // Optional: dd($logoPath); // Check the resolved path
+                                    }
+                                @endphp
 
     <div style="
         display:flex;
@@ -1284,7 +1291,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>Load Number</th>
                                     <td>
-                                        <input class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100" data-bol-field="load_number"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1293,7 +1300,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>BOL Number</th>
                                     <td>
-                                        <input class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100" data-bol-field="bol_number"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1301,11 +1308,11 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Ship Date</th>
-                                        @php
-                                            $shipper_appointment =
-                                            json_decode($post->load_shipper_appointment,true);
-                                        @endphp
                                     <td>
+                                        @php
+                                            $shipper_appointment = json_decode($post->load_shipper_appointment,true);
+                                            $shipDateFormatted = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
+                                        @endphp
                                         <input class="editable-field border-0 w-100"
                                             value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
                                             readonly style="font-weight: 900; color: #555;">
@@ -1314,30 +1321,23 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Delivery Date</th>
-                                    <td>
                                     @php
-                                            $consignee_appointment =
-                                            json_decode($post->load_consignee_appointment,true);
+                                        $consignee_appointment = json_decode($post->load_consignee_appointment,true);
+                                        $deliveryDateFormatted = '-';
+                                        if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
+                                            try {
+                                                $deliveryDateFormatted = \Carbon\Carbon::parse(
+                                                    $consignee_appointment[0]['appointment']
+                                                )->format('m-d-Y');
+                                            } catch (\Exception $e) {
+                                                $deliveryDateFormatted = '-';
+                                            }
+                                        }
                                     @endphp
-@php
-$formattedDate = '-';
-
-if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
-
-    try {
-        $formattedDate = \Carbon\Carbon::parse(
-            $consignee_appointment[0]['appointment']
-        )->format('m-d-Y');
-
-    } catch (\Exception $e) {
-        $formattedDate = '-';
-    }
-}
-@endphp
-
-<input class="editable-field border-0 w-100"
-    value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
-    readonly>
+                                    <td>
+                                        <input class="editable-field border-0 w-100" data-bol-field="delivery_date"
+                                            value="{{ $deliveryDateFormatted }}" style="font-weight: 900; color: #555;"
+                                            readonly>
                                     </td>
                                 </tr>
                             </table>
@@ -1372,9 +1372,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     }
 @endphp
 
-<textarea class="form-control editable-field border-0"
-    rows="6"
-    readonly>{{ trim($shipperText) }}</textarea>
+<textarea class="form-control editable-field border-0" data-bol-field="shipper_text"
+    rows="6" readonly>{{ trim($shipperText) }}</textarea>
                             </div>
                         </div>
 
@@ -1401,7 +1400,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     }
 @endphp
                                 <textarea class="form-control editable-field border-0"
-                                    rows="5"
+                                    rows="6" data-bol-field="consignee_text"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
                         </div>
@@ -1415,8 +1414,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">3rd Party Billing</h6>
 
-                                <textarea class="form-control editable-field border-0"
-                                    rows="5"
+                                <textarea class="form-control editable-field border-0" data-bol-field="third_party_billing_text"
+                                    rows="6"
                                     readonly></textarea>
                             </div>
                         </div>
@@ -1424,9 +1423,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                         <div class="col-md-6">
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Transportation Company</h6>
-
-                                <textarea class="form-control editable-field border-0"
-                                rows="5"
+                                <textarea class="form-control editable-field border-0" data-bol-field="transportation_company_text"
+                                rows="6"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
@@ -1565,22 +1563,22 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         <td style="width:70%; vertical-align:top;">
 
             <h6 class="fw-bold mb-2">Notes:</h6>
-
-            <textarea class="form-control editable-field border-0"
+            <textarea class="form-control editable-field border-0" data-bol-field="notes_text"
                 rows="7"
                 readonly>{{ $post->notes ?? '' }}</textarea>
 
         </td>
 
         <!-- Right Side -->
-        <td style="width:30%; padding:0;">
+        <td style="width:30%; padding:0; vertical-align:top;">
 
             <table class="table table-bordered mb-0 h-100">
 
                 <tr>
                     <td>
                         <strong>C.O.D. Amount:</strong> <input type="text"
-                class="form-control editable-field border-0" value="$0.00"
+                class="form-control editable-field border-0" data-bol-field="cod_amount"
+                value="$0.00"
                 readonly>
                     </td>
                 </tr>
@@ -1588,7 +1586,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Fee:</strong> <input type="text"
-                class="form-control editable-field border-0" value="Collect"
+                class="form-control editable-field border-0" data-bol-field="cod_fee"
+                value="Collect"
                 readonly>
                     </td>
                 </tr>
@@ -1596,7 +1595,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>Declared Value:</strong> <input type="text"
-                class="form-control editable-field border-0" value=" $0.00"
+                class="form-control editable-field border-0" data-bol-field="declared_value"
+                value=" $0.00"
                 readonly>
                     </td>
                 </tr>
@@ -1643,20 +1643,49 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <tr>
 
         <td>
-            <input type="text"
-                class="form-control editable-field border-0"
-                readonly>
+            <input type="text" class="form-control editable-field border-0" readonly>
         </td>
 
         <td>
-            <input type="text"
-                class="form-control editable-field border-0"
-                readonly>
+            <input type="text" class="form-control editable-field border-0" readonly>
         </td>
 
         <td>
-            <input type="text"
-                class="form-control editable-field border-0"
+            <input type="text" class="form-control editable-field border-0" readonly>
+        </td>
+
+    </tr>
+
+    <!-- Row 3 -->
+    <tr>
+
+        <th>
+            <strong>Per</strong>
+        </th>
+
+        <th>
+            <strong>Per</strong>
+        </th>
+
+        <th>
+            <strong>Time</strong>
+        </th>
+
+    </tr>
+
+    <!-- Row 4 -->
+    <tr>
+
+        <td>
+            <input type="text" class="form-control editable-field border-0" readonly>
+        </td>
+
+        <td>
+            <input type="text" class="form-control editable-field border-0" readonly>
+        </td>
+
+        <td>
+            <input type="text" class="form-control editable-field border-0"
                 readonly>
         </td>
 
@@ -1715,30 +1744,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
 <tr>
     <td>
-        <input type="text"
-            class="form-control editable-field border-0"
-            readonly>
+        <input type="text" class="form-control editable-field border-0" readonly>
     </td>
         <td>
-        <input type="text"
-            class="form-control editable-field border-0"
-            readonly>
+        <input type="text" class="form-control editable-field border-0" readonly>
     </td>
         <td>
-        <input type="text"
-            class="form-control editable-field border-0"
-            readonly>
+        <input type="text" class="form-control editable-field border-0" readonly>
     </td>
         <td>
-        <input type="text"
-            class="form-control editable-field border-0"
+        <input type="text" class="form-control editable-field border-0"
             readonly>
     </td>
 </tr>
 
 </table>
-
-
                 </div>
 
             </div>
@@ -1758,6 +1778,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <script>
 
 function initChargeRowValidation() {
@@ -2068,7 +2089,7 @@ $(document).ready(function () {
                 var finalrate = final_total_rate - checkedtotal;
                 
                  $.ajax({
-                        url: '{{ route('edit.check.remaing.limit') }}',
+                        url: "{{ route('edit.check.remaing.limit') }}",
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
@@ -2107,7 +2128,7 @@ $(document).ready(function () {
     </script>
 
 <script>
-let rowIndex = {{ count($shipperCharges) }}; // Start index after existing rows
+let rowIndex = parseInt($('#chargeRowsContainer').data('row-index') || 0, 10); // Start index after existing rows
 
 $(document).ready(function () {
     $('#addChargeBtn').click(function () {
@@ -2392,7 +2413,7 @@ $(document).ready(function () {
     // Function to fetch carrier suggestions based on any input (name, MC number, DOT number)
     function fetchCarrierSuggestions(field, inputValue) {
         $.ajax({
-            url: '{{ route('fetch.carrier.suggestions') }}',
+            url: "{{ route('fetch.carrier.suggestions') }}",
             method: 'POST',
             data: {
                 field: field,          // Specify the field (name, MC, DOT)
@@ -2422,7 +2443,7 @@ $(document).ready(function () {
     // Function to fetch full carrier details once a carrier is selected
     function fetchCarrierDetails(carrierId) {
         $.ajax({
-            url: '{{ route('fetch.carrier.details') }}',
+            url: "{{ route('fetch.carrier.details') }}",
             method: 'POST',
             data: {
                 carrierId: carrierId, 

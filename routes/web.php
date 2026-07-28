@@ -398,6 +398,7 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
     Route::get('broker/fetch-consignee-details', [LoadController::class, 'fetchConsigneeDetails'])->name('fetch.consignee.details');
     Route::get('broker/fetch-shipper-details', [LoadController::class, 'fetchShipperDetails'])->name('fetch.shipper.details');
 	Route::post('broker/fetch-carrier-details', [LoadController::class, 'fetchCarrierDetails'])->name('fetch.carrier.details');
+    Route::post('/broker/load/{id}/bol/pdf/generate', [LoadController::class, 'generateBolPdfWithEditedData'])->name('broker.load.bol.pdf.generate');
         Route::get('/broker/load/{id}/bol/pdf', [LoadController::class, 'generateBolPdf'])->name('broker.load.bol.pdf');
 
     Route::post('broker/fetch-carrier-suggestions', [LoadController::class, 'fetchCarrierSuggestions'])->name('fetch.carrier.suggestions');
@@ -432,5 +433,3 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
 Route::post('account/carrier/documents/delete', [AccountController::class, 'deleteCarrierDocument'])->name('carrier.documents.delete');
 Route::get('account/customers/export-credit-limit-log', [AccountController::class, 'exportCreditLimitLog'])->name('customers.exportCreditLimitLog');
 });
-
-
