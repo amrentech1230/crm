@@ -159,8 +159,8 @@
                                         @include('accounts.reporting.carrier')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $totalRevenueloadcarrier->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($totalRevenueloadcarrier->setPageName('carrier')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="customer" role="tabpanel">
@@ -191,8 +191,8 @@
                                         @include('accounts.reporting.customers')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $totalRevenueCustomer->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($totalRevenueCustomer->setPageName('customer')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="customer_detail" role="tabpanel">
@@ -228,8 +228,8 @@
                                         @include('accounts.reporting.customer_details')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($get_customers->setPageName('get_customers')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="dispatcher" role="tabpanel">
@@ -258,8 +258,8 @@
                                         @include('accounts.reporting.dispatchers')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $totalRevenueCarrier->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($totalRevenueCarrier->setPageName('dispatcher')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="load" role="tabpanel">
@@ -294,8 +294,8 @@
                                         @include('accounts.reporting.load')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $dashboard->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($dashboard->setPageName('load')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="sales_rep" role="tabpanel">
@@ -322,8 +322,8 @@
                                         @include('accounts.reporting.sales_reps')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $totalRevenueBroker->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($totalRevenueBroker->setPageName('sales_rep')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="load_completed_log" role="tabpanel">
@@ -389,8 +389,8 @@
                                     </tbody>
 
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $dashboard_logs->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($dashboard_logs->setPageName('logs')) !!}
                                 </div>
                             </div>
                             
@@ -420,8 +420,8 @@
                                         @include('accounts.reporting.aging')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $customersData->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($customersData->setPageName('limits')) !!}
                                 </div>
                             </div>
                         </div>
@@ -488,15 +488,23 @@
     $.ajax({
         url: url,
         type: 'GET',
+        dataType: 'json',
         data: {
             tab: activeTab 
         },
-        success: function(data) {
+        success: function(response) {
+            const html = response.html || '';
+            const pagination = response.pagination || '';
+
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
 
-            $(resultContainer).html(data);
+            $(resultContainer).html(html);
+            const paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+            paginationContainer.css('display', 'block');
+            paginationContainer.html(pagination || '');
+            paginationContainer.show();
 
             $(tableSelector).DataTable({
                 responsive: true,
@@ -506,8 +514,12 @@
 				paging: false
             });
 
+            const separator = url.includes('?') ? '&' : '?';
+            const tabParam = activeTab ? encodeURIComponent(activeTab) : '';
+            const finalUrl = tabParam ? url + separator + 'tab=' + tabParam : url;
+
             // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            window.history.pushState("", "", finalUrl);
         }
     });
 });

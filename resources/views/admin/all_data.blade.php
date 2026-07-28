@@ -139,7 +139,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $sortedCustomers->setPageName('customer')->links() }}
+                                    {{ $sortedCustomers->setPageName('customer')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="carrier" role="tabpanel">
@@ -170,7 +170,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $external->setPageName('carrier')->links() }}
+                                    {{ $external->setPageName('carrier')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="consignee" role="tabpanel">
@@ -199,7 +199,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $consignee->setPageName('consignee')->links() }}
+                                    {{ $consignee->setPageName('consignee')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="shipper" role="tabpanel">
@@ -228,7 +228,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $shipper->setPageName('shipper')->links() }}
+                                    {{ $shipper->setPageName('shipper')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="load" role="tabpanel">
@@ -275,7 +275,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $loads->setPageName('loads')->links() }}
+                                    {{ $loads->setPageName('loads')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>

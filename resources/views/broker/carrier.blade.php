@@ -114,7 +114,7 @@
                                     </tbody>
                                 </table>
                                     <div class="custom-pagination">
-                                    {{ $carriers->links() }}
+                                    {{ $carriers->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="all-carrier" role="tabpanel">
@@ -141,7 +141,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $allcarriers->links() }}
+                                    {{ $allcarriers->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>

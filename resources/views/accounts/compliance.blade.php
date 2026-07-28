@@ -126,7 +126,7 @@ select#rate_check-21291 {
                                                     </tbody>
                                                 </table>
                                                  <div class="custom-pagination">
-                                                    {{ $carriers->links() }}
+                                                    {{ $carriers->links('pagination::bootstrap-5') }}
                                                 </div>
                                             </div>
                                             <div class="tab-pane" id="cpr" role="tabpanel">
@@ -168,7 +168,7 @@ select#rate_check-21291 {
                                                     </tbody>
                                                 </table>
                                                 <div class="custom-pagination">
-                                                    {{ $loads->links() }}
+                                                    {{ $loads->links('pagination::bootstrap-5') }}
                                                 </div>
                                             </div>
 
@@ -209,7 +209,7 @@ select#rate_check-21291 {
                                                     </tbody>
                                                 </table>
                                                 <!-- <div class="custom-pagination">
-                                                    {{ $loads->links() }}
+                                                    {{ $loads->links('pagination::bootstrap-5') }}
                                                 </div> -->
                                             </div>
                                         </div>

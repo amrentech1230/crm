@@ -215,6 +215,62 @@ if (!function_exists('format_log_value')) {
 		return (string) $value;
 	}
 }
+if (!function_exists('render_pagination_links')) {
+
+    function render_pagination_links($paginator)
+    {
+        if (!$paginator || !method_exists($paginator, 'hasPages') || !$paginator->hasPages()) {
+            return '';
+        }
+
+        $html = '<nav class="d-flex justify-content-center"><ul class="pagination">';
+
+        if ($paginator->onFirstPage()) {
+            $html .= '<li class="page-item disabled" aria-disabled="true"><span class="page-link">«</span></li>';
+        } else {
+            $html .= '<li class="page-item"><a class="page-link" href="' . e($paginator->previousPageUrl()) . '" rel="prev">«</a></li>';
+        }
+
+        $currentPage = (int) $paginator->currentPage();
+        $lastPage = (int) $paginator->lastPage();
+        $window = 2;
+        $start = max(1, $currentPage - $window);
+        $end = min($lastPage, $currentPage + $window);
+
+        if ($start > 1) {
+            $html .= '<li class="page-item"><a class="page-link" href="' . e($paginator->url(1)) . '">1</a></li>';
+            if ($start > 2) {
+                $html .= '<li class="page-item disabled" aria-disabled="true"><span class="page-link">...</span></li>';
+            }
+        }
+
+        for ($page = $start; $page <= $end; $page++) {
+            if ($page === $currentPage) {
+                $html .= '<li class="page-item active" aria-current="page"><span class="page-link">' . $page . '</span></li>';
+            } else {
+                $html .= '<li class="page-item"><a class="page-link" href="' . e($paginator->url($page)) . '">' . $page . '</a></li>';
+            }
+        }
+
+        if ($end < $lastPage) {
+            if ($end < $lastPage - 1) {
+                $html .= '<li class="page-item disabled" aria-disabled="true"><span class="page-link">...</span></li>';
+            }
+            $html .= '<li class="page-item"><a class="page-link" href="' . e($paginator->url($lastPage)) . '">' . $lastPage . '</a></li>';
+        }
+
+        if ($paginator->hasMorePages()) {
+            $html .= '<li class="page-item"><a class="page-link" href="' . e($paginator->nextPageUrl()) . '" rel="next">»</a></li>';
+        } else {
+            $html .= '<li class="page-item disabled" aria-disabled="true"><span class="page-link">»</span></li>';
+        }
+
+        $html .= '</ul></nav>';
+
+        return $html;
+    }
+}
+
 if (!function_exists('format_report_date')) {
 
 	function format_report_date($date, $format = 'm/d/Y')

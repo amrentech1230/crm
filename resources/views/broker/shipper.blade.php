@@ -81,7 +81,7 @@
                             </tbody>
                         </table>
                         <div class="custom-pagination pagination-container">
-                            {{ $shipper->links() }}
+                            {{ $shipper->links('pagination::bootstrap-5') }}
                         </div>
                     </div>
                 </div>

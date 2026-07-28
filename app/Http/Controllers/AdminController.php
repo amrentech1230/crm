@@ -98,10 +98,40 @@ class AdminController extends Controller
         'agent'    => $request->input('agent'),
     ];
 
-    // JS se 'page' parameter aata hai - use karo
-    if ($request->has('page')) {
-        Paginator::currentPageResolver(function () use ($request) {
-            return (int) $request->input('page', 1);
+    // Resolve the current page from the relevant page parameter for the active tab.
+    if ($request->hasAny(['page', 'all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'])) {
+        $activeTab = $request->input('tab');
+        $pageParam = 'page';
+
+        if ($activeTab === '#all_load') {
+            $pageParam = 'all_load';
+        } elseif ($activeTab === '#open') {
+            $pageParam = 'open';
+        } elseif ($activeTab === '#delivered') {
+            $pageParam = 'delivered';
+        } elseif ($activeTab === '#completed') {
+            $pageParam = 'completed';
+        } elseif ($activeTab === '#invoiced') {
+            $pageParam = 'invoiced';
+        } elseif ($activeTab === '#invoiced_paid') {
+            $pageParam = 'invoiced_paid';
+        }
+
+        Paginator::currentPageResolver(function ($pageName = null) use ($request, $pageParam) {
+            $pageKey = $pageName ?: $pageParam;
+            $pageValue = $request->input($pageKey);
+
+            if ($pageValue !== null) {
+                return (int) $pageValue;
+            }
+
+            foreach (['page', 'all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'] as $fallbackKey) {
+                if ($request->filled($fallbackKey)) {
+                    return (int) $request->input($fallbackKey);
+                }
+            }
+
+            return 1;
         });
     }
 
@@ -175,9 +205,7 @@ class AdminController extends Controller
             'manager', 'teamlead', 'office'
         ))->render();
 
-        $pagination = $config['paginator']
-            ->links('pagination::bootstrap-5')
-            ->render();
+        $pagination = render_pagination_links($config['paginator']);
 
         return response()->json([
             'html'       => $html,

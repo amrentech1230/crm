@@ -1,7 +1,5 @@
 @extends('layout.compact.app')
 @section('content')
-
-
 <style>
     #bolDownloadArea h3 {
     font-family: Arial, sans-serif;
@@ -59,6 +57,13 @@
 .form-check-input[type=checkbox] {
     border-radius: .25em;
     border: 2px solid;
+}
+select.form-control {
+    appearance: auto !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    cursor: pointer;
+    padding-right: 2rem !important;
 }
 </style>
 
@@ -1206,16 +1211,16 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <h5 class="modal-title">Bill Of Lading</h5>
 
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary" id="editBolBtn" onclick="enableEdit()">
+                        Edit
+                    </button>
+
                     <button type="button" class="btn btn-success" id="saveBolBtn" onclick="saveBolData()" style="display:none;">
-                        Save for PDF
+                        Save
                     </button>
 
                     <button type="button" class="btn btn-primary" onclick="downloadBOL()">
                         Download PDF
-                    </button>
-
-                    <button type="button" class="btn btn-secondary" onclick="enableEdit()">
-                        Edit
                     </button>
 
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1797,6 +1802,9 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+
+</script>
 
 <script>
 
@@ -2553,7 +2561,7 @@ function enableEdit() {
 
     });
 
-    // Show the Save for PDF button
+    document.getElementById('editBolBtn').style.display = 'none';
     document.getElementById('saveBolBtn').style.display = 'inline-block';
 
 }
@@ -2666,24 +2674,40 @@ updateTotals();
 <script>
 
 
-async function downloadBOL() {
+function collectBolData() {
+    const bolArea = document.getElementById('bolDownloadArea');
+    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
 
-    // First save the BOL data via AJAX
-    try {
-        let result = await saveBolDataSilent();
-        if (!result || !result.success) {
-            alert('Error saving BOL data. Please try again.');
+    let formData = {};
+    namedFields.forEach(field => {
+        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
             return;
         }
-    } catch (e) {
-        console.error('BOL save failed:', e);
+        const match = field.name.match(/^freight\[(\d+)\]\[(\w+)\]$/);
+        if (match) {
+            if (!formData['freight']) formData['freight'] = {};
+            if (!formData['freight'][match[1]]) formData['freight'][match[1]] = {};
+            formData['freight'][match[1]][match[2]] = field.value ?? '';
+        } else {
+            formData[field.name] = field.value ?? '';
+        }
+    });
+
+    if (formData['freight']) {
+        formData['freight'] = Object.values(formData['freight']);
+    }
+
+    return formData;
+}
+
+async function downloadBOL() {
+    const result = await saveBolDataSilent();
+    if (!result || !result.success) {
         alert('Error saving BOL data. Please try again.');
         return;
     }
 
-    // Now download the PDF (GET request - reads from saved bol_edit_data)
     window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
-
 }
 
 // Save BOL data via AJAX (with alert)
@@ -2691,7 +2715,15 @@ async function saveBolData() {
     try {
         let result = await saveBolDataSilent();
         if (result && result.success) {
-            alert('BOL data saved successfully! It will appear in the downloaded PDF.');
+            // Lock fields back to readonly
+            document.querySelectorAll('.editable-field').forEach(function(el) {
+                el.setAttribute('readonly', true);
+                el.style.border = '';
+                el.style.padding = '';
+            });
+            document.getElementById('saveBolBtn').style.display = 'none';
+            document.getElementById('editBolBtn').style.display = 'inline-block';
+            alert('BOL data saved successfully!');
         } else {
             alert('Error saving BOL data. Please try again.');
         }
@@ -2703,38 +2735,26 @@ async function saveBolData() {
 
 // Save BOL data silently (no alert) - used by both save and download
 async function saveBolDataSilent() {
-    const bolArea = document.getElementById('bolDownloadArea');
-    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
+    const formValues = collectBolData();
+    const payload = new FormData();
+    payload.append('_token', '{{ csrf_token() }}');
 
-    let formData = {};
-    namedFields.forEach(field => {
-        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
-            return;
-        }
-        // Handle freight array fields
-        const match = field.name.match(/^freight\[(\d+)\]\[(\w+)\]$/);
-        if (match) {
-            if (!formData['freight']) formData['freight'] = {};
-            if (!formData['freight'][match[1]]) formData['freight'][match[1]] = {};
-            formData['freight'][match[1]][match[2]] = field.value ?? '';
+    Object.keys(formValues).forEach(key => {
+        if (key === 'freight' && Array.isArray(formValues[key])) {
+            formValues[key].forEach((item, index) => {
+                Object.keys(item).forEach(subKey => {
+                    payload.append(`freight[${index}][${subKey}]`, item[subKey] ?? '');
+                });
+            });
         } else {
-            formData[field.name] = field.value ?? '';
+            payload.append(key, formValues[key] ?? '');
         }
     });
-
-    // Convert freight object to array
-    if (formData['freight']) {
-        formData['freight'] = Object.values(formData['freight']);
-    }
 
     try {
         let response = await fetch("{{ route('broker.load.bol.save', $post->id) }}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(formData)
+            body: payload
         });
         return await response.json();
     } catch (error) {

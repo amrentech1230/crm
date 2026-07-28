@@ -317,7 +317,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $all_load->setPageName('all_loads')->links() }}
+                                    {{ $all_load->setPageName('all_loads')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="open" role="tabpanel">
@@ -360,7 +360,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {{ $open->setPageName('open')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="delivered" role="tabpanel">
@@ -400,7 +400,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $delivered->setPageName('delivered')->links() }}
+                                    {{ $delivered->setPageName('delivered')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="complete" role="tabpanel">
@@ -441,7 +441,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $complete->setPageName('complete')->links() }}
+                                    {{ $complete->setPageName('complete')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoice" role="tabpanel">
@@ -482,7 +482,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice->setPageName('invoice')->links() }}
+                                    {{ $invoice->setPageName('invoice')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="paid" role="tabpanel">
@@ -523,7 +523,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice_paid->setPageName('invoice_paid')->links() }}
+                                    {{ $invoice_paid->setPageName('invoice_paid')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>

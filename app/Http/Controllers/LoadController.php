@@ -1474,59 +1474,30 @@ for ($i = 1; $i <= 15; $i++) {
 
         $invoice_credit = $oldinvoicechargestotal - $invoicechargestotal;
 
-        $newShipperLoadFinalRate = $request->load_shipper_rate + $invoicechargestotaloff ?? 0;
-        $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate ?? 0;
-	
-        $checkrate = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
-		
+        $oldShipperLoadFinalRate = (float) ($request->old_shipper_load_final_rate ?? 0);
+        $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
 
-        $checkfinalrate = $invoicechargestotaloff - $oldinvoicechargestotaloff;
-		
-        $rateDifference = $request->shipper_load_final_rate - $oldShipperLoadFinalRate;
-        $finalcredit = $checkinvoice_credit - $rateDifference;
+        $oldRemainingUsed = $oldShipperLoadFinalRate - (float) $oldinvoicechargestotal;
+        $newRemainingUsed = $newShipperLoadFinalRate - (float) $invoicechargestotal;
 
-        $finalcreditdiff = $rateDifference - $checkinvoice_credit;
-      
-      
-        if (!$isCancelling && $customerdata && (int) $customerdata->remaining_credit < $finalcreditdiff) {
-              
-            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaing credit Limit, your credit limit is ' . $customerdata->remaining_credit);
-        } else if (!$isCancelling && $customerdata && (int) $customerdata->invoice_credit_limit < $checkinvoice_credit) {
-            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit Limit, your invoice credit limit is ' . $customerdata->invoice_credit_limit);
-        } else if (!$isCancelling) {
-  
-       
-            // Calculate the difference between old and new rates
-            $rateDifference = $oldShipperLoadFinalRate - $request->shipper_load_final_rate;
-           
-            $finalrate = $rateDifference;
+        $remainingCreditDelta = $oldRemainingUsed - $newRemainingUsed;
+        $invoiceCreditDelta = $invoice_credit;
 
-           // $finalremaing = $checkrate - $invoice_credit;
-
-
-            $customerId = $request->customer_id;
-          
-            
-            if($finalcredit != 0){
-                Customer::where('id', $customerId)->update([
-                    'remaining_credit' => \DB::raw("remaining_credit + " . (float) $finalcredit),
-                ]);
+        if (!$isCancelling && $customerdata) {
+            if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
+                return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
             }
 
-            if ($invoice_credit !== 0) {
-                Customer::where('id', $customerId)->update([
-                    'invoice_credit_limit' => \DB::raw("invoice_credit_limit + " . (float) $invoice_credit),
-                ]);
+            if ($customerdata->invoice_credit_limit + $invoiceCreditDelta < 0) {
+                return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
             }
 
-            if($finalrate !== 0){
-                Customer::where('id', $customerId)->update([
-                    'remaining_credit_amount' => \DB::raw("remaining_credit_amount + $finalrate"),
-                ]);
-            }            
-            
+            $customerdata->remaining_credit += $remainingCreditDelta;
+            $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
+            $customerdata->invoice_credit_limit += $invoiceCreditDelta;
+            $customerdata->save();
         }
-        
+
         if ($isCancelling) {
             // Set cancelled values on the load object
             $load->load_status = 'Cancelled';
@@ -1941,92 +1912,41 @@ public function raiseTicketStore(Request $request)
     {
         $originalLoad = Load::findOrFail($id);
 
-        // Build the $load stdClass from original load data
-        $load = new \stdClass();
-        foreach ($originalLoad->toArray() as $key => $value) {
-            $load->{$key} = $value;
-        }
-
-        // Read saved BOL edit data (saved via the Save for PDF / Download PDF button)
         $savedBolEdit = is_array($originalLoad->bol_edit_data)
             ? $originalLoad->bol_edit_data
             : (json_decode($originalLoad->bol_edit_data ?? '', true) ?: []);
 
-        // If we have saved BOL edit data, overlay it onto $load for the PDF
+        $load = $originalLoad;
+
+        // Overlay saved BOL edit data into the model where present
         if (!empty($savedBolEdit)) {
-            // Shipper info
-            $load->shipper_info = $savedBolEdit['shipper_info'] ?? '';
-
-            // Consignee info
-            $load->consignee_info = $savedBolEdit['consignee_info'] ?? '';
-
-            // Dates
-            if (!empty($savedBolEdit['ship_date'])) {
-                $load->ship_date = $savedBolEdit['ship_date'];
-            }
-            if (!empty($savedBolEdit['delivery_date'])) {
-                $load->delivery_date = $savedBolEdit['delivery_date'];
-            }
-
-            // Freight items
-            if (!empty($savedBolEdit['freight_items']) && is_array($savedBolEdit['freight_items'])) {
-                $load->freight_items = $savedBolEdit['freight_items'];
-            }
-
-            // Notes and other fields
-            if (isset($savedBolEdit['notes'])) {
-                $load->notes = $savedBolEdit['notes'];
-            }
-            if (!empty($savedBolEdit['third_party_billing'])) {
-                $load->third_party_billing = $savedBolEdit['third_party_billing'];
-            }
-            if (!empty($savedBolEdit['transportation_company'])) {
-                $load->transportation_company = $savedBolEdit['transportation_company'];
-            }
-            if (!empty($savedBolEdit['cod_amount'])) {
-                $load->cod_amount = $savedBolEdit['cod_amount'];
-            }
-            if (!empty($savedBolEdit['cod_fee'])) {
-                $load->cod_fee = $savedBolEdit['cod_fee'];
-            }
-            if (!empty($savedBolEdit['declared_value'])) {
-                $load->declared_value = $savedBolEdit['declared_value'];
-            }
-
-            // Signature fields
-            if (!empty($savedBolEdit['shipper_signature'])) {
-                $load->shipper_signature = $savedBolEdit['shipper_signature'];
-            }
-            if (!empty($savedBolEdit['carrier_signature'])) {
-                $load->carrier_signature = $savedBolEdit['carrier_signature'];
-            }
-            if (!empty($savedBolEdit['signature_date'])) {
-                $load->signature_date = $savedBolEdit['signature_date'];
-            }
-            if (!empty($savedBolEdit['shipper_per'])) {
-                $load->shipper_per = $savedBolEdit['shipper_per'];
-            }
-            if (!empty($savedBolEdit['carrier_per'])) {
-                $load->carrier_per = $savedBolEdit['carrier_per'];
-            }
-            if (!empty($savedBolEdit['signature_time'])) {
-                $load->signature_time = $savedBolEdit['signature_time'];
-            }
-            if (!empty($savedBolEdit['consignee_name_signature'])) {
-                $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'];
-            }
-            if (!empty($savedBolEdit['consignee_date_signature'])) {
-                $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'];
-            }
-            if (!empty($savedBolEdit['consignee_signature'])) {
-                $load->consignee_signature = $savedBolEdit['consignee_signature'];
-            }
-            if (!empty($savedBolEdit['consignee_pieces_received'])) {
-                $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'];
-            }
+            $load->load_number = $savedBolEdit['load_number'] ?? $load->load_number;
+            $load->load_workorder = $savedBolEdit['load_workorder'] ?? $load->load_workorder;
+            $load->ship_date = $savedBolEdit['ship_date'] ?? $load->ship_date;
+            $load->delivery_date = $savedBolEdit['delivery_date'] ?? $load->delivery_date;
+            $load->shipper_info = $savedBolEdit['shipper_info'] ?? $load->shipper_info;
+            $load->consignee_info = $savedBolEdit['consignee_info'] ?? $load->consignee_info;
+            $load->freight_items = is_array($savedBolEdit['freight_items'] ?? null)
+                ? $savedBolEdit['freight_items']
+                : ($load->freight_items ?? []);
+            $load->notes = $savedBolEdit['notes'] ?? $load->notes;
+            $load->third_party_billing = $savedBolEdit['third_party_billing'] ?? $load->third_party_billing;
+            $load->transportation_company = $savedBolEdit['transportation_company'] ?? $load->transportation_company;
+            $load->cod_amount = $savedBolEdit['cod_amount'] ?? $load->cod_amount;
+            $load->cod_fee = $savedBolEdit['cod_fee'] ?? $load->cod_fee;
+            $load->declared_value = $savedBolEdit['declared_value'] ?? $load->declared_value;
+            $load->shipper_signature = $savedBolEdit['shipper_signature'] ?? $load->shipper_signature;
+            $load->carrier_signature = $savedBolEdit['carrier_signature'] ?? $load->carrier_signature;
+            $load->signature_date = $savedBolEdit['signature_date'] ?? $load->signature_date;
+            $load->shipper_per = $savedBolEdit['shipper_per'] ?? $load->shipper_per;
+            $load->carrier_per = $savedBolEdit['carrier_per'] ?? $load->carrier_per;
+            $load->signature_time = $savedBolEdit['signature_time'] ?? $load->signature_time;
+            $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'] ?? $load->consignee_name_signature;
+            $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'] ?? $load->consignee_date_signature;
+            $load->consignee_signature = $savedBolEdit['consignee_signature'] ?? $load->consignee_signature;
+            $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'] ?? $load->consignee_pieces_received;
         }
 
-        // Fallback: if shipper_info is still empty, build from DB fields
         if (empty($load->shipper_info)) {
             $load->shipper_info = $this->buildPartyInfoText(
                 $originalLoad->load_shipperr,
@@ -2034,7 +1954,6 @@ public function raiseTicketStore(Request $request)
             );
         }
 
-        // Fallback: if consignee_info is still empty, build from DB fields
         if (empty($load->consignee_info)) {
             $load->consignee_info = $this->buildPartyInfoText(
                 $originalLoad->load_consignee,
@@ -2042,7 +1961,6 @@ public function raiseTicketStore(Request $request)
             );
         }
 
-        // Ensure freight_items is an array
         if (!isset($load->freight_items) || !is_array($load->freight_items)) {
             $load->freight_items = [];
         }
@@ -2052,7 +1970,7 @@ public function raiseTicketStore(Request $request)
         $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('broker.bol_pdf', compact('load'))->render();
+        $html = view('broker.bol_pdf', compact('load', 'savedBolEdit'))->render();
         $dompdf->loadHtml($html);
 
         $dompdf->setPaper('letter', 'portrait');
@@ -2061,6 +1979,60 @@ public function raiseTicketStore(Request $request)
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
+    public function downloadBolPdf(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+        $savedBolEdit = is_array($load->bol_edit_data)
+            ? $load->bol_edit_data
+            : (json_decode($load->bol_edit_data ?? '', true) ?: []);
+
+        $incomingData = $request->all();
+        $savedBolEdit = array_merge($savedBolEdit, $incomingData);
+
+        if (isset($savedBolEdit['freight']) && !is_array($savedBolEdit['freight'])) {
+            $savedBolEdit['freight'] = [];
+        }
+
+        $load->load_number = $savedBolEdit['load_number'] ?? $load->load_number;
+        $load->load_workorder = $savedBolEdit['load_workorder'] ?? $load->load_workorder;
+        $load->ship_date = $savedBolEdit['ship_date'] ?? $load->ship_date;
+        $load->delivery_date = $savedBolEdit['delivery_date'] ?? $load->delivery_date;
+        $load->shipper_info = $savedBolEdit['shipper_info'] ?? $load->shipper_info;
+        $load->consignee_info = $savedBolEdit['consignee_info'] ?? $load->consignee_info;
+        $load->freight_items = is_array($savedBolEdit['freight'] ?? null)
+            ? $savedBolEdit['freight']
+            : ($load->freight_items ?? []);
+        $load->notes = $savedBolEdit['notes'] ?? $load->notes;
+        $load->third_party_billing = $savedBolEdit['third_party_billing'] ?? $load->third_party_billing;
+        $load->transportation_company = $savedBolEdit['transportation_company'] ?? $load->transportation_company;
+        $load->cod_amount = $savedBolEdit['cod_amount'] ?? $load->cod_amount;
+        $load->cod_fee = $savedBolEdit['cod_fee'] ?? $load->cod_fee;
+        $load->declared_value = $savedBolEdit['declared_value'] ?? $load->declared_value;
+        $load->shipper_signature = $savedBolEdit['shipper_signature'] ?? $load->shipper_signature;
+        $load->carrier_signature = $savedBolEdit['carrier_signature'] ?? $load->carrier_signature;
+        $load->signature_date = $savedBolEdit['signature_date'] ?? $load->signature_date;
+        $load->shipper_per = $savedBolEdit['shipper_per'] ?? $load->shipper_per;
+        $load->carrier_per = $savedBolEdit['carrier_per'] ?? $load->carrier_per;
+        $load->signature_time = $savedBolEdit['signature_time'] ?? $load->signature_time;
+        $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'] ?? $load->consignee_name_signature;
+        $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'] ?? $load->consignee_date_signature;
+        $load->consignee_signature = $savedBolEdit['consignee_signature'] ?? $load->consignee_signature;
+        $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'] ?? $load->consignee_pieces_received;
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+
+        $html = view('broker.bol_pdf', compact('load', 'savedBolEdit'))->render();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="BOL-'.($incomingData['load_number'] ?? $load->load_number).'.pdf"');
+    }
 
 
     public function extractDoData(Request $request)

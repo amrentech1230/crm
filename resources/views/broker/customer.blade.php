@@ -84,8 +84,8 @@
                             @include('broker.partials.customer_table')
 							</tbody>
                         </table>
-                        <div class="custom-pagination">
-                            {{ $customers->links() }}
+                        <div class="custom-pagination" style="display:block;">
+                            {!! render_pagination_links($customers->setPageName('page')) !!}
                         </div>
                     </div>
                 </div>
@@ -449,35 +449,42 @@
 	</div>
 <script>
      $(document).on('click', '.custom-pagination a', function(e) {
-		//initDataTable();
         e.preventDefault();
-        let url = $(this).attr('href');
+        let href = $(this).attr('href');
+        if (!href) return;
 
         $.ajax({
-            url: url,
+            url: href,
             type: 'GET',
-            success: function(data) {
-			 if ($.fn.DataTable.isDataTable('#datatable')) {
-					$('#datatable').DataTable().destroy();
-				}
-				$('#customer-table-body').html(data);
-				$('#datatable').DataTable({
-					responsive: true,
-					dom: 'frtip',
-					
-					paging: true,
-                    pageLength: 50,              // ✅ default show 50
+            dataType: 'json',
+            success: function(response) {
+                if ($.fn.DataTable.isDataTable('#datatable')) {
+                    $('#datatable').DataTable().destroy();
+                }
+
+                $('#customer-table-body').html(response.html || '');
+
+                const paginationContainer = $('.custom-pagination');
+                paginationContainer.css('display', 'block');
+                paginationContainer.html(response.pagination || '');
+                paginationContainer.show();
+
+                $('#datatable').DataTable({
+                    responsive: true,
+                    dom: 'frtip',
+                    paging: true,
+                    pageLength: 50,
                     lengthMenu: false,
-                                            stateSave: true,   // ✅ remembers column visibility, page, search, etc.
-        buttons: [
-            {
-                extend: 'colvis',
-                text: 'Select Columns'
-            }
-        ]
-				});
-                 
-                window.history.pushState("", "", url); // optional: update URL
+                    stateSave: true,
+                    buttons: [
+                        {
+                            extend: 'colvis',
+                            text: 'Select Columns'
+                        }
+                    ]
+                });
+
+                window.history.pushState("", "", href);
             }
         });
     });

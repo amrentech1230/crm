@@ -450,7 +450,10 @@ public function carrier_block(Request $request)
 					->groupBy('loads.load_carrier', 'users.name')
 					->paginate(50, ['*'], 'carrier');
 
-				return view('accounts.reporting.carrier', compact('totalRevenueloadcarrier'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.carrier', compact('totalRevenueloadcarrier'))->render(),
+					'pagination' => render_pagination_links($totalRevenueloadcarrier->setPageName('carrier')),
+				]);
 			}
 
 			// Customer Tab
@@ -468,13 +471,19 @@ public function carrier_block(Request $request)
 					->groupBy('loads.load_bill_to', 'users.name', 'customers.adv_customer_credit_limit')
 					->paginate(50, ['*'], 'customer');
 
-				return view('accounts.reporting.customers', compact('totalRevenueCustomer'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.customers', compact('totalRevenueCustomer'))->render(),
+					'pagination' => render_pagination_links($totalRevenueCustomer->setPageName('customer')),
+				]);
 			}
 
 			// Customer Detail Tab
 			if ($tab == '#customer_detail') {
 				$get_customers = Customer::paginate(50, ['*'], 'get_customers');
-				return view('accounts.reporting.customer_details', compact('get_customers'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.customer_details', compact('get_customers'))->render(),
+					'pagination' => render_pagination_links($get_customers->setPageName('get_customers')),
+				]);
 			}
 
 			// Dispatcher Tab
@@ -492,13 +501,19 @@ public function carrier_block(Request $request)
 					->groupBy('users.name')
 					->paginate(50, ['*'], 'dispatcher');
 
-				return view('accounts.reporting.dispatchers', compact('totalRevenueCarrier'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.dispatchers', compact('totalRevenueCarrier'))->render(),
+					'pagination' => render_pagination_links($totalRevenueCarrier->setPageName('dispatcher')),
+				]);
 			}
 
 			// Load Tab
 			if ($tab == '#load') {
 				$dashboard = Load::with('user')->paginate(50, ['*'], 'load');
-				return view('accounts.reporting.load', compact('dashboard'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.load', compact('dashboard'))->render(),
+					'pagination' => render_pagination_links($dashboard->setPageName('load')),
+				]);
 			}
 
 			// Sales Rep Tab
@@ -513,19 +528,28 @@ public function carrier_block(Request $request)
 					->groupBy('users.name')
 					->paginate(50, ['*'], 'sales_rep');
 
-				return view('accounts.reporting.sales_reps', compact('totalRevenueBroker'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.sales_reps', compact('totalRevenueBroker'))->render(),
+					'pagination' => render_pagination_links($totalRevenueBroker->setPageName('sales_rep')),
+				]);
 			}
 
 			// Load Completed Log Tab
 			if ($tab == '#load_completed_log') {
 				$dashboard_logs = Load::with('user')->paginate(50, ['*'], 'logs');
-				return view('accounts.reporting.load_completed_logs', compact('dashboard_logs'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.load_completed_logs', compact('dashboard_logs'))->render(),
+					'pagination' => render_pagination_links($dashboard_logs->setPageName('logs')),
+				]);
 			}
 
 			// Aging Tab
 			if ($tab == '#aging') {
 				$customersData = Customer::paginate(50, ['*'], 'limits');
-				return view('accounts.reporting.aging', compact('customersData'))->render();
+				return response()->json([
+					'html' => view('accounts.reporting.aging', compact('customersData'))->render(),
+					'pagination' => render_pagination_links($customersData->setPageName('limits')),
+				]);
 			}
 		}
 	
@@ -691,27 +715,50 @@ public function carrier_block(Request $request)
 	
 	public function credit(Request $request)
     {
+        if ($request->hasAny(['page', 'logs', 'limits'])) {
+            $activeTab = $request->input('tab');
+            $pageParam = $activeTab === '#limit' ? 'limits' : 'logs';
+
+            Paginator::currentPageResolver(function ($pageName = null) use ($request, $pageParam) {
+                $pageKey = $pageName ?: $pageParam;
+                $pageValue = $request->input($pageKey);
+
+                if ($pageValue !== null) {
+                    return (int) $pageValue;
+                }
+
+                foreach (['page', 'logs', 'limits'] as $fallbackKey) {
+                    if ($request->filled($fallbackKey)) {
+                        return (int) $request->input($fallbackKey);
+                    }
+                }
+
+                return 1;
+            });
+        }
+
         $dashboard_logs = Load::with('user')->paginate(50, ['*'], 'logs');
+        $sortedCustomers = Customer::paginate(50, ['*'], 'limits');
 
-		
-		$sortedCustomers = Customer::paginate(50, ['*'], 'limits');
+        if ($request->ajax()) {
+            if ($request->input('tab') == '#limit') {
+                $sortedCustomers = Customer::paginate(50, ['*'], 'limits');
 
-		
-		if ($request->ajax()) {
-			
-			if($request->input('tab') == '#limit'){
-				
-				return view('accounts.reporting.limit',compact('sortedCustomers'))->render();
-				
-			}else if($request->input('tab') == '#load_completed_log'){
-				
-				return view('accounts.reporting.load_completed_logs',compact('dashboard_logs'))->render();
-				
-			}
-			
-		}
+                return response()->json([
+                    'html' => view('accounts.reporting.limit', compact('sortedCustomers'))->render(),
+                    'pagination' => render_pagination_links($sortedCustomers->setPageName('limits')),
+                ]);
+            } elseif ($request->input('tab') == '#load_completed_log') {
+                $dashboard_logs = Load::with('user')->paginate(50, ['*'], 'logs');
 
-        return view('accounts.credit',compact('sortedCustomers','dashboard_logs'));
+                return response()->json([
+                    'html' => view('accounts.reporting.load_completed_logs', compact('dashboard_logs'))->render(),
+                    'pagination' => render_pagination_links($dashboard_logs->setPageName('logs')),
+                ]);
+            }
+        }
+
+        return view('accounts.credit', compact('sortedCustomers', 'dashboard_logs'));
     }
 
     public function vendor_system(Request $request)
