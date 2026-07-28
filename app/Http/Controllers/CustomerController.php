@@ -74,7 +74,10 @@ class CustomerController extends Controller
         }
 		
 		if ($request->ajax()) {
-				return view('broker.partials.customer_table', compact('userInfos', 'allcountry','customers'))->render();
+				return response()->json([
+					'html' => view('broker.partials.customer_table', compact('userInfos', 'allcountry', 'customers'))->render(),
+					'pagination' => render_pagination_links($customers->setPageName('page')),
+				]);
 			}
 
 if ($request->has('download') && $request->download === 'excel') {

@@ -223,7 +223,7 @@ ul.pagination {
 </div>
 
 <div class="custom-pagination mt-3">
-    {{ $vendormanagement->links() }}
+    {{ $vendormanagement->links('pagination::bootstrap-5') }}
 </div>
 
         <div id="modals-container">

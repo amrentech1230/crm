@@ -68,7 +68,7 @@
                             </tbody>
                         </table>
 						<div class="custom-pagination"> 
-							{{$teamleaders->links()}}
+							{{$teamleaders->links('pagination::bootstrap-5')}}
 						</div> 
                     </div>
                 </div>

@@ -36,10 +36,45 @@
 		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 		<style>
-		span.select2-container{z-index:9999;}
+		span.select2-container{z-index:999999 !important;}
 		span.select2.select2-container.select2-container--default {
 				width: 100% !important;
 			}
+		.select2-dropdown { z-index: 999999 !important; }
+		.select2-container--open { z-index: 999999 !important; }
+		.select2-dropdown--above {
+			top: 100% !important;
+			bottom: auto !important;
+			border-top: 1px solid #aaa !important;
+			border-bottom: 1px solid #aaa !important;
+			border-radius: 0 0 4px 4px !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__arrow {
+			height: 100% !important;
+			right: 6px !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__arrow b {
+			border-color: #555 transparent transparent transparent !important;
+			border-width: 6px 5px 0 5px !important;
+			margin-top: -3px !important;
+		}
+		.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+			border-color: transparent transparent #555 transparent !important;
+			border-width: 0 5px 6px 5px !important;
+		}
+		.select2-container--default .select2-selection--single {
+			height: calc(1.5em + 0.75rem + 2px) !important;
+			padding: 0.375rem 2rem 0.375rem 0.75rem !important;
+			border: 0.2px solid #00000024 !important;
+			border-radius: 4px !important;
+			display: flex !important;
+			align-items: center !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__rendered {
+			padding: 0 !important;
+			line-height: normal !important;
+			color: #495057 !important;
+		}
             body[data-topbar="dark"] .app-search .form-control {
     background-color: rgba(var(--bs-topbar-search-bg), .07);
     color: #fff;
@@ -57,6 +92,31 @@
 div#datatable-buttons_filter {
     display: none;
 } */
+
+.custom-pagination {
+    margin-top: 1rem;
+}
+
+.custom-pagination .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0;
+}
+
+.custom-pagination .page-item .page-link {
+    border-radius: 0.25rem;
+}
+
+.custom-pagination .page-item.active .page-link {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+.custom-pagination .page-item .page-link:hover {
+    color: #0d6efd;
+}
 /* div#datatable_length {
     display: none;
 } */
@@ -301,56 +361,17 @@ table.dataTable tbody > tr.selected td p {
         <script> 
 		
 			$(document).ready(function () {
-				function getDropdownParent($select) {
-					var $modal = $select.closest('.modal');
-
-					if ($modal.length) {
-						return $modal;
-					}
-
-					var $container = $select.closest('.form-group, .input-group');
-					return $container.length ? $container : $('body');
-				}
-
-				function initializeModalSelects($popup) {
-					$popup.find('select.select2, select.mySelect2, #country, #state').each(function () {
-						var $select = $(this);
-
-						if ($select.data('select2')) {
-							$select.select2('destroy');
-						}
-
-						$select.select2({
-							dropdownParent: $popup,
-							width: '100%'
-						});
-					});
-				}
-
-				// Keep Select2 dropdowns inside their modal so they follow modal scrolling.
-				$('.modal').each(function () {
-					initializeModalSelects($(this));
-				});
-
-				$('.modal').on('shown.bs.modal', function () {
-					initializeModalSelects($(this));
-				});
-
-				// Keep non-modal dropdowns inside their nearest field container.
-				$('select.select2, select.mySelect2, #country, #state').each(function () {
+				// Initialize ALL selects with dropdownParent body so they always open downward
+				$('select').not('.no-select2').each(function () {
 					var $select = $(this);
-
-					if ($select.closest('.modal').length === 0) {
-						if ($select.data('select2')) {
-							$select.select2('destroy');
-						}
-						$select.select2({
-							dropdownParent: getDropdownParent($select),
-							width: '100%'
-						});
+					if ($select.data('select2')) {
+						$select.select2('destroy');
 					}
+					$select.select2({
+						dropdownParent: $('body'),
+						width: '100%'
+					});
 				});
-			});
 
             // Wait for the DOM to be fully loaded
             document.addEventListener("DOMContentLoaded", function() {

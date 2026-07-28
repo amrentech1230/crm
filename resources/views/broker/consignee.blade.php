@@ -76,7 +76,7 @@
                             @include('broker.partials.consignee_modals')
                         </div>
                         <div class="custom-pagination">
-                            {{ $consignees->links() }}
+                            {{ $consignees->links('pagination::bootstrap-5') }}
                         </div>
                     </div>
                 </div>

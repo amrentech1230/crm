@@ -183,7 +183,7 @@
                                             </tbody>
                                         </table>
 										<div class="custom-pagination"> 
-											{{$admins->links()}}
+											{{$admins->links('pagination::bootstrap-5')}}
 										</div> 
                                     </div>
                                 </div>

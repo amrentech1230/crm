@@ -76,6 +76,13 @@
 </head>
 <body>
     <div class="bol-container">
+        @php
+            $savedBolData = isset($savedBolEdit)
+                ? $savedBolEdit
+                : (is_array($load->bol_edit_data ?? null)
+                    ? $load->bol_edit_data
+                    : (json_decode((string) ($load->bol_edit_data ?? ''), true) ?: []));
+        @endphp
         <!-- Top Section -->
         <table class="no-border" style="margin-bottom: 10px;">
             <tr>
@@ -150,9 +157,10 @@
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
                     @php
-                        $savedBolData = json_decode((string) ($load->internal_notes ?? ''), true);
-                        $savedBolData = is_array($savedBolData['bol_pdf_snapshot'] ?? null) ? $savedBolData['bol_pdf_snapshot'] : [];
-                        $shipperText = trim((string) ($load->shipper_info ?? ($savedBolData['shipper_info'] ?? '')));
+                        $savedBolData = is_array($load->bol_edit_data ?? null)
+                            ? $load->bol_edit_data
+                            : (json_decode((string) ($load->bol_edit_data ?? ''), true) ?: []);
+                        $shipperText = trim((string) ($savedBolData['shipper_info'] ?? $load->shipper_info ?? ''));
                         if ($shipperText === '') {
                             $shippers = json_decode($load->load_shipperr ?? '', true) ?: [];
                             $shipperLocations = json_decode($load->load_shipper_location ?? '', true) ?: [];
@@ -177,7 +185,7 @@
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
                     @php
-                        $consigneeText = trim((string) ($load->consignee_info ?? ($savedBolData['consignee_info'] ?? '')));
+                        $consigneeText = trim((string) ($savedBolData['consignee_info'] ?? $load->consignee_info ?? ''));
                         if ($consigneeText === '') {
                             $consignees = json_decode($load->load_consignee ?? '', true) ?: [];
                             $consigneeLocations = json_decode($load->load_consignee_location ?? '', true) ?: [];
@@ -207,12 +215,12 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>3rd Party Billing</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $load->third_party_billing ?? ($savedBolData['third_party_billing'] ?? '') }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $savedBolData['third_party_billing'] ?? ($load->third_party_billing ?? '') }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
                     @php
-                        $transportText = trim((string) ($load->transportation_company ?? ($savedBolData['transportation_company'] ?? '')));
+                        $transportText = trim((string) ($savedBolData['transportation_company'] ?? $load->transportation_company ?? ''));
                         if ($transportText === '') {
                             $transportText = "MC #: " . ($load->load_mc_no ?? '') . "\nCarrier Name: " . ($load->load_carrier ?? '');
                         }
@@ -309,23 +317,23 @@
             <tr>
                 <td style="width: 70%;">
                     <h6 class="fw-bold">Notes:</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $load->notes ?? ($savedBolData['notes'] ?? '') }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $savedBolData['notes'] ?? ($load->notes ?? '') }}</pre>
                 </td>
                 <td style="width: 30%; padding: 0;">
                     <table class="no-border">
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Amount:</span> {{ $load->cod_amount ?? ($savedBolData['cod_amount'] ?? '$0.00') }}
+                                <span class="fw-bold">C.O.D. Amount:</span> {{ $savedBolData['cod_amount'] ?? ($load->cod_amount ?? '$0.00') }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Fee:</span> {{ $load->cod_fee ?? ($savedBolData['cod_fee'] ?? 'Collect') }}
+                                <span class="fw-bold">C.O.D. Fee:</span> {{ $savedBolData['cod_fee'] ?? ($load->cod_fee ?? 'Collect') }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">Declared Value:</span> {{ $load->declared_value ?? ($savedBolData['declared_value'] ?? '$0.00') }}
+                                <span class="fw-bold">Declared Value:</span> {{ $savedBolData['declared_value'] ?? ($load->declared_value ?? '$0.00') }}
                             </td>
                         </tr>
                         <tr>
@@ -341,16 +349,16 @@
         <!-- Signatures -->
         @php
             $bolSaved = $savedBolData;
-            $sigShipper = $load->shipper_signature ?? ($bolSaved['shipper_signature'] ?? '');
-            $sigCarrier = $load->carrier_signature ?? ($bolSaved['carrier_signature'] ?? '');
-            $sigDate = $load->signature_date ?? ($bolSaved['signature_date'] ?? '');
-            $sigPerShipper = $load->shipper_per ?? ($bolSaved['shipper_per'] ?? '');
-            $sigPerCarrier = $load->carrier_per ?? ($bolSaved['carrier_per'] ?? '');
-            $sigTime = $load->signature_time ?? ($bolSaved['signature_time'] ?? '');
-            $conNameSign = $load->consignee_name_signature ?? ($bolSaved['consignee_name_signature'] ?? '');
-            $conDateSign = $load->consignee_date_signature ?? ($bolSaved['consignee_date_signature'] ?? '');
-            $conSignature = $load->consignee_signature ?? ($bolSaved['consignee_signature'] ?? '');
-            $conPiecesReceived = $load->consignee_pieces_received ?? ($bolSaved['consignee_pieces_received'] ?? '');
+            $sigShipper = $bolSaved['shipper_signature'] ?? ($load->shipper_signature ?? '');
+            $sigCarrier = $bolSaved['carrier_signature'] ?? ($load->carrier_signature ?? '');
+            $sigDate = $bolSaved['signature_date'] ?? ($load->signature_date ?? '');
+            $sigPerShipper = $bolSaved['shipper_per'] ?? ($load->shipper_per ?? '');
+            $sigPerCarrier = $bolSaved['carrier_per'] ?? ($load->carrier_per ?? '');
+            $sigTime = $bolSaved['signature_time'] ?? ($load->signature_time ?? '');
+            $conNameSign = $bolSaved['consignee_name_signature'] ?? ($load->consignee_name_signature ?? '');
+            $conDateSign = $bolSaved['consignee_date_signature'] ?? ($load->consignee_date_signature ?? '');
+            $conSignature = $bolSaved['consignee_signature'] ?? ($load->consignee_signature ?? '');
+            $conPiecesReceived = $bolSaved['consignee_pieces_received'] ?? ($load->consignee_pieces_received ?? '');
         @endphp
         <table>
             <tr>

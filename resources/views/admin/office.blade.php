@@ -108,7 +108,7 @@
                             </tbody>
                         </table>
 						<div class="custom-pagination"> 
-							{{$alloffice->links()}}
+							{{$alloffice->links('pagination::bootstrap-5')}}
 						</div>
                     </div>
                 </div>

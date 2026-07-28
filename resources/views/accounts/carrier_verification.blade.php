@@ -123,9 +123,9 @@
 
                                 </table>
 
-<div class="custom-pagination pagination-container">                                   
-     {{ $loads->links('pagination::bootstrap-4') }}
-                                </div>
+<div class="custom-pagination pagination-container">
+     {{ $loads->links('pagination::bootstrap-5') }}
+</div>
                             </div>
                         </div>
 

@@ -396,6 +396,7 @@ Route::post('broker/change-password', [AdminController::class, 'update_password'
 	Route::post('broker/fetch-carrier-details', [LoadController::class, 'fetchCarrierDetails'])->name('fetch.carrier.details');
     Route::get('/broker/load/{id}/bol/pdf', [LoadController::class, 'generateBolPdf'])->name('broker.load.bol.pdf');
     Route::post('/broker/load/{id}/bol/save', [LoadController::class, 'saveBolEditData'])->name('broker.load.bol.save');
+    Route::post('/broker/load/{id}/bol/download', [LoadController::class, 'downloadBolPdf'])->name('broker.load.bol.download');
     Route::post('broker/fetch-carrier-suggestions', [LoadController::class, 'fetchCarrierSuggestions'])->name('fetch.carrier.suggestions');
 
     Route::get('remaing/check-remaing-limit', [LoadController::class, 'checkRemaingLimit'])->name('check.remaing.limit');

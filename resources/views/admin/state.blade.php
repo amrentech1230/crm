@@ -84,7 +84,7 @@
                             </tbody>
                         </table>
 						<div class="custom-pagination"> 
-							{{$states->links()}}
+							{{$states->links('pagination::bootstrap-5')}}
 						</div>
                     </div>
                 </div>

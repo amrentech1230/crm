@@ -310,7 +310,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $broker_status->setPageName('all_load')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($broker_status->setPageName('all_load')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="open" role="tabpanel">
@@ -346,7 +346,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {!! render_pagination_links($open->setPageName('open')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="delivered" role="tabpanel">
@@ -383,7 +383,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $deliverd->setPageName('delivered')->links() }}
+                                    {!! render_pagination_links($deliverd->setPageName('delivered')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="completed" role="tabpanel">
@@ -420,7 +420,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $complete->setPageName('completed')->links() }}
+                                    {!! render_pagination_links($complete->setPageName('completed')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced" role="tabpanel">
@@ -459,7 +459,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice_paid->setPageName('invoiced')->links() }}
+                                    {!! render_pagination_links($invoice_paid->setPageName('invoiced')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced_paid" role="tabpanel">
@@ -498,7 +498,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $paid_record->setPageName('invoiced_paid')->links() }}
+                                    {!! render_pagination_links($paid_record->setPageName('invoiced_paid')) !!}
                                 </div>
                             </div>
                         </div>
@@ -661,7 +661,9 @@
 
         // Pagination update
         let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
-        paginationContainer.html(response.pagination).show();
+        paginationContainer.css('display', 'block');
+        paginationContainer.html(response.pagination || '');
+        paginationContainer.show();
 
         $(tableSelector).DataTable({
             responsive: true,
@@ -760,9 +762,19 @@ $(document).on('click', '.custom-pagination a', function (e) {
         return;
     }
 
-    // href se correct page param nikalo (setPageName ke hisaab se)
+    // Extract the correct page parameter from the clicked link.
     let urlObj = new URL(href, window.location.origin);
     let pageNum = urlObj.searchParams.get(pageName) || urlObj.searchParams.get('page') || '1';
+
+    const requestData = {
+        tab: activeTab,
+        page: pageNum,
+        [pageName]: pageNum,
+        office: $('#officeSelect').val(),
+        manager: $('#managerSelect').val(),
+        teamLeader: $('#teamLeaderSelect').val(),
+        agent: $('#agentSelect').val(),
+    };
 
     $('.loader-container').removeClass('hide');
 
@@ -770,20 +782,16 @@ $(document).on('click', '.custom-pagination a', function (e) {
         url: '/admin/search_by_filter',
         type: 'GET',
         dataType: 'json',
-        data: {
-            tab: activeTab,
-            page: pageNum,
-            office: $('#officeSelect').val(),
-            manager: $('#managerSelect').val(),
-            teamLeader: $('#teamLeaderSelect').val(),
-            agent: $('#agentSelect').val(),
-        },
+        data: requestData,
         success: function (response) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
             $(resultContainer).html(response.html);
-            $(resultContainer).closest('.tab-pane').find('.custom-pagination').html(response.pagination);
+            const paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+            paginationContainer.css('display', 'block');
+            paginationContainer.html(response.pagination || '');
+            paginationContainer.show();
             $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'rtip',

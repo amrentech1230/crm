@@ -214,7 +214,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {{ $open->setPageName('open')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="completed" role="tabpanel">
@@ -253,7 +253,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination" id="completed-search">
-                                    {{ $complete->setPageName('complete')->links() }}
+                                    {{ $complete->setPageName('complete')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced" role="tabpanel">
@@ -332,7 +332,7 @@ table.dataTable tbody > tr.selected td p {
                                     
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $invoiced->setPageName('invoiced')->links() }}
+                                    {{ $invoiced->setPageName('invoiced')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced_paid" role="tabpanel">
@@ -372,7 +372,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $paid->setPageName('paid')->links() }}
+                                    {{ $paid->setPageName('paid')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>

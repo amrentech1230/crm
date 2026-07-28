@@ -138,8 +138,8 @@
                                     </tbody>
 
                                 </table>
-                                <div class="custom-pagination">
-                                    {{ $dashboard_logs->links() }}
+                                <div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($dashboard_logs->setPageName('logs')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="limit" role="tabpanel">
@@ -175,8 +175,8 @@
                                         @include('accounts.reporting.limit')
                                     </tbody>
                                 </table>
-								<div class="custom-pagination">
-                                    {{ $sortedCustomers->links() }}
+								<div class="custom-pagination" style="display:block;">
+                                    {!! render_pagination_links($sortedCustomers->setPageName('limits')) !!}
                                 </div>
                             </div>
                             
@@ -198,48 +198,65 @@
    $(document).on('click', '.custom-pagination a', function(e) {
     e.preventDefault();
 
-    let url = $(this).attr('href');
+    let href = $(this).attr('href');
+    if (!href) return;
 
-    // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
-        let resultContainer = '';
-            let tableSelector = '';
+    let resultContainer = '';
+    let tableSelector = '';
+    let pageParam = 'page';
 
-            if (activeTab === '#load_completed_log') {
-                resultContainer = '#load_completed_log-search';
-                tableSelector = '#datatable-buttons-load_completed_log';
+    if (activeTab === '#load_completed_log') {
+        resultContainer = '#load_completed_log-search';
+        tableSelector = '#datatable-buttons-load_completed_log';
+        pageParam = 'logs';
+    } else if (activeTab === '#limit') {
+        resultContainer = '#limit-search';
+        tableSelector = '#datatable-buttons-limit';
+        pageParam = 'limits';
+    } else {
+        return;
+    }
 
-            } else if (activeTab === '#limit') {
-                resultContainer = '#limit-search';
-                tableSelector = '#datatable-buttons-limit';
+    const urlObj = new URL(href, window.location.origin);
+    const pageNum = urlObj.searchParams.get(pageParam) || urlObj.searchParams.get('page') || '1';
 
-            } else {
-                return; // Exit if it's not one of the expected tabs
-            }
-		
     $.ajax({
-        url: url,
+        url: href,
         type: 'GET',
+        dataType: 'json',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            page: pageNum,
+            [pageParam]: pageNum
         },
-        success: function(data) {
+        success: function(response) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
 
-            $(resultContainer).html(data);
+            $(resultContainer).html(response.html || '');
+
+            const paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+            paginationContainer.css('display', 'block');
+            paginationContainer.html(response.pagination || '');
+            paginationContainer.show();
 
             $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'Bfrtip',
-				buttons: ['copy', 'excel', 'pdf', 'colvis'],
-				searching: false,
-				paging: false
+                buttons: ['copy', 'excel', 'pdf', 'colvis'],
+                searching: false,
+                paging: false
             });
 
-            // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            const separator = href.includes('?') ? '&' : '?';
+            const tabParam = activeTab ? encodeURIComponent(activeTab) : '';
+            const finalUrl = tabParam ? href + separator + 'tab=' + tabParam : href;
+            window.history.pushState("", "", finalUrl);
+        },
+        error: function(xhr) {
+            console.error('Credit pagination AJAX error:', xhr.responseText);
         }
     });
 });
