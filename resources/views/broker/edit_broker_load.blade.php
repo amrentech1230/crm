@@ -1198,6 +1198,10 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <h5 class="modal-title">Bill Of Lading</h5>
 
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success" id="saveBolBtn" onclick="saveBolData()" style="display:none;">
+                        Save for PDF
+                    </button>
+
                     <button type="button" class="btn btn-primary" onclick="downloadBOL()">
                         Download PDF
                     </button>
@@ -1354,16 +1358,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Shipper</h6>
 @php
     $shippers = json_decode($post->load_shipperr, true);
+    $shipperLocs = json_decode($post->load_shipper_location, true);
 
     $shipperText = '';
 
     if($shippers && is_array($shippers)) {
 
-        foreach($shippers as $item) {
+        foreach($shippers as $index => $item) {
 
             $shipperText .= ($item['name'] ?? '') . "\n";
 
-            if(!empty($item['location'])) {
+            // Get location from load_shipper_location JSON
+            if($shipperLocs && isset($shipperLocs[$index]['location']) && !empty($shipperLocs[$index]['location'])) {
+                $shipperText .= $shipperLocs[$index]['location'] . "\n";
+            } elseif(!empty($item['location'])) {
                 $shipperText .= $item['location'] . "\n";
             }
 
@@ -1383,16 +1391,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Consignee</h6>
 @php
     $consignees = json_decode($post->load_consignee, true);
+    $consigneeLocs = json_decode($post->load_consignee_location, true);
 
     $consigneeText = '';
 
     if($consignees && is_array($consignees)) {
 
-        foreach($consignees as $item) {
+        foreach($consignees as $index => $item) {
 
             $consigneeText .= ($item['name'] ?? '') . "\n";
 
-            if(!empty($item['location'])) {
+            // Get location from load_consignee_location JSON
+            if($consigneeLocs && isset($consigneeLocs[$index]['location']) && !empty($consigneeLocs[$index]['location'])) {
+                $consigneeText .= $consigneeLocs[$index]['location'] . "\n";
+            } elseif(!empty($item['location'])) {
                 $consigneeText .= $item['location'] . "\n";
             }
 
@@ -2548,6 +2560,87 @@ function enableEdit() {
 
     });
 
+    // Show the Save for PDF button
+    document.getElementById('saveBolBtn').style.display = 'inline-block';
+
+}
+
+// Save BOL data without downloading (just save)
+async function saveBolData() {
+
+    let bolArea = document.getElementById('bolDownloadArea');
+
+    // Gather freight items from the table
+    let freightItems = [];
+    let freightRows = document.querySelectorAll('#freightTableBody tr');
+    freightRows.forEach(function(row) {
+        let inputs = row.querySelectorAll('input.editable-field');
+        if (inputs.length >= 6) {
+            freightItems.push({
+                pieces: inputs[0].value || '',
+                description: inputs[1].value || '',
+                weight: inputs[2].value || '',
+                type: inputs[3].value || '',
+                nmfc: inputs[4].value || '',
+                hm: inputs[5].value || '',
+                class_val: inputs[6] ? inputs[6].value : ''
+            });
+        }
+    });
+
+    let allInputs = bolArea.querySelectorAll('input.editable-field');
+    let allTextareas = bolArea.querySelectorAll('textarea.editable-field');
+
+    let bolData = {
+        load_number: allInputs[0] ? allInputs[0].value : '',
+        bol_number: allInputs[1] ? allInputs[1].value : '',
+        ship_date: allInputs[2] ? allInputs[2].value : '',
+        delivery_date: allInputs[3] ? allInputs[3].value : '',
+        shipper: allTextareas[0] ? allTextareas[0].value : '',
+        consignee: allTextareas[1] ? allTextareas[1].value : '',
+        third_party_billing: allTextareas[2] ? allTextareas[2].value : '',
+        transportation_company: allTextareas[3] ? allTextareas[3].value : '',
+        freight_items: freightItems,
+        total_pieces: document.getElementById('totalPieces') ? document.getElementById('totalPieces').innerText : '1',
+        total_weight: document.getElementById('totalWeight') ? document.getElementById('totalWeight').innerText : '0.00',
+        notes: allTextareas[4] ? allTextareas[4].value : '',
+        cod_amount: getCodField(allInputs, 'cod_amount'),
+        cod_fee: getCodField(allInputs, 'cod_fee'),
+        declared_value: getCodField(allInputs, 'declared_value'),
+        shipper_signature: getSignatureField(allInputs, 0),
+        carrier_signature: getSignatureField(allInputs, 1),
+        signature_date: getSignatureField(allInputs, 2),
+        per_shipper: getSignatureField(allInputs, 3),
+        per_carrier: getSignatureField(allInputs, 4),
+        signature_time: getSignatureField(allInputs, 5),
+        consignee_name_sign: getConsigneeSignField(allInputs, 0),
+        consignee_date_sign: getConsigneeSignField(allInputs, 1),
+        consignee_signature: getConsigneeSignField(allInputs, 2),
+        pieces_received: getConsigneeSignField(allInputs, 3),
+        _token: '{{ csrf_token() }}'
+    };
+
+    try {
+        let response = await fetch("{{ route('broker.load.bol.save', $post->id) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(bolData)
+        });
+
+        let result = await response.json();
+
+        if (result.success) {
+            alert('BOL data saved successfully! It will appear in the downloaded PDF.');
+        } else {
+            alert('Error saving BOL data. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error saving BOL data:', error);
+        alert('Error saving BOL data. Please try again.');
+    }
 }
 
 </script>
@@ -2685,12 +2778,116 @@ updateTotals();
 
 <script>
 
-
 async function downloadBOL() {
 
-    // Redirect to the backend route to generate and download the PDF
-    window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
+    // Collect all editable field data from the BOL modal
+    let bolArea = document.getElementById('bolDownloadArea');
+    let fields = bolArea.querySelectorAll('.editable-field');
 
+    // Gather freight items from the table
+    let freightItems = [];
+    let freightRows = document.querySelectorAll('#freightTableBody tr');
+    freightRows.forEach(function(row) {
+        let inputs = row.querySelectorAll('input.editable-field');
+        if (inputs.length >= 6) {
+            freightItems.push({
+                pieces: inputs[0].value || '',
+                description: inputs[1].value || '',
+                weight: inputs[2].value || '',
+                type: inputs[3].value || '',
+                nmfc: inputs[4].value || '',
+                hm: inputs[5].value || '',
+                class_val: inputs[6] ? inputs[6].value : ''
+            });
+        }
+    });
+
+    // Collect field values by section (inputs and textareas in order)
+    let allInputs = bolArea.querySelectorAll('input.editable-field');
+    let allTextareas = bolArea.querySelectorAll('textarea.editable-field');
+
+    // Build BOL data payload
+    let bolData = {
+        load_number: allInputs[0] ? allInputs[0].value : '',
+        bol_number: allInputs[1] ? allInputs[1].value : '',
+        ship_date: allInputs[2] ? allInputs[2].value : '',
+        delivery_date: allInputs[3] ? allInputs[3].value : '',
+        shipper: allTextareas[0] ? allTextareas[0].value : '',
+        consignee: allTextareas[1] ? allTextareas[1].value : '',
+        third_party_billing: allTextareas[2] ? allTextareas[2].value : '',
+        transportation_company: allTextareas[3] ? allTextareas[3].value : '',
+        freight_items: freightItems,
+        total_pieces: document.getElementById('totalPieces') ? document.getElementById('totalPieces').innerText : '1',
+        total_weight: document.getElementById('totalWeight') ? document.getElementById('totalWeight').innerText : '0.00',
+        notes: allTextareas[4] ? allTextareas[4].value : '',
+        cod_amount: getCodField(allInputs, 'cod_amount'),
+        cod_fee: getCodField(allInputs, 'cod_fee'),
+        declared_value: getCodField(allInputs, 'declared_value'),
+        shipper_signature: getSignatureField(allInputs, 0),
+        carrier_signature: getSignatureField(allInputs, 1),
+        signature_date: getSignatureField(allInputs, 2),
+        per_shipper: getSignatureField(allInputs, 3),
+        per_carrier: getSignatureField(allInputs, 4),
+        signature_time: getSignatureField(allInputs, 5),
+        consignee_name_sign: getConsigneeSignField(allInputs, 0),
+        consignee_date_sign: getConsigneeSignField(allInputs, 1),
+        consignee_signature: getConsigneeSignField(allInputs, 2),
+        pieces_received: getConsigneeSignField(allInputs, 3),
+        _token: '{{ csrf_token() }}'
+    };
+
+    // Save BOL data via AJAX first, then download PDF
+    try {
+        let response = await fetch("{{ route('broker.load.bol.save', $post->id) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(bolData)
+        });
+
+        let result = await response.json();
+
+        if (result.success) {
+            // Now download the PDF with saved data
+            window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
+        } else {
+            alert('Error saving BOL data. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error saving BOL data:', error);
+        alert('Error saving BOL data. Please try again.');
+    }
+}
+
+// Helper: get COD field values (after freight inputs)
+function getCodField(allInputs, fieldName) {
+    // COD fields are after the freight table inputs
+    // They follow this order in the notes/COD section: cod_amount, cod_fee, declared_value
+    let codSection = document.querySelector('#bolDownloadArea table:nth-last-of-type(3)');
+    if (!codSection) return '';
+    let codInputs = codSection.querySelectorAll('input.editable-field');
+    if (fieldName === 'cod_amount') return codInputs[0] ? codInputs[0].value : '$0.00';
+    if (fieldName === 'cod_fee') return codInputs[1] ? codInputs[1].value : 'Collect';
+    if (fieldName === 'declared_value') return codInputs[2] ? codInputs[2].value : '$0.00';
+    return '';
+}
+
+// Helper: get signature fields from shipper/carrier/date table
+function getSignatureField(allInputs, index) {
+    let sigTable = document.querySelector('#bolDownloadArea table:nth-last-of-type(2)');
+    if (!sigTable) return '';
+    let sigInputs = sigTable.querySelectorAll('input.editable-field');
+    return sigInputs[index] ? sigInputs[index].value : '';
+}
+
+// Helper: get consignee signature fields from last table
+function getConsigneeSignField(allInputs, index) {
+    let conTable = document.querySelector('#bolDownloadArea table:last-of-type');
+    if (!conTable) return '';
+    let conInputs = conTable.querySelectorAll('input.editable-field');
+    return conInputs[index] ? conInputs[index].value : '';
 }
 
 </script>

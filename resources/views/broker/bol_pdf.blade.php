@@ -75,6 +75,116 @@
     </style>
 </head>
 <body>
+    @php
+        // Determine data source: use bolData (edited) if available, otherwise fall back to load fields
+        $hasBolData = !empty($bolData);
+
+        // Load Number
+        $pdfLoadNumber = $hasBolData ? ($bolData['load_number'] ?? $load->load_number) : $load->load_number;
+
+        // BOL Number
+        $pdfBolNumber = $hasBolData ? ($bolData['bol_number'] ?? ($load->load_workorder ?? '')) : ($load->load_workorder ?? '');
+
+        // Ship Date
+        if ($hasBolData) {
+            $pdfShipDate = $bolData['ship_date'] ?? '';
+        } else {
+            $shipper_appointment = json_decode($load->load_shipper_appointment, true);
+            $pdfShipDate = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
+        }
+
+        // Delivery Date
+        if ($hasBolData) {
+            $pdfDeliveryDate = $bolData['delivery_date'] ?? '';
+        } else {
+            $consignee_appointment = json_decode($load->load_consignee_appointment, true);
+            $pdfDeliveryDate = isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '';
+        }
+
+        // Shipper Text
+        if ($hasBolData) {
+            $pdfShipperText = $bolData['shipper'] ?? '';
+        } else {
+            $shippers = json_decode($load->load_shipperr, true);
+            $shipperLocations = json_decode($load->load_shipper_location, true);
+            $pdfShipperText = '';
+            if($shippers && is_array($shippers)) {
+                foreach($shippers as $index => $item) {
+                    $pdfShipperText .= ($item['name'] ?? '') . "\n";
+                    // Get location from load_shipper_location JSON
+                    if($shipperLocations && isset($shipperLocations[$index]['location']) && !empty($shipperLocations[$index]['location'])) {
+                        $pdfShipperText .= $shipperLocations[$index]['location'] . "\n";
+                    } elseif(!empty($item['location'])) {
+                        $pdfShipperText .= $item['location'] . "\n";
+                    }
+                    $pdfShipperText .= "\n";
+                }
+            }
+            $pdfShipperText = trim($pdfShipperText);
+        }
+
+        // Consignee Text
+        if ($hasBolData) {
+            $pdfConsigneeText = $bolData['consignee'] ?? '';
+        } else {
+            $consignees = json_decode($load->load_consignee, true);
+            $consigneeLocations = json_decode($load->load_consignee_location, true);
+            $pdfConsigneeText = '';
+            if($consignees && is_array($consignees)) {
+                foreach($consignees as $index => $item) {
+                    $pdfConsigneeText .= ($item['name'] ?? '') . "\n";
+                    // Get location from load_consignee_location JSON
+                    if($consigneeLocations && isset($consigneeLocations[$index]['location']) && !empty($consigneeLocations[$index]['location'])) {
+                        $pdfConsigneeText .= $consigneeLocations[$index]['location'] . "\n";
+                    } elseif(!empty($item['location'])) {
+                        $pdfConsigneeText .= $item['location'] . "\n";
+                    }
+                    $pdfConsigneeText .= "\n";
+                }
+            }
+            $pdfConsigneeText = trim($pdfConsigneeText);
+        }
+
+        // 3rd Party Billing
+        $pdfThirdPartyBilling = $hasBolData ? ($bolData['third_party_billing'] ?? '') : '';
+
+        // Transportation Company
+        if ($hasBolData) {
+            $pdfTransportation = $bolData['transportation_company'] ?? '';
+        } else {
+            $pdfTransportation = "MC #: " . ($load->load_mc_no ?? '') . "\nCarrier Name: " . ($load->load_carrier ?? '');
+        }
+
+        // Freight Items
+        $pdfFreightItems = $hasBolData ? ($bolData['freight_items'] ?? []) : [];
+
+        // Total Pieces
+        $pdfTotalPieces = $hasBolData ? ($bolData['total_pieces'] ?? '1') : '1';
+
+        // Total Weight
+        $pdfTotalWeight = $hasBolData ? ($bolData['total_weight'] ?? '0.00') : '0.00';
+
+        // Notes
+        $pdfNotes = $hasBolData ? ($bolData['notes'] ?? '') : ($load->notes ?? '');
+
+        // COD fields
+        $pdfCodAmount = $hasBolData ? ($bolData['cod_amount'] ?? '$0.00') : '$0.00';
+        $pdfCodFee = $hasBolData ? ($bolData['cod_fee'] ?? 'Collect') : 'Collect';
+        $pdfDeclaredValue = $hasBolData ? ($bolData['declared_value'] ?? '$0.00') : '$0.00';
+
+        // Signature fields
+        $pdfShipperSignature = $hasBolData ? ($bolData['shipper_signature'] ?? '') : '';
+        $pdfCarrierSignature = $hasBolData ? ($bolData['carrier_signature'] ?? '') : '';
+        $pdfSignatureDate = $hasBolData ? ($bolData['signature_date'] ?? '') : '';
+        $pdfPerShipper = $hasBolData ? ($bolData['per_shipper'] ?? '') : '';
+        $pdfPerCarrier = $hasBolData ? ($bolData['per_carrier'] ?? '') : '';
+        $pdfSignatureTime = $hasBolData ? ($bolData['signature_time'] ?? '') : '';
+        $pdfConsigneeNameSign = $hasBolData ? ($bolData['consignee_name_sign'] ?? '') : '';
+        $pdfConsigneeDateSign = $hasBolData ? ($bolData['consignee_date_sign'] ?? '') : '';
+        $pdfConsigneeSignature = $hasBolData ? ($bolData['consignee_signature'] ?? '') : '';
+        $pdfPiecesReceived = $hasBolData ? ($bolData['pieces_received'] ?? '') : '';
+    @endphp
+
     <div class="bol-container">
         <!-- Top Section -->
         <table class="no-border" style="margin-bottom: 10px;">
@@ -104,27 +214,19 @@
                     <table>
                         <tr>
                             <th>Load Number</th>
-                            <td>{{ $load->load_number }}</td>
+                            <td>{{ $pdfLoadNumber }}</td>
                         </tr>
                         <tr>
                             <th>BOL Number</th>
-                            <td>{{ $load->load_workorder ?? '' }}</td>
+                            <td>{{ $pdfBolNumber }}</td>
                         </tr>
                         <tr>
                             <th>Ship Date</th>
-                            @php
-                                $shipper_appointment = json_decode($load->load_shipper_appointment, true);
-                                $shipDate = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
-                            @endphp
-                            <td>{{ $shipDate }}</td>
+                            <td>{{ $pdfShipDate }}</td>
                         </tr>
                         <tr>
                             <th>Delivery Date</th>
-                            @php
-                                $consignee_appointment = json_decode($load->load_consignee_appointment, true);
-                                $deliveryDate = isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '';
-                            @endphp
-                            <td>{{ $deliveryDate }}</td>
+                            <td>{{ $pdfDeliveryDate }}</td>
                         </tr>
                     </table>
                 </td>
@@ -136,37 +238,11 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
-                    @php
-                        $shippers = json_decode($load->load_shipperr, true);
-                        $shipperText = '';
-                        if($shippers && is_array($shippers)) {
-                            foreach($shippers as $item) {
-                                $shipperText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $shipperText .= $item['location'] . "\n";
-                                }
-                                $shipperText .= "\n";
-                            }
-                        }
-                    @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($shipperText) }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $pdfShipperText }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
-                    @php
-                        $consignees = json_decode($load->load_consignee, true);
-                        $consigneeText = '';
-                        if($consignees && is_array($consignees)) {
-                            foreach($consignees as $item) {
-                                $consigneeText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $consigneeText .= $item['location'] . "\n";
-                                }
-                                $consigneeText .= "\n";
-                            }
-                        }
-                    @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($consigneeText) }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $pdfConsigneeText }}</pre>
                 </td>
             </tr>
         </table>
@@ -176,13 +252,11 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>3rd Party Billing</h6>
-                    <!-- Assuming 3rd party billing info is not directly in $load for now -->
-                    <div style="min-height: 80px;"></div>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $pdfThirdPartyBilling }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
-Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $pdfTransportation }}</pre>
                 </td>
             </tr>
         </table>
@@ -201,41 +275,39 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 </tr>
             </thead>
             <tbody>
-                <!-- Placeholder for freight items. If freight data is stored in $load, iterate here. -->
-                <tr>
-                    <td>#Unit 1</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                {{--
-                @foreach(json_decode($load->freight_items, true) as $item)
-                <tr>
-                    <td>{{ $item['pieces'] ?? '' }}</td>
-                    <td>{{ $item['description'] ?? '' }}</td>
-                    <td>{{ $item['weight'] ?? '' }}</td>
-                    <td>{{ $item['type'] ?? '' }}</td>
-                    <td>{{ $item['nmfc'] ?? '' }}</td>
-                    <td>{{ $item['hm'] ?? '' }}</td>
-                    <td>{{ $item['class'] ?? '' }}</td>
-                </tr>
-                @endforeach
-                --}}
+                @if(!empty($pdfFreightItems) && is_array($pdfFreightItems))
+                    @foreach($pdfFreightItems as $item)
+                    <tr>
+                        <td>{{ $item['pieces'] ?? '' }}</td>
+                        <td>{{ $item['description'] ?? '' }}</td>
+                        <td>{{ $item['weight'] ?? '' }}</td>
+                        <td>{{ $item['type'] ?? '' }}</td>
+                        <td>{{ $item['nmfc'] ?? '' }}</td>
+                        <td>{{ $item['hm'] ?? '' }}</td>
+                        <td>{{ $item['class_val'] ?? '' }}</td>
+                    </tr>
+                    @endforeach
+                @else
+                    <tr>
+                        <td>#Unit 1</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                @endif
             </tbody>
             <tfoot>
                 <tr>
                     <td class="text-center">
                         <span class="fw-bold">Total Pieces</span><br>
-                        <!-- Calculate total pieces if freight data is available -->
-                        1
+                        {{ $pdfTotalPieces }}
                     </td>
                     <td colspan="2" class="text-center">
                         <span class="fw-bold">Total Weight</span><br>
-                        <!-- Calculate total weight if freight data is available -->
-                        0.00
+                        {{ $pdfTotalWeight }}
                     </td>
                     <td colspan="4" class="text-center">
                         <span class="fw-bold">Emergency Response Phone</span><br>
@@ -250,23 +322,23 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
             <tr>
                 <td style="width: 70%;">
                     <h6 class="fw-bold">Notes:</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $load->notes ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $pdfNotes }}</pre>
                 </td>
                 <td style="width: 30%; padding: 0;">
                     <table class="no-border">
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Amount:</span> $0.00
+                                <span class="fw-bold">C.O.D. Amount:</span> {{ $pdfCodAmount }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Fee:</span> Collect
+                                <span class="fw-bold">C.O.D. Fee:</span> {{ $pdfCodFee }}
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">Declared Value:</span> $0.00
+                                <span class="fw-bold">Declared Value:</span> {{ $pdfDeclaredValue }}
                             </td>
                         </tr>
                         <tr>
@@ -288,9 +360,9 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <th style="width: 25%;" rowspan="2">Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $pdfShipperSignature }}</td>
+                <td class="signature-box">{{ $pdfCarrierSignature }}</td>
+                <td class="signature-box">{{ $pdfSignatureDate }}</td>
             </tr>
             <tr>
                 <th>Per</th>
@@ -299,9 +371,9 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <td class="signature-box"></td>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $pdfPerShipper }}</td>
+                <td class="signature-box">{{ $pdfPerCarrier }}</td>
+                <td class="signature-box">{{ $pdfSignatureTime }}</td>
                 <td class="signature-box"></td>
             </tr>
         </table>
@@ -314,10 +386,10 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 <th>Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
-                <td class="signature-box"></td>
+                <td class="signature-box">{{ $pdfConsigneeNameSign }}</td>
+                <td class="signature-box">{{ $pdfConsigneeDateSign }}</td>
+                <td class="signature-box">{{ $pdfConsigneeSignature }}</td>
+                <td class="signature-box">{{ $pdfPiecesReceived }}</td>
             </tr>
         </table>
     </div>

@@ -1710,16 +1710,67 @@ public function raiseTicketStore(Request $request)
     return back()->with('success', 'Ticket raised successfully!');
 }
 
+    /**
+     * Save BOL edit data for PDF download.
+     * Stores the edited BOL fields so they appear in the downloaded PDF.
+     */
+    public function saveBolEditData(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+
+        $bolData = [
+            'load_number'          => $request->input('load_number', $load->load_number),
+            'bol_number'           => $request->input('bol_number', $load->load_workorder ?? ''),
+            'ship_date'            => $request->input('ship_date', ''),
+            'delivery_date'        => $request->input('delivery_date', ''),
+            'shipper'              => $request->input('shipper', ''),
+            'consignee'            => $request->input('consignee', ''),
+            'third_party_billing'  => $request->input('third_party_billing', ''),
+            'transportation_company' => $request->input('transportation_company', ''),
+            'freight_items'        => $request->input('freight_items', []),
+            'total_pieces'         => $request->input('total_pieces', '1'),
+            'total_weight'         => $request->input('total_weight', '0.00'),
+            'notes'                => $request->input('notes', ''),
+            'cod_amount'           => $request->input('cod_amount', '$0.00'),
+            'cod_fee'              => $request->input('cod_fee', 'Collect'),
+            'declared_value'       => $request->input('declared_value', '$0.00'),
+            'shipper_signature'    => $request->input('shipper_signature', ''),
+            'carrier_signature'    => $request->input('carrier_signature', ''),
+            'signature_date'       => $request->input('signature_date', ''),
+            'per_shipper'          => $request->input('per_shipper', ''),
+            'per_carrier'          => $request->input('per_carrier', ''),
+            'signature_time'       => $request->input('signature_time', ''),
+            'consignee_name_sign'  => $request->input('consignee_name_sign', ''),
+            'consignee_date_sign'  => $request->input('consignee_date_sign', ''),
+            'consignee_signature'  => $request->input('consignee_signature', ''),
+            'pieces_received'      => $request->input('pieces_received', ''),
+        ];
+
+        $load->bol_edit_data = json_encode($bolData);
+        $load->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'BOL data saved successfully.',
+        ]);
+    }
+
     public function generateBolPdf($id)
     {
         $load = Load::findOrFail($id);
 
+        // Pass BOL edit data to the PDF view if available
+        $bolData = null;
+        if (!empty($load->bol_edit_data)) {
+            $bolData = is_array($load->bol_edit_data) ? $load->bol_edit_data : json_decode($load->bol_edit_data, true);
+        }
+
         $options = new Options();
-        $options->set('defaultFont', 'Arial'); // Use a common font
-        $options->set('isRemoteEnabled', true); // Enable remote image loading for logo
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('broker.bol_pdf', compact('load'))->render();
+        $html = view('broker.bol_pdf', compact('load', 'bolData'))->render();
         $dompdf->loadHtml($html);
 
         // (Optional) Set paper size and orientation

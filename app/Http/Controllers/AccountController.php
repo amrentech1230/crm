@@ -6205,12 +6205,18 @@ public function customerApprovalupdateStatus(Request $request)
     {
         $load = Load::findOrFail($id);
 
+        // Pass BOL edit data to the PDF view if available
+        $bolData = null;
+        if (!empty($load->bol_edit_data)) {
+            $bolData = is_array($load->bol_edit_data) ? $load->bol_edit_data : json_decode($load->bol_edit_data, true);
+        }
+
         $options = new Options();
-        $options->set('defaultFont', 'Arial'); // Use a common font
-        $options->set('isRemoteEnabled', true); // Enable remote image loading for logo
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('broker.bol_pdf', compact('load'))->render();
+        $html = view('broker.bol_pdf', compact('load', 'bolData'))->render();
         $dompdf->loadHtml($html);
 
         // (Optional) Set paper size and orientation
