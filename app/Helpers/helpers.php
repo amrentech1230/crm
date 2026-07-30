@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Request;
 use App\Models\Log;
+use App\Models\Customer;
 use Symfony\Component\Process\Process;
 
 if (!function_exists('getmacaddress')) {
@@ -67,6 +68,33 @@ if (!function_exists('calculate_customer_credit_summary')) {
 			'used_amount'           => $usedAmount,
 			'remaining_credit'      => $remainingCredit,
 		];
+	}
+}
+
+if (!function_exists('get_customer_available_credit_limit')) {
+	function get_customer_available_credit_limit($customer)
+	{
+		if ($customer === null) {
+			return 0.0;
+		}
+
+		if (is_numeric($customer)) {
+			$customer = Customer::find($customer);
+		}
+
+		$remainingCredit = (float) data_get($customer, 'remaining_credit', 0);
+		$invoiceCreditLimit = (float) data_get($customer, 'invoice_credit_limit', 0);
+		$assignedCreditLimit = (float) data_get($customer, 'adv_customer_credit_limit', 0);
+
+		if ($remainingCredit > 0) {
+			return $remainingCredit;
+		}
+
+		if ($assignedCreditLimit > 0) {
+			return $assignedCreditLimit;
+		}
+
+		return $invoiceCreditLimit;
 	}
 }
 
