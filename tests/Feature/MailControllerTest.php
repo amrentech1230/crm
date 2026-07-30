@@ -4,10 +4,27 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\MailController;
 use Dompdf\Dompdf;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class MailControllerTest extends TestCase
 {
+    public function test_send_uses_the_request_subject_for_invoice_email(): void
+    {
+        $controller = new MailController();
+        $request = new Request([
+            'subject' => 'Invoice subject from modal',
+        ]);
+
+        $reflection = new \ReflectionClass($controller);
+        $method = $reflection->getMethod('resolveEmailSubject');
+        $method->setAccessible(true);
+
+        $subject = $method->invokeArgs($controller, [$request, 'LOAD123', 'INV1', 'REF1']);
+
+        $this->assertSame('Invoice subject from modal', $subject);
+    }
+
     public function test_prepare_attachments_falls_back_to_individual_attachments_when_merge_is_unavailable(): void
     {
         putenv('PATH=' . sys_get_temp_dir());

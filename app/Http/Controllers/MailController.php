@@ -24,6 +24,7 @@ class MailController extends Controller
         $load_no = $request->input('load_no');
         $refrance_no = $request->input('refrance_no');
         $invoice_no = $request->input('invoice_no');
+        $subject = $this->resolveEmailSubject($request, $load_no, $invoice_no, $refrance_no);
         $username = Auth::user()->name;
 		
 		$emailArray = array_filter(array_map('trim', explode(',', $email)));
@@ -33,13 +34,13 @@ class MailController extends Controller
         try {
             [$attachmentPaths, $temporaryFiles] = $this->prepareAttachments($files, $load_no);
 
-            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $attachmentPaths) {
+            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $attachmentPaths, $subject) {
                 $htmlBody = 'Greetings!<br><p>Kindly find the attached invoice for load #'.$load_no.'('.$invoice_no.') Ref #'.$refrance_no.'</p><br><p>Thanks & Regards</p><p>'.$username.'</p><p>Accounts Receivable</p><p>Cargo Convoy Inc</p><p>Mailing Address : 7119, Pennsylvania Ave, Upper Darby, PA - 19082</p><p>Physical Address : Rosemont Business Campus - 9919 Conestoga Road Bldg. 3 Suite 215 Bryn Mawr, PA 19010</p><p>MC - 01512751 | DOT - 4014885</p>';
                 
                 $message->to($emailArray)
                         ->from('ar@cargoconvoy.co', 'Cargoconvoy')
                         ->replyTo('ar@cargoconvoy.co')
-                        ->subject('Invoice For Load #'.$load_no.' (#'.$invoice_no.') REF #'.$refrance_no)
+                        ->subject($subject)
                         ->html($htmlBody); 
 				
 				if (!empty(array_filter($ccArray))) {
@@ -72,6 +73,17 @@ class MailController extends Controller
                 }
             }
         }
+    }
+
+    private function resolveEmailSubject(Request $request, $loadNo, $invoiceNo, $referenceNo): string
+    {
+        $subject = trim((string) $request->input('subject', ''));
+
+        if ($subject === '') {
+            return 'Invoice For Load #' . $loadNo . ' (#' . $invoiceNo . ') REF #' . $referenceNo;
+        }
+
+        return $subject;
     }
 
     /**
