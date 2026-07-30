@@ -549,6 +549,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                     <form method="POST" action="{{ route('load.create') }}" id="myFormLoad"
                         enctype="multipart/form-data">
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-warning d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Add Load</h3>
@@ -569,7 +570,13 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                         <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
-                                            <option value="{{$cust->customer_name}}" data-customer-id="{{$cust->id}}">{{$cust->customer_name}}</option>
+                                            <option value="{{$cust->customer_name}}"
+                                                data-customer-id="{{$cust->id}}"
+                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
+                                                {{$cust->customer_name}}
+                                            </option>
                                             @endforeach
                                         </select>
                                         <input type="hidden" id="customer_id" name="customer_id" value="" >
@@ -1220,10 +1227,10 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
                         </div>
                         <div class="modal-footer">
-                            <input type="submit" class="btn btn-info" value="Save">
-                            <input type="reset" style="font-size:14px !important;" class="btn btn-warning"
+                            <input type="submit" class="btn btn-info keep-enabled" value="Save">
+                            <input type="reset" style="font-size:14px !important;" class="btn btn-warning keep-enabled"
                                 id="clearFormButton" Value="Clear Form">
-                            <input type="button" class="btn btn-danger" data-bs-dismiss="modal" value="Cancel">
+                            <input type="button" class="btn btn-danger keep-enabled" data-bs-dismiss="modal" value="Cancel">
                         </div>
                     </form>
                 </div>
@@ -1346,16 +1353,131 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
   });
 
 
+        function formatCreditAmount(value) {
+            return '₹' + parseFloat(value || 0).toFixed(2);
+        }
+
+        function getSelectedCustomerCreditLimit() {
+            var $select = $('#load_bill_to');
+            if (!$select.length) {
+                return 0;
+            }
+
+            var selectedOption = $select.find('option:selected');
+            var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+            var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
+            var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+
+            if (availableCredit > 0) {
+                return availableCredit;
+            }
+
+            if (remainingCredit > 0) {
+                return remainingCredit;
+            }
+
+            return invoiceCreditLimit;
+        }
+
+        function validateCreditForLoad() {
+            var $form = $('#myFormLoad');
+            var $select = $('#load_bill_to');
+            var $rate = $('#shipper_load_final_rate');
+            var $message = $('#credit-limit-message');
+            var $submitButton = $form.find('input[type="submit"]');
+
+            if (!$form.length || !$select.length || !$rate.length) {
+                return true;
+            }
+
+            if (!$select.val()) {
+                $message.text('').addClass('d-none');
+                $submitButton.prop('disabled', false).removeClass('disabled');
+                $form.data('credit-valid', true);
+                return true;
+            }
+
+            var creditLimit = getSelectedCustomerCreditLimit();
+            var enteredAmount = parseFloat($rate.val()) || 0;
+
+            if (creditLimit <= 0) {
+                $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            if (enteredAmount > creditLimit) {
+                $message.text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+            $submitButton.prop('disabled', false).removeClass('disabled');
+            $form.data('credit-valid', true);
+            return true;
+        }
+
+        function toggleLoadFormByCredit() {
+            var $form = $('#myFormLoad');
+            var $select = $('#load_bill_to');
+            var $message = $('#credit-limit-message');
+
+            if (!$form.length || !$select.length) {
+                return;
+            }
+
+            var creditLimit = getSelectedCustomerCreditLimit();
+            var shouldLock = !!$select.val() && creditLimit <= 0;
+
+            $form.data('credit-locked', shouldLock);
+
+            $form.find(':input')
+                .not($select)
+                .not('[type="hidden"]')
+                .each(function () {
+                    $(this).prop('disabled', shouldLock);
+                });
+
+            $form.find('input[type="submit"], input[type="reset"], input[type="button"], button').prop('disabled', shouldLock);
+
+            if (shouldLock) {
+                $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
+            } else if ($select.val()) {
+                $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+            } else {
+                $message.text('').addClass('d-none');
+            }
+
+            $select.prop('disabled', false);
+        }
+
         $(document).ready(function () {
 			$('#load_bill_to').select2({ width: '100%', dropdownParent: $('body') }); // Initialize Select2
 
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {
                 var selectedOption = $(this).find('option:selected').data('customer-id');
-                $('#customer_id').val(selectedOption);
-                // alert(selectedOption);
+                $('#customer_id').val(selectedOption || '');
 				$('#load_shipper_rate').prop('readonly', false).val(0);
+                toggleLoadFormByCredit();
+                validateCreditForLoad();
 			});
+
+            $('#shipper_load_final_rate').on('input change', function () {
+                validateCreditForLoad();
+            });
+
+            $('#myFormLoad').on('submit', function (e) {
+                if ($(this).data('credit-locked') || !validateCreditForLoad()) {
+                    e.preventDefault();
+                }
+            });
+
+            toggleLoadFormByCredit();
+            validateCreditForLoad();
 		});
         $(document).ready(function () {
 
@@ -1706,37 +1828,7 @@ $(document).ready(function () {
                 total += (loadFscRate / 100) * loadShipperRate;
 
                 $('#shipper_load_final_rate').val(total.toFixed(2));
-
-                var customer_id = $('#customer_id').val();
-                
-                 $.ajax({
-                        url: '{{ route('check.remaing.limit') }}',
-                        method: 'GET',
-                        data: {
-                            customer_id: customer_id,
-                            finalrate: total,
-                            _token: '{{ csrf_token() }}'
-                        },
-                        success: function(response) {
-                          
-                            if (response.success) {
-
-                                 $('#mc-error-message').text(response.message).fadeIn();
-
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
-                                
-                                $('#shipper_load_final_rate').val('0');
-                                $('#totalChargeAmount').val('0');
-                                $('.shipperchargeAmount').val('0'); 
-                            }
-                               
-                        },
-                        
-                    });
-
+                validateCreditForLoad();
             }
 
             $(document).on('input', '[name="shipperchargeAmount[]"], #load_shipper_rate, #load_fsc_rate',
@@ -1765,7 +1857,7 @@ $(document).ready(function () {
             total += (loadFscRate / 100) * loadShipperRate;
 
             $('#shipper_load_final_rate').val(total.toFixed(2));
-            
+            validateCreditForLoad();
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 

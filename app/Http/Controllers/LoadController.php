@@ -15,6 +15,7 @@ use \App\Models\user;
 use \App\Models\Manger;
 use \App\Models\TeamLeader;
 use \App\Models\ItHardware;
+use App\Services\CreditService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,12 @@ use Smalot\PdfParser\Parser;
 
 class LoadController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -724,18 +731,25 @@ if (!empty($term)) {
             $yourModel->load_consignee_contact = json_encode($load_consignee_contact) ?? '';
             $yourModel->load_consigneer_notes = json_encode($load_consignee_notes);
 
-            // $customer_data = Customer::where('id', $request->input('load_bill_to'))->first();
-            $customer_data = Customer::where('id', $request->input('load_bill_to'))
-               ->where('status', 'Approved')
-               ->first();
+            $customerId = $request->input('customer_id', null);
+            $customerName = $request->input('load_bill_to', null);
 
-              if (!$customer_data) {
-              return redirect()->back()->with('error', 'Selected customer is not approved. Please select a valid approved customer.');
+            $customer_data = null;
+            if (!empty($customerId)) {
+                $customer_data = Customer::where('id', $customerId)->where('status', 'Approved')->first();
+            }
+
+            if (!$customer_data && !empty($customerName)) {
+                $customer_data = Customer::where('customer_name', $customerName)->where('status', 'Approved')->first();
+            }
+
+            if (!$customer_data) {
+                return redirect()->back()->with('error', 'Selected customer is not approved or not found.');
             }
 
             $yourModel->user_id = Auth::id();
-            $yourModel->load_bill_to = $request->input('load_bill_to', null);
-            $yourModel->customer_id = $request->input('customer_id', null);
+            $yourModel->load_bill_to = $customer_data->customer_name ?? $request->input('load_bill_to', null);
+            $yourModel->customer_id = $customer_data->id;
             $yourModel->load_dispatcher = Auth::user()->name;
             $yourModel->load_status = $request->input('load_status') ?? '';
             $yourModel->load_workorder = $request->input('load_workorder') ?? '';
@@ -821,23 +835,14 @@ if (!empty($term)) {
 
             $yourModel->shipper_load_other_charge = json_encode($shipperCharges);
             
-            // ✅ VALIDATION: Check if total load creation amount would exceed assigned credit limit
+            // ✅ VALIDATION: Check if the requested load amount exceeds the customer's available credit limit
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
-                $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
                 $loadAmount = (float) $finalRate;
-                
-                // Calculate total load creation amount for this customer
-                $totalLoadCreationAmount = (float) Load::where('customer_id', $yourModel->customer_id)
-                    ->where('load_status', '!=', 'Cancelled')
-                    ->sum('shipper_load_final_rate');
-                
-                $newTotalLoadAmount = $totalLoadCreationAmount + $loadAmount;
-                
-                // Check if total load creation would exceed assigned credit limit
-                if ($newTotalLoadAmount > $assignedCreditLimit) {
-                    $availableCredit = $assignedCreditLimit - $totalLoadCreationAmount;
-                    return back()->with('error', "Cannot create load. Assigned credit limit is ₹{$assignedCreditLimit}. Total load creation so far: ₹{$totalLoadCreationAmount}. Available credit: ₹{$availableCredit}. Load amount requested: ₹{$loadAmount}.");
+                $creditCheck = $this->creditService->validateCreditForLoad($customer, $loadAmount);
+
+                if (!$creditCheck['allowed']) {
+                    return back()->with('error', $creditCheck['message']);
                 }
             }
             
@@ -852,9 +857,7 @@ if (!empty($term)) {
 
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
-                $customer->remaining_credit -= $yourModel->shipper_load_final_rate;
-                $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit (actual remaining amount)
-                $customer->save();
+                $this->creditService->reserveCreditForLoad($customer, (float) $yourModel->shipper_load_final_rate);
             }
 
 
@@ -1541,7 +1544,7 @@ for ($i = 1; $i <= 15; $i++) {
         $field = $request->input('field'); // 'carrier_name', 'mcNumber', 'dotNumber'
         $inputValue = $request->input('inputValue'); 
 
-    $query = External::query()
+        $query = External::query()
         ->where('mc_check', 'Approved')
         ->where(function($q) {
             $q->where('carrier_block', 'Unblocked')
@@ -1560,8 +1563,8 @@ for ($i = 1; $i <= 15; $i++) {
         }
 
         $carriers = $query->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber')
-                        ->limit(10)
-                        ->get();
+        ->limit(10)
+        ->get();
         
         return response()->json($carriers);
     }
@@ -1573,9 +1576,9 @@ for ($i = 1; $i <= 15; $i++) {
     
         // Fetch the carrier based on the ID and ensure it's approved
         $carrier = External::where('id', $carrierId)
-                            ->where('mc_check', 'Approved') // Ensure it's an approved carrier
-                            ->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber', 'carrier_telephone as phone')
-                            ->first();
+        ->where('mc_check', 'Approved') // Ensure it's an approved carrier
+        ->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber', 'carrier_telephone as phone')
+        ->first();
     
         // Return the carrier details as a JSON response
         return response()->json($carrier);
@@ -1591,9 +1594,9 @@ for ($i = 1; $i <= 15; $i++) {
         
         // Fetch the shipper details based on 'id' and 'user_id'
         $shipper = Shipper::select('id', 'shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
-                          ->where('id', $id)
-                          ->where('user_id', $user)
-                          ->first();
+        ->where('id', $id)
+        ->where('user_id', $user)
+        ->first();
         
         // Check if the shipper was found
         if ($shipper) {
@@ -1626,9 +1629,9 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
 
         $query = $request->input('query');
         $consignees = Consignee::where('consignee_name', 'like', '%' . $query . '%')
-                                ->where('user_id', $userId)
-                                ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
-                                ->get();
+        ->where('user_id', $userId)
+        ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
+        ->get();
         return response()->json($consignees);
     }
     
@@ -1639,7 +1642,7 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
         $final_rate = $request->input('finalrate');
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
+        $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
         if($final_rate > $remaining_limit){
             return response()->json([
                 'success' => true,
@@ -1659,7 +1662,7 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
         $final_rate = $request->input('finalrate');
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
+        $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
         if($final_rate > $remaining_limit){
             return response()->json([
                 'success' => true,
@@ -1767,8 +1770,8 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
     /**
      * Store a newly created resource in storage.
      */
-public function raiseTickets()
-{
+    public function raiseTickets()
+    {
     $userId = Auth::id();
 
     $tickets_open = ItHardware::where('user_id', $userId)
