@@ -195,7 +195,7 @@
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
                                  <label>Approved Credit Limits (OTR)</label>
-                                 <input class="form-control" type="number" value="{{ $customer->approved_limit }}" name="approved_limit" style="width: 100%;height:30px !important;padding: 0px 0 0 10px;">
+                                 <input class="form-control" type="number" value="{{ $customer->approved_limit }}" name="approved_limit" style="width: 100%;height:30px !important;padding: 0px 0 0 10px;" readonly>
                                    
                                 </div>
                            </div>
@@ -279,7 +279,7 @@
                               <div class="form-group">
                                  <label for="invoice_credit_limit">Assigned Invoice Credit Limit</label>
 								  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#invoice-credit-limit"></i>
-                                 <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}">
+                                 <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}" readonly>
                               </div>
                            </div>
                             @php
