@@ -567,7 +567,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to">
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
                                             <option value="{{$cust->customer_name}}"
@@ -681,7 +681,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                         <label>Equipment Type
                                             <code>*</code></label>
                                         <select class="form-control mySelect2" name="load_equipment_type"
-                                            id="load_equipment_type" style="width: 100%;" required>
+                                            id="load_equipment_type" style="width: 100%;" required data-placeholder="Select Equipment">
 
                                             <option value="">Select Equipment </option>
                                             @foreach($equipmentType as $equipment)
@@ -1455,8 +1455,6 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         }
 
         $(document).ready(function () {
-			$('#load_bill_to').select2({ width: '100%', dropdownParent: $('body') }); // Initialize Select2
-
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {
                 var selectedOption = $(this).find('option:selected').data('customer-id');
@@ -1803,13 +1801,6 @@ $(document).ready(function () {
 </script>
 <script>
 
-    $(document).ready(function () {
-        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-            e.preventDefault();
-        });
-    });
-
-
         $(document).ready(function () {
             function updateTotalshipper() {
                 var total = 0;
@@ -1955,46 +1946,6 @@ $(document).ready(function () {
         });
 </script>
 <script>
-    const inputFields = ['load_bill_to', 'load_carrier', 'carrier_mc_ff_input', 'carrier_dot'];
-
-    // Loop through each ID and disable copy, paste, and cut
-    inputFields.forEach(function(id) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('paste', function(event) {
-                event.preventDefault(); // Prevent paste action
-                //alert('Paste is not allowed'); // Display an error message
-				$('#mc-error-message').text('Paste is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('copy', function(event) {
-                event.preventDefault(); // Prevent copy action
-                //alert('Copy is not allowed'); // Display an error message
-				$('#mc-error-message').text('Copy is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('cut', function(event) {
-                event.preventDefault(); // Prevent cut action
-                //alert('Cut is not allowed'); // Display an error message
-				$('#mc-error-message').text('Cut is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-        }
-    });
 	
 	
 	$(document).ready(function () {
