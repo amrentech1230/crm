@@ -52,14 +52,17 @@
 		.select2-container--default .select2-selection--single .select2-selection__arrow {
 			height: 100% !important;
 			right: 6px !important;
+			width: 32px !important;
+			background: #f6f7fb !important;
+			border-left: 1px solid #d8dbe2 !important;
 		}
 		.select2-container--default .select2-selection--single .select2-selection__arrow b {
-			border-color: #555 transparent transparent transparent !important;
+			border-color: #2f3a4a transparent transparent transparent !important;
 			border-width: 6px 5px 0 5px !important;
 			margin-top: -3px !important;
 		}
 		.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
-			border-color: transparent transparent #555 transparent !important;
+			border-color: transparent transparent #2f3a4a transparent !important;
 			border-width: 0 5px 6px 5px !important;
 		}
 		.select2-container--default .select2-selection--single {
@@ -192,6 +195,17 @@ table.dataTable tbody > tr.selected td p {
     position: relative !important;
     width: 100% !important;
 }
+select.form-control {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #666 50%), linear-gradient(135deg, #666 50%, transparent 50%);
+    background-position: calc(100% - 16px) calc(50% - 3px), calc(100% - 10px) calc(50% - 3px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+}
+
 .form-control {
     border: 0.2px solid #00000024 !important;
 }
@@ -361,6 +375,22 @@ table.dataTable tbody > tr.selected td p {
         <script> 
 		
 			$(document).ready(function () {
+				function select2TextMatcher(params, data) {
+					if ($.trim(params.term) === '') {
+						return data;
+					}
+
+					if (data && data.text) {
+						var text = data.text.toLowerCase();
+						var term = params.term.toLowerCase();
+						if (text.indexOf(term) > -1) {
+							return data;
+						}
+					}
+
+					return null;
+				}
+
 				// Initialize ALL selects with dropdownParent body so they always open downward
 				$('select').not('.no-select2').each(function () {
 					var $select = $(this);
@@ -369,7 +399,10 @@ table.dataTable tbody > tr.selected td p {
 					}
 					$select.select2({
 						dropdownParent: $('body'),
-						width: '100%'
+						width: '100%',
+						allowClear: true,
+						placeholder: $select.data('placeholder') || 'Select an option',
+						matcher: select2TextMatcher
 					});
 				});
 
