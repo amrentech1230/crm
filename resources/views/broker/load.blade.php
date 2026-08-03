@@ -1354,7 +1354,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
 
         function formatCreditAmount(value) {
-            return '₹' + parseFloat(value || 0).toFixed(2);
+            return '$' + parseFloat(value || 0).toFixed(2);
         }
 
         function getSelectedCustomerCreditLimit() {

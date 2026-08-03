@@ -2058,7 +2058,7 @@ public function all_search(Request $request)
 
             if ($newTotalLoadAmount > $assignedCreditLimit) {
                 $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
-                return back()->with('error', "Cannot update load. Assigned credit limit is ₹{$assignedCreditLimit}. Load amount already counted: ₹{$eligibleLoadAmount}. Available credit: ₹{$availableCredit}. New load amount: ₹{$newFinalRate}.");
+                return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
             }
         }
    
