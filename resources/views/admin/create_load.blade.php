@@ -748,7 +748,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     function formatCreditAmount(value) {
-        return '₹' + parseFloat(value || 0).toFixed(2);
+        return '$' + parseFloat(value || 0).toFixed(2);
     }
 
     function getSelectedCustomerCreditLimit() {
