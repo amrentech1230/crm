@@ -188,6 +188,57 @@ class CreditService
         });
     }
 
+    /**
+     * Validate and apply credit delta for a load edit.
+     * Wraps the check + update in a transaction with row locking.
+     *
+     * @param mixed $customer Customer model or ID
+     * @param float $creditDelta Positive means credit is being freed; negative means more credit is being used.
+     * @return array ['allowed' => bool, 'message' => string]
+     */
+    public function applyEditCreditDelta($customer, float $creditDelta): array
+    {
+        return DB::transaction(function () use ($customer, $creditDelta) {
+            $customer = $this->resolveCustomer($customer);
+
+            if (!$customer) {
+                return [
+                    'allowed' => false,
+                    'message' => 'Customer not found.',
+                ];
+            }
+
+            $customer = Customer::whereKey($customer->id)->lockForUpdate()->first();
+
+            if (!$customer) {
+                return [
+                    'allowed' => false,
+                    'message' => 'Customer not found.',
+                ];
+            }
+
+            $currentRemaining = (float) ($customer->remaining_credit ?? 0);
+            $newRemaining = round($currentRemaining + $creditDelta, 2);
+
+            if ($newRemaining < 0) {
+                return [
+                    'allowed' => false,
+                    'message' => "Insufficient credit. Available: {$currentRemaining}. Additional needed: " . abs($creditDelta) . ".",
+                ];
+            }
+
+            $customer->remaining_credit = $newRemaining;
+            $customer->remaining_credit_amount = $newRemaining;
+            $customer->save();
+
+            return [
+                'allowed' => true,
+                'message' => '',
+                'remaining_credit' => $newRemaining,
+            ];
+        });
+    }
+
     protected function resolveCustomer($customer): ?Customer
     {
         if ($customer instanceof Customer) {

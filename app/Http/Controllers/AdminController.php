@@ -2030,6 +2030,7 @@ public function all_search(Request $request)
 
     public function loadUpdate(Request $request, $id)
     {
+    return DB::transaction(function () use ($request, $id) {
 
         $load = Load::findOrFail($id);
 
@@ -2621,7 +2622,7 @@ public function all_search(Request $request)
         // Calculate the difference between old and new rates
         $rateDifference = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
 
-        $customer = Customer::find($customerId);
+        $customer = Customer::where('id', $customerId)->lockForUpdate()->first();
 
         if ($customer) {
             $loadCreationAmount = (float) Load::where('customer_id', $customer->id)
@@ -2661,6 +2662,7 @@ public function all_search(Request $request)
 
         return back()->with('success', 'Load updated successfully');
         
+    }); // end DB::transaction
     }
 	
 	
