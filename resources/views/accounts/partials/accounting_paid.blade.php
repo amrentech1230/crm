@@ -31,10 +31,14 @@
                     @endif
                 </td>
                 <td class="dynamic-data">
+                    @php
+                        $arAgingClose = strtolower(trim((string)($record->ar_aging_close ?? '')));
+                    @endphp
                     <select class="form-control ar-aging-close" data-id="{{ $record->id }}">
                         <option value="">Select</option>
-                        <option value="Bank Charges Adjusted" {{ $record->ar_aging_close == 'Bank Charges Adjusted' ? 'selected' : '' }}>Bank Charges Adjusted </option>
-                        <option value="Short Pay Adjusted Internally " {{ $record->ar_aging_close == 'Short Pay Adjusted Internally' ? 'selected' : '' }}>Short Pay Adjusted Internally </option>
+                        <option value="Bank Charges Adjusted" {{ $record === strtolower(trim('Bank Charges Adjusted')) ? 'selected' : '' }}>Bank Charges Adjusted </option>
+                        <option value="Short Pay deducted from Carrier" {{ $record === strtolower(trim('Short Pay deducted from Carrier')) ? 'selected' : '' }}>Short Pay deducted from Carrier </option>
+                        <option value="Short pay deducted from Broker" {{ $record === strtolower(trim('Short pay deducted from Broker')) ? 'selected' : '' }}>Short pay deducted from Broker</option>
                     </select>
                 </td>
                         <td class="dynamic-data">{{ $record->load_workorder }}</td>
