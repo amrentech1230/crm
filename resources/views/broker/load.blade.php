@@ -2324,14 +2324,14 @@ $(document).ready(function () {
 								order: [[0, 'desc']],
                                 pageLength: 50,
                                 stateSave: true,   // ✅ remembers column visibility, page, search, etc.
-        buttons: [
-            {
-                extend: 'colvis',
-                text: 'Select Columns'
-            }
-        ]
+                                buttons: [
+                                    {
+                                        extend: 'colvis',
+                                        text: 'Select Columns'
+                                    }
+                                ]
                             });
-
+                            
                             $('.loader-container').addClass('hide');
                         },
                         error: function (xhr) {

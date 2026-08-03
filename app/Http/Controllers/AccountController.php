@@ -6736,8 +6736,48 @@ $tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_pai
 			}
 				
 		}
-         return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
+         return view('accounts.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
 
 }
+
+public function all_search(Request $request)
+    {
+        $q = $request->input('query');
+        if (!empty($q)) {
+            // Split the query by commas to get multiple terms
+            $searchTerms = array_filter(explode(',', $q), function($term) {
+                return !empty(trim($term)); // Only keep non-empty terms
+            });
+
+            if (count($searchTerms) > 0) {
+                // Search for non-empty terms with 'orWhere'
+                $broker_status = Load::with(['user'])
+                    ->where(function($query) use ($searchTerms) {
+                        foreach ($searchTerms as $term) {
+                            $query->orWhere('load_number', 'like', "%$term%");
+                            $query->orwhere('load_workorder', 'like', "%$term%");
+                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
+                            $query->orwhere('load_bill_to', 'like', "%$term%");
+                            $query->orwhere('load_dispatcher', 'like', "%$term%");
+                            $query->orwhere('invoice_number', 'like', "%$term%");
+                            $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
+                            $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
+                            $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
+                        }
+                    })
+                    ->orderBy('id', 'desc')
+                    ->paginate(100);
+            } else {
+                // If no valid terms, return an empty collection or handle accordingly
+                $broker_status = collect();
+            }
+        } else {
+            // If query is empty, return a paginated result without any filter
+            $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
+        }
+        
+        return view('admin.home.all_load', compact('broker_status'))->render();
+    
+    }
 
 }

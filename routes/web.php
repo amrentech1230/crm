@@ -319,7 +319,7 @@ Route::post('account/load/update-remaining-amount', [AccountController::class, '
         Route::delete('account/factoring/delete/{id}', [AccountController::class, 'factoring_delete'])->name('factoring.delete');
         Route::post('account/assign-customer', [AccountController::class, 'assignCustomer'])->name('assign.customer');
         route::get('account/all-status-loads', [AccountController::class, 'all_load_status_ar'])->name('all.status.loads');
-        
+        Route::get('account/all_search', [AccountController::class, 'all_search'])->name('all_search');
         /*---------- Broker ----------*/
 
     Route::get('broker/home', function () {
