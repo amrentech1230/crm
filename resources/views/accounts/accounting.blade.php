@@ -196,29 +196,9 @@ table.dataTable tbody > tr.selected td p {
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                     <thead>
                                         <tr>
-                                            <th>Sr No.</th>
-                                             <th>Actions</th>
+                                            
                                             <th>Load #</th>
-                                            <th>Customer Name</th>
-                                            <th>Customer Final Rate</th>
-                                            <th>Internal Team Notes</th>
-                                            <th>Paper Work Date</th>
-                                            <th>Agent</th>
-                                             <th>W/O #</th>
-                                            <th>Load Creation Date</th>
-                                            <th>Shipper Date</th>
-                                            <th>Delivered Date</th>
-                                            <th>Actual Delivered Date</th>
-                                            <th>Carrier</th>
-											<th>Carrier MC no</th>
-                                            <th>Carrier Base Rate</th>
-                                            <th>Carrier FSC Rate</th>
-                                            <th>Carrier Other Rate</th>
-                                            <th>Carrier Final Charges</th>
-                                            <th>Pickup Location</th>
-                                            <th>unloading Location</th>
-                                            <th>Load Status</th>
-                                            <th>Aging</th>
+                                           
                                         </tr>
                                     </thead>
 
@@ -413,7 +393,12 @@ table.dataTable tbody > tr.selected td p {
         if (activeTab === '#open') {
             resultContainer = '#open-search';
             tableSelector = '#datatable-buttons-open';
-        }  else if (activeTab === '#completed') {
+
+        } else if (activeTab === '#delivered') {
+            resultContainer = '#delivered-search';
+            tableSelector = '#datatable-buttons-delivered';
+
+        } else if (activeTab === '#completed') {
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
@@ -483,14 +468,14 @@ $(document).ready(function () {
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
-            }else if (target === '#delivered') {
+        }   else if (target === '#delivered') {
             $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'delivered');
             inputSelector = '#delivered input[name="query"]';
             ajaxUrl = '/account/accounting_delivered_search';
             resultContainer = '#delivered-search';
             tableSelector = '#datatable-buttons-delivered';
 
-            } else if (target === '#invoiced') {
+        } else if (target === '#invoiced') {
             $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'invoiceds');
             inputSelector = '#invoiceds input[name="query"]';
             ajaxUrl = '/account/accounting_invoiced_search';
@@ -533,7 +518,6 @@ $(document).ready(function () {
                         }
 
                         $(resultContainer).html(response);
-
                         $(tableSelector).DataTable({
                             responsive: true,
                             dom: 'Bfrtip',
@@ -782,41 +766,5 @@ $('input[name="loadquery"]').on('keyup', function () {
 });
 
 </script>
-<!-- <script>
-document.addEventListener("DOMContentLoaded", function () {
-    let invoicedTable = $('#datatable-buttons-invoiced').DataTable({
-        responsive: true,
-        dom: 'Bfrtip',
-        buttons: ['copy', 'excel', 'pdf', 'colvis'],
-        pageLength: 100,
-    });
 
-    const form = document.getElementById("loadSearchForm");
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        let formData = new FormData(form);
-
-        fetch("{{ route('loads.search.invoice') }}", {
-            method: "POST",
-            headers: {
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            body: formData
-        })
-        .then(response => response.text())
-        .then(html => {
-            // Clear DataTable and replace rows
-            invoicedTable.clear();
-
-            // Convert response to rows
-            let tempDom = $('<tbody>').html(html);
-            invoicedTable.rows.add(tempDom.find('tr')).draw();
-        })
-        .catch(err => console.error(err));
-    });
-});
-
-</script> -->
 @endsection
