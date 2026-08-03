@@ -4,7 +4,12 @@
 <style>
 /* Light switch
    ========================================================================== */
-
+.table tbody td span, .table tbody td a, .table tbody td p {
+    padding: unset !important;
+    font-size: 12px !important;
+    line-height: 1.8;
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+}
 .switch {
     display: inline-block;
     margin-bottom: .5rem;

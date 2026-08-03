@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Customer;
+use App\Models\Manger;
 use App\Models\Consignee;
 use App\Models\Shipper;
 use App\Models\External;
@@ -13,6 +14,7 @@ use App\Models\Load;
 use App\Models\User;
 use App\Models\Office;
 use App\Models\Factoring;
+use App\Models\TeamLeader;
 use App\Models\CarrierVerification;
 use App\Models\CustomerApprovalForm;
 use App\Models\Cmt;
@@ -30,6 +32,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Pagination\Paginator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+
 
 class AccountController extends Controller
 {
@@ -117,7 +121,7 @@ class AccountController extends Controller
 							->setPageName('invoiced');
 						
 						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
-					}else if($request->input('target') == '#invoiced_paid'){
+					}elseif($request->input('target') == '#invoiced_paid'){
 						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
@@ -145,7 +149,7 @@ class AccountController extends Controller
 
     public function accounting(Request $request)
     {
-        $tabs = ['open', 'complete', 'invoiced', 'paid'];
+        $tabs = ['open','delivered', 'complete', 'invoiced', 'paid'];
 
         foreach ($tabs as $tab) {
             if ($request->has($tab)) {
@@ -189,6 +193,17 @@ class AccountController extends Controller
 
         $complete = $completeQuery->paginate(50)->setPageName('complete');
 
+        // Delivered tab query
+        $deliveredQuery = Load::where('load_status', 'Delivered')
+            ->with(['user', 'customer', 'carrier', 'user.officedata'])
+            ->orderBy("loads.id", "desc");
+
+        if (!empty($numbersArray)) {
+            $deliveredQuery->whereIn('load_number', $numbersArray);
+        }
+
+        $delivered = $deliveredQuery->paginate(50)->setPageName('delivered');
+
         // Invoiced tab query
         $invoicedQuery = Load::where('invoice_status', 'Paid')
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
@@ -220,17 +235,19 @@ class AccountController extends Controller
         // Handle AJAX tab switching
         if ($request->ajax()) {
             if ($request->input('tab') == '#open') {
-                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid'))->render();
+                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid', 'delivered'))->render();
             } else if ($request->input('tab') == '#completed') {
                 return view('accounts.partials.accounting_complete', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced') {
                 return view('accounts.partials.accounting_invoiced', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced_paid') {
                 return view('accounts.partials.accounting_paid', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            }
+            } else if ($request->input('tab') == '#delivered') {
+                return view('accounts.partials.accounting_delivered', compact('open', 'complete', 'invoiced', 'paid'))->render();
+        }
         }
 
-        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid'));
+        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid', 'delivered'));
     }
 
 	
@@ -3834,8 +3851,8 @@ public function deleteCarrierFile(Request $request)
     
         } elseif ($id == 'Cpr') {
             $data = Load::with('user')->orderByRaw('CAST(load_number AS UNSIGNED) DESC')->get();
-            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note'];
-            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', ''];
+            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note', 'MC Number'];
+            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', '', 'load_mc_no'];
          
         } else {
             return response()->json(['message' => 'Invalid data type.'], 400);
@@ -6587,4 +6604,377 @@ public function customerApprovalupdateStatus(Request $request)
         // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
+
+    public function uploadCarrierDocuments(Request $request)
+{
+    $request->validate([
+        'carrier_id'    => 'required|integer',
+        'doc_upload.*'  => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx,xlsx,xls|max:20480',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    // Upload new files
+    if ($request->hasFile('doc_upload')) {
+
+        foreach ($request->file('doc_upload') as $file) {
+
+            $originalName = $file->getClientOriginalName();
+
+            $fileName = time().'_'.uniqid().'_'.preg_replace('/\s+/', '_', $originalName);
+
+            $destination = public_path('carrier_doc');
+
+            if (!File::exists($destination)) {
+                File::makeDirectory($destination, 0755, true);
+            }
+
+            $file->move($destination, $fileName);
+
+            $documents[] = [
+                'original_name' => $originalName,
+                'file_name'     => $fileName,
+                'file_path'     => 'carrier_doc/'.$fileName,
+            ];
+        }
+    }
+
+    // Save JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                      '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'html'    => $html,
+        'message' => 'Documents uploaded successfully.'
+    ]);
+}
+
+public function deleteCarrierDocument(Request $request)
+{
+    $request->validate([
+        'carrier_id' => 'required|integer',
+        'doc_index'  => 'required|integer',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Get existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    $docIndex = $request->doc_index;
+
+    if (!isset($documents[$docIndex])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Document not found.'
+        ]);
+    }
+
+    // Delete physical file
+    $filePath = public_path($documents[$docIndex]['file_path']);
+
+    if (file_exists($filePath)) {
+        @unlink($filePath);
+    }
+
+    // Remove from array
+    unset($documents[$docIndex]);
+
+    // Re-index array
+    $documents = array_values($documents);
+
+    // Save updated JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build updated HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                    '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Document deleted successfully.',
+        'html'    => $html
+    ]);
+}
+
+public function exportCreditLimitLog()
+{
+    $customers = Customer::select('customer_name', 'remaining_credit_logs')->get();
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Headers
+    $sheet->setCellValue('A1', 'Customer Name');
+    $sheet->setCellValue('B1', 'Remaining Credit Logs');
+
+    // Header Style
+    $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+
+    $row = 2;
+
+    foreach ($customers as $customer) {
+
+        $sheet->setCellValue('A' . $row, $customer->customer_name);
+
+        $logs = json_decode($customer->remaining_credit_logs, true);
+
+        $logText = '';
+
+        if (!empty($logs) && is_array($logs)) {
+
+            foreach ($logs as $index => $log) {
+
+                $amount = (float)($log['credit_limit'] ?? 0);
+
+                // Currency format
+                $creditLimit = $amount < 0
+                    ? '-$' . number_format(abs($amount), 2)
+                    : '$' . number_format($amount, 2);
+
+                // Date format
+                $creditTime = !empty($log['credit_time'])
+                    ? date('M d Y', strtotime($log['credit_time']))
+                    : '';
+
+                $logText .= ($index + 1) . ". Credit Limit: {$creditLimit} | {$creditTime}" . PHP_EOL;
+            }
+
+        } else {
+
+            $logText = 'No Logs';
+
+        }
+
+        $sheet->setCellValue('B' . $row, trim($logText));
+
+        // Wrap text
+        $sheet->getStyle('B' . $row)
+              ->getAlignment()
+              ->setWrapText(true);
+
+        // Top align
+        $sheet->getStyle('A' . $row . ':B' . $row)
+              ->getAlignment()
+              ->setVertical(Alignment::VERTICAL_TOP);
+
+        $row++;
+    }
+
+    // Auto-size columns
+    foreach (range('A', 'B') as $column) {
+        $sheet->getColumnDimension($column)->setAutoSize(true);
+    }
+
+    // Freeze header
+    $sheet->freezePane('A2');
+
+    $filename = 'Remaining_Credit_Logs_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+    // Download
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
+}
+
+public function all_load_status_ar(Request $request){
+$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
+
+		foreach ($tabs as $tab) {
+			if ($request->has($tab)) {
+				Paginator::currentPageResolver(function () use ($request, $tab) {
+					return $request->input($tab);
+				});
+				break; // Stop after finding the matching tab
+			}
+		}
+        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50)->setPageName('all_load'); 
+        $allagent = User::pluck('name');
+        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50)->setPageName('open'); 
+        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50)->setPageName('delivered'); 
+        $complete = Load::where('load_status', 'Completed')
+                    ->where(function ($query) {
+                        $query->where('invoice_status', '')
+                            ->orWhereNull('invoice_status');
+                    })
+                    ->with(['user', 'customer', 'carrier'])
+                    ->orderBy("loads.id", "desc")
+                    ->paginate(50)->setPageName('completed');
+        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced'); 
+        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced_paid'); 
+        $manager = Manger::get();
+        $teamlead = TeamLeader::get();
+        $office = Office::get();
+		$agent = User::where('role_id', 21)->get();
+		
+		if ($request->ajax()) {
+			
+			if($request->input('tab') == '#all_load'){
+				return view('admin.home.all_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#open'){
+				return view('admin.home.open_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#delivered'){
+				return view('admin.home.delivered', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#completed'){
+				return view('admin.home.completed', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced'){
+				return view('admin.home.invoiced', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced_paid'){
+				return view('admin.home.invoiced_paid', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}
+				
+		}
+         return view('accounts.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
+
+}
+
+public function all_search(Request $request)
+    {
+        $q = $request->input('query');
+        if (!empty($q)) {
+            // Split the query by commas to get multiple terms
+            $searchTerms = array_filter(explode(',', $q), function($term) {
+                return !empty(trim($term)); // Only keep non-empty terms
+            });
+
+            if (count($searchTerms) > 0) {
+                // Search for non-empty terms with 'orWhere'
+                $broker_status = Load::with(['user'])
+                    ->where(function($query) use ($searchTerms) {
+                        foreach ($searchTerms as $term) {
+                            $query->orWhere('load_number', 'like', "%$term%");
+                            $query->orwhere('load_workorder', 'like', "%$term%");
+                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
+                            $query->orwhere('load_bill_to', 'like', "%$term%");
+                            $query->orwhere('load_dispatcher', 'like', "%$term%");
+                            $query->orwhere('invoice_number', 'like', "%$term%");
+                            $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
+                            $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
+                            $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
+                        }
+                    })
+                    ->orderBy('id', 'desc')
+                    ->paginate(100);
+            } else {
+                // If no valid terms, return an empty collection or handle accordingly
+                $broker_status = collect();
+            }
+        } else {
+            // If query is empty, return a paginated result without any filter
+            $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
+        }
+        
+        return view('admin.home.all_load', compact('broker_status'))->render();
+    
+    }
+
 }

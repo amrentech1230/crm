@@ -112,7 +112,7 @@
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="form-group mb-3">
-                                        <label>Customer Name <code>*</code></label>
+                                        <label>Company Name <code>*</code></label>
                                         <input class="form-control select2" type="text" required="" name="customer_name" id="customer_name" />
                                     </div>
                                 </div>

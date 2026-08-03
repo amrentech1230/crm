@@ -151,7 +151,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Status</label>
-                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status }}" value="{{ $post->load_status }}"
+                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status ?? '' }}"
                                             readonly style="width: 100%;">
                                     </div>
                                 </div>
@@ -199,7 +199,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control" required name="load_type" style="width: 100%;">
+                                        <select class="form-control" required name="load_type" id="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -237,6 +237,7 @@ select.form-control {
                             </div>
                         </div>
 
+                        <!-- Customer section -->
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 16px; text-align: left; font-weight: 700; margin-left: 0; font-family: 'Poppins';">
@@ -366,7 +367,7 @@ select.form-control {
 
 
                                                         <!-- Container for new rows -->
-                                                        <div id="chargeRowsContainer"></div>
+                                                        <div id="chargeRowsContainer" data-row-index="{{ count($shipperCharges) }}"></div>
                                                     </div>
                                                 </div>
                                                 <div class="text-center mb-2 mt-2">
@@ -1310,10 +1311,6 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Ship Date</th>
-                                        @php
-                                            $shipper_appointment =
-                                            json_decode($post->load_shipper_appointment,true);
-                                        @endphp
                                     <td>
                                         <input name="ship_date" class="editable-field border-0 w-100"
                                             value="{{ $bolSaved['ship_date'] ?? (isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '') }}"
@@ -1323,10 +1320,18 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Delivery Date</th>
-                                    <td>
                                     @php
-                                            $consignee_appointment =
-                                            json_decode($post->load_consignee_appointment,true);
+                                        $consignee_appointment = json_decode($post->load_consignee_appointment,true);
+                                        $deliveryDateFormatted = '-';
+                                        if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
+                                            try {
+                                                $deliveryDateFormatted = \Carbon\Carbon::parse(
+                                                    $consignee_appointment[0]['appointment']
+                                                )->format('m-d-Y');
+                                            } catch (\Exception $e) {
+                                                $deliveryDateFormatted = '-';
+                                            }
+                                        }
                                     @endphp
 @php
 $formattedDate = '-';
@@ -1608,7 +1613,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         </td>
 
         <!-- Right Side -->
-        <td style="width:30%; padding:0;">
+        <td style="width:30%; padding:0; vertical-align:top;">
 
             <table class="table table-bordered mb-0 h-100">
 
@@ -1782,8 +1787,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 </tr>
 
 </table>
-
-
                 </div>
 
             </div>
@@ -1806,6 +1809,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
 </script>
 
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <script>
 
 function initChargeRowValidation() {
@@ -2116,7 +2120,7 @@ $(document).ready(function () {
                 var finalrate = final_total_rate - checkedtotal;
                 
                  $.ajax({
-                        url: '{{ route('edit.check.remaing.limit') }}',
+                        url: "{{ route('edit.check.remaing.limit') }}",
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
@@ -2155,7 +2159,7 @@ $(document).ready(function () {
     </script>
 
 <script>
-let rowIndex = {{ count($shipperCharges) }}; // Start index after existing rows
+let rowIndex = parseInt($('#chargeRowsContainer').data('row-index') || 0, 10); // Start index after existing rows
 
 $(document).ready(function () {
     $('#addChargeBtn').click(function () {
@@ -2219,6 +2223,7 @@ $(document).ready(function () {
 
 $(document).ready(function () {
     const $loadType = $('#load_type_two');
+    const $shippmentloadType = $('#load_type');
 
     function RestrictionOTR() {
        
@@ -2230,25 +2235,55 @@ $(document).ready(function () {
         }
     }
 
+    // function RestrictionOTRonload() {
+    //     const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+
+    //     if ($loadType.val() === "OTR") {
+    //         $('#load_shipper_rate').removeAttr('readonly');
+    //         $('#load_fsc_rate').removeAttr('readonly');
+    //         $('#load_carrier_fee').removeAttr('readonly');
+    //         $('#load_billing_fsc_rate').removeAttr('readonly');
+    //     } else if ($loadType.val() === "DRAYAGE") {
+    //         if (shipperRate > 0) {
+    //             $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+
+	// 			$('#load_shipper_rate').attr('readonly', true);
+	// 			$('#load_fsc_rate').attr('readonly', true);
+	// 			$('#load_carrier_fee').attr('readonly', true);
+	// 			$('#load_billing_fsc_rate').attr('readonly', true);
+    //         }
+    //     }
+    // }
+
     function RestrictionOTRonload() {
-        const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const loadTypeVal = $loadType.val();
+    const shippmentloadTypeVal = $shippmentloadType.val();
 
-        if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
-        } else if ($loadType.val() === "DRAYAGE") {
-            if (shipperRate > 0) {
-                $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+    if (loadTypeVal === "OTR") {
+        $('#load_shipper_rate').removeAttr('readonly');
+        $('#load_fsc_rate').removeAttr('readonly');
+        $('#load_carrier_fee').removeAttr('readonly');
+        $('#load_billing_fsc_rate').removeAttr('readonly');
 
-				$('#load_shipper_rate').attr('readonly', true);
-				$('#load_fsc_rate').attr('readonly', true);
-				$('#load_carrier_fee').attr('readonly', true);
-				$('#load_billing_fsc_rate').attr('readonly', true);
-            }
+    } else if (shippmentloadTypeVal === "TONU") {
+        // Allow editing shipper rate for TONU
+        $('#load_shipper_rate').removeAttr('readonly');
+
+    } else if (loadTypeVal === "DRAYAGE") {
+        if (shipperRate > 0) {
+            $loadType
+                .attr('readonly', true)
+                .css('pointer-events', 'none')
+                .css('background-color', '#e9ecef');
+
+            $('#load_shipper_rate').attr('readonly', true);
+            $('#load_fsc_rate').attr('readonly', true);
+            $('#load_carrier_fee').attr('readonly', true);
+            $('#load_billing_fsc_rate').attr('readonly', true);
         }
     }
+}
 
     RestrictionOTRonload();
 
@@ -2409,7 +2444,7 @@ $(document).ready(function () {
     // Function to fetch carrier suggestions based on any input (name, MC number, DOT number)
     function fetchCarrierSuggestions(field, inputValue) {
         $.ajax({
-            url: '{{ route('fetch.carrier.suggestions') }}',
+            url: "{{ route('fetch.carrier.suggestions') }}",
             method: 'POST',
             data: {
                 field: field,          // Specify the field (name, MC, DOT)
@@ -2439,7 +2474,7 @@ $(document).ready(function () {
     // Function to fetch full carrier details once a carrier is selected
     function fetchCarrierDetails(carrierId) {
         $.ajax({
-            url: '{{ route('fetch.carrier.details') }}',
+            url: "{{ route('fetch.carrier.details') }}",
             method: 'POST',
             data: {
                 carrierId: carrierId, 
@@ -2523,8 +2558,9 @@ $(document).on('change', 'input[name^="load_consignee_appointment_"]', function 
         let pickupDate = new Date(pickupValue);
         let deliveryDate = new Date(deliveryValue);
 
-        if (deliveryDate < pickupDate) {
-            alert("Delivery date & time cannot be earlier than Pickup date & time.");
+        // Delivery must be greater than pickup
+        if (deliveryDate <= pickupDate) {
+            alert("Delivery date & time must be later than Pickup date & time.");
             deliveryInput.val('');
         }
     }
@@ -2546,7 +2582,7 @@ $(document).on('change', 'input[name^="load_shipper_appointment_"]', function ()
 </script>
 
 <!-- html2pdf -->
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 
@@ -2764,7 +2800,6 @@ async function saveBolDataSilent() {
 }
 
 </script>
-
 
 <style>
 

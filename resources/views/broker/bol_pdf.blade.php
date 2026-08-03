@@ -269,29 +269,9 @@
                     </tr>
                     @endforeach
                 @else
-                <tr>
-                    <td>#Unit 1</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td colspan="7" class="text-center">No freight items.</td>
-                </tr>
-                {{--
-                @foreach(json_decode($load->freight_items, true) as $item)
-                <tr>
-                    <td>{{ $item['pieces'] ?? '' }}</td>
-                    <td>{{ $item['description'] ?? '' }}</td>
-                    <td>{{ $item['weight'] ?? '' }}</td>
-                    <td>{{ $item['type'] ?? '' }}</td>
-                    <td>{{ $item['nmfc'] ?? '' }}</td>
-                    <td>{{ $item['hm'] ?? '' }}</td>
-                    <td>{{ $item['class'] ?? '' }}</td>
-                </tr>
-                @endforeach
-                --}}
+                    <tr>
+                        <td colspan="7" style="text-align: center;">No freight items available.</td>
+                    </tr>
                 @endif
             </tbody>
             <tfoot>

@@ -220,6 +220,7 @@ class CarrierController extends Controller
      */
 public function create(Request $request)
 {
+    // dd($request->all()); die;
     // === Validation ===
     $validator = Validator::make($request->all(), [
         'carrier_name' => 'required|string|max:255',

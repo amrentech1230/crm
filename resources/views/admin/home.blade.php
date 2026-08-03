@@ -904,7 +904,7 @@ $(document).on('click', '.custom-pagination a', function (e) {
             if (target === '#all_load') {
                 $('form.app-search .position-relative').attr('id', 'all_loads');
                 inputSelector = '#all_loads input[name="query"]';
-                ajaxUrl = '/admin/all_search';
+                ajaxUrl = '/admin/all_search'z
                 resultContainer = '#all_load-search';
                 tableSelector = '#datatable-buttons-all_load';
             } else if (target === '#open') {

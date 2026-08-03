@@ -2357,7 +2357,8 @@ $(document).ready(function () {
                             }
 
                             $(resultContainer).html(response);
-$('.custom-pagination').hide();
+                            $('.custom-pagination').hide();
+
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
@@ -2366,14 +2367,14 @@ $('.custom-pagination').hide();
 								order: [[0, 'desc']],
                                 pageLength: 50,
                                 stateSave: true,   // ✅ remembers column visibility, page, search, etc.
-        buttons: [
-            {
-                extend: 'colvis',
-                text: 'Select Columns'
-            }
-        ]
+                                buttons: [
+                                    {
+                                        extend: 'colvis',
+                                        text: 'Select Columns'
+                                    }
+                                ]
                             });
-
+                            
                             $('.loader-container').addClass('hide');
                         },
                         error: function (xhr) {
@@ -2381,11 +2382,12 @@ $('.custom-pagination').hide();
                             $('.loader-container').addClass('hide');
                         }
                     });
-                } else {
+                               } else {
                     // $(resultContainer).html('');
                      $(resultContainer).html('');
     $('.custom-pagination').show();
                 }
+
             }, 300);
 
             $(this).data('timer', wait);
