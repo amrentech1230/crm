@@ -6780,4 +6780,22 @@ public function all_search(Request $request)
     
     }
 
+
+    public function updateArAgingClose(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:loads,id',
+            'value' => 'nullable|in:Bank Charges Adjusted,Short Pay Adjusted Internally',
+        ]);
+
+        $load = Load::findOrFail($request->id);
+        $load->ar_aging_close = $request->value;
+        $load->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Updated successfully.'
+        ]);
+    }
+
 }

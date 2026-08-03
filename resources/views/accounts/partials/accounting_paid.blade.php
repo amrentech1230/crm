@@ -30,6 +30,13 @@
                         <a href="javascript:void(0);" id="short-btn-{{ $record->id }}" class="btn btn-warning btn-sm" onclick="markAsShortPayment({{ $record->id }}, {{ $record->receiving_amount ?? 0 }}, {{ $record->shipper_load_final_rate ?? 0 }})">Short</a>
                     @endif
                 </td>
+                <td class="dynamic-data">
+                    <select class="form-control ar-aging-close" data-id="{{ $record->id }}">
+                        <option value="">Select</option>
+                        <option value="Bank Charges Adjusted" {{ $record->ar_aging_close == 'Bank Charges Adjusted' ? 'selected' : '' }}>Bank Charges Adjusted </option>
+                        <option value="Short Pay Adjusted Internally " {{ $record->ar_aging_close == 'Short Pay Adjusted Internally' ? 'selected' : '' }}>Short Pay Adjusted Internally </option>
+                    </select>
+                </td>
                         <td class="dynamic-data">{{ $record->load_workorder }}</td>
                          <td class="dynamic-data">{{ $record->invoice_number }}</td>
                          @php
@@ -126,11 +133,13 @@
             </td> 
             
           
-                            <td class="dynamic-data">
+            <td class="dynamic-data">
                   
                        <textarea name="invoice_internal_value" onkeyup="RemainingAmount(this)" row="10" col="5" style="width: 450px !important;height: 50px;"   data-invoice-id="{{ $record->id }}" class="invoice_internal_value" placeholder="Enter additional notes...">{{ $record->invoice_internal_value }}</textarea>
 
-                </td>
+            </td>
+
+
         </tr>
 		
 @endforeach
@@ -279,4 +288,29 @@
                 }
             });
         }
+    </script>
+
+    <script>
+        $(document).on('change', '.ar-aging-close', function () {
+
+    let id = $(this).data('id');
+    let value = $(this).val();
+
+    $.ajax({
+        url: "{{ route('account.updateArAgingClose') }}",
+        type: "POST",
+        data: {
+            _token: "{{ csrf_token() }}",
+            id: id,
+            value: value
+        },
+        success: function (response) {
+            toastr.success(response.message);
+        },
+        error: function () {
+            toastr.error('Something went wrong.');
+        }
+    });
+
+});
     </script>
