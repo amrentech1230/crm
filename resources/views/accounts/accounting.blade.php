@@ -344,8 +344,8 @@ table.dataTable tbody > tr.selected td p {
                                             <th>Load #</th>
                                             <th>Action</th>
                                             <th>Payment Status</th>
+                                            <th>Add. Remarks</th>
                                             <th>W/O #</th>
-
                                             <th>Invoice #</th>
                                             <th>Delivered Date</th>
                                             <th>Customer Name</th>

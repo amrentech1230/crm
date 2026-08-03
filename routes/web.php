@@ -188,6 +188,7 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::get('account/accounting_completed_search', [AccountController::class, 'accounting_completed_search'])->name('accounting_completed_search');
     Route::get('account/accounting_invoiced_search', [AccountController::class, 'accounting_invoiced_search'])->name('accounting_invoiced_search');
     Route::get('account/accounting_invoiced_paid_search', [AccountController::class, 'accounting_invoiced_paid_search'])->name('accounting_invoiced_paid_search');
+    Route::post('account/update-ar-aging-close', [AccountController::class, 'updateArAgingClose'])->name('account.updateArAgingClose');
 	
     Route::get('account/load_search_by_load', [AccountController::class, 'load_search_by_load'])->name('load_search_by_load');
 	
