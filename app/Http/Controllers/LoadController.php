@@ -16,6 +16,7 @@ use \App\Models\Manger;
 use \App\Models\TeamLeader;
 use \App\Models\ItHardware;
 use App\Services\CreditService;
+use Illuminate\Support\Facades\DB;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
@@ -835,30 +836,24 @@ if (!empty($term)) {
 
             $yourModel->shipper_load_other_charge = json_encode($shipperCharges);
             
-            // ✅ VALIDATION: Check if the requested load amount exceeds the customer's available credit limit
+            // ✅ VALIDATION + RESERVATION: Atomically check credit and deduct within a DB transaction
+            // with row locking to prevent race conditions (two loads created simultaneously).
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
                 $loadAmount = (float) $finalRate;
-                $creditCheck = $this->creditService->validateCreditForLoad($customer, $loadAmount);
+                $creditResult = $this->creditService->reserveCreditForLoad($customer, $loadAmount);
 
-                if (!$creditCheck['allowed']) {
-                    return back()->with('error', $creditCheck['message']);
+                if (!$creditResult['allowed']) {
+                    return back()->with('error', $creditResult['message']);
                 }
             }
             
-            // echo "<pre>"; print_r   ($yourModel); die();  
-
             $yourModel->save();
             
             $insertedId = $yourModel->id;
             $yourModel->load_number = $insertedId;
 
             $yourModel->save();
-
-            $customer = Customer::find($yourModel->customer_id);
-            if ($customer) {
-                $this->creditService->reserveCreditForLoad($customer, (float) $yourModel->shipper_load_final_rate);
-            }
 
 
             $subject = "Broker Create the Load, loadid:-".$insertedId;
@@ -872,6 +867,7 @@ if (!empty($term)) {
     public function BrokerLoadUpdate(Request $request, $id)
     {
 
+return \DB::transaction(function () use ($request, $id) {
 
 for ($i = 1; $i <= 15; $i++) {
 
@@ -1450,7 +1446,8 @@ for ($i = 1; $i <= 15; $i++) {
      
         $customerId = $request->customer_id;
 
-        $customerdata = customer::where('id', $customerId)->first();
+        // Lock the customer row to prevent race conditions on credit updates
+        $customerdata = Customer::where('id', $customerId)->lockForUpdate()->first();
 
         $old_shipper_load_other_charge = json_decode($loaddata->shipper_load_other_charge, true);
         
@@ -1537,6 +1534,7 @@ for ($i = 1; $i <= 15; $i++) {
         addToLog($customerId ='', $id, $subject, $oldData, $newData);
 
         return redirect('broker/load')->with('success', 'Load has been updated successfully!');
+    }); // end DB::transaction
     }
 
     public function fetchCarrierSuggestions(Request $request)

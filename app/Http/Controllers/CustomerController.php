@@ -444,7 +444,9 @@ if ($request->has('download') && $request->download === 'excel') {
         $yourModel->customer_billing_telephone = $request->input('customer_billing_telephone') ?? '';
         $yourModel->customer_billing_extn = $request->input('customer_billing_extn') ?? '';
         $yourModel->adv_customer_currency_Setting = $request->input('adv_customer_currency_Setting') ?? '';
-        $yourModel->remaining_credit = is_numeric($request->input('remaining_credit')) ? $request->input('remaining_credit') : 0;
+        // SECURITY FIX: Do NOT accept remaining_credit from client input.
+        // The balance is computed server-side from the credit limit and outstanding loads.
+        // $yourModel->remaining_credit is intentionally NOT set here — it stays as-is.
         $yourModel->adv_customer_payment_terms = $request->input('adv_customer_payment_terms') ?? '';
         $yourModel->adv_customer_factoring_company = $request->input('adv_customer_factoring_company') ?? '';
         $yourModel->adv_customer_webiste_url = $request->input('adv_customer_webiste_url') ?? '';
