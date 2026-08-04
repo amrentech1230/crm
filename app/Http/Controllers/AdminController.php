@@ -1582,14 +1582,14 @@ public function all_search(Request $request)
                     foreach ($searchTerms as $term) {
                         $query->orWhere('load_number', 'like', "%$term%");
                         // $query->orwhere('load_workorder', 'like', "%$term%");
-                        // ...baaki commented fields same rahenge
+                        // ...other fields can be added here as needed
                     }
                 })
                 ->orderBy('id', 'desc')
                 ->paginate(100)
                 ->withQueryString();
         } else {
-            // Koi valid term nahi -> empty paginator banao (crash na ho)
+            // no valid term ->create empty paginator (crash prevention)
             $broker_status = Load::with('user')->whereRaw('1 = 0')->paginate(100);
         }
     } else {
