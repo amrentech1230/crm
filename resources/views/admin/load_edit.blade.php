@@ -79,13 +79,16 @@
 
 /* Keep native selects visibly identifiable and clickable. */
 select.form-control {
-    appearance: auto !important;
-    -webkit-appearance: menulist !important;
-    -moz-appearance: menulist !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
     cursor: pointer;
     padding-right: 2rem !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23555' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 10px 6px !important;
 }
-
 
 </style>
 
@@ -149,7 +152,7 @@ select.form-control {
 
                                         @if(!empty($post->customer_id))
                                             <div class="input-group">
-                                                <select id="load_bill_to" class="form-control" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                <select id="load_bill_to_select" class="form-control bill-to-select" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
                                                     <option value="">Select Customer</option>
                                                     @foreach($allcustomer as $cust)
                                                         @if($post->user->id == $cust->user_id)
@@ -162,7 +165,7 @@ select.form-control {
                                                 </select>
                                             </div>
                                         @else
-                                            <input type="text" id="load_bill_to" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Customer name">
+                                            <input type="text" id="load_bill_to_input" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Customer name">
                                         @endif
                                     </div>
                                 </div>
@@ -1846,7 +1849,7 @@ $(document).ready(function () {
  
 	$(document).ready(function () {
 
-    $('#load_bill_to').on('change', function() {
+    $('#load_bill_to_select').on('change', function() {
         var customer_id =  $(this).find('option:selected').data('id');
         $('#customer_id').val(customer_id);
         $('#load_shipper_rate').prop('readonly', false);
@@ -2410,10 +2413,10 @@ $(document).on('click', '#customerInfoBtn', function() {
 });
 
 $(document).ready(function() {
-    var $target = $('#load_bill_to');
+    var $target = $('#load_bill_to_select');
     var $hidden = $('#customer_id');
 
-    if ($target.is('select')) {
+    if ($target.length) {
         var initialId = $target.find(':selected').data('id');
         $hidden.val(initialId || '');
 
