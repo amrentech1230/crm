@@ -146,28 +146,28 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
-                                        <div class="input-group">
-                                            <select id="load_bill_to" class="form-control" name="load_bill_to"   @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly  @endif>
-                                                <option value="">Select Customer</option>
+
+                                        @if(!empty($post->customer_id))
+                                            <div class="input-group">
+                                                <select id="load_bill_to" class="form-control" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                    <option value="">Select Customer</option>
                                                     @foreach($allcustomer as $cust)
-													   @if($post->user->id == $cust->user_id)
-                                                        <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
+                                                        @if($post->user->id == $cust->user_id)
+                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
                                                                 @if($post->load_bill_to == $cust->customer_name) selected @endif>
-                                                            {{ $cust->customer_name }}
-                                                        </option> 
-														@endif
+                                                                {{ $cust->customer_name }}
+                                                            </option>
+                                                        @endif
                                                     @endforeach
-                                            </select>
-                                        </div>
+                                                </select>
+                                            </div>
+                                        @else
+                                            <input type="text" id="load_bill_to" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Customer name">
+                                        @endif
                                     </div>
                                 </div>
 
-
-
-                               <input type="hidden" id="customer_id" name="customer_id" value="">
-
-
-
+                                <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? '' }}">
 
 
                                 <div class="col-md-2 mb-2">
@@ -2410,18 +2410,20 @@ $(document).on('click', '#customerInfoBtn', function() {
 });
 
 $(document).ready(function() {
-    var $select = $('#load_bill_to');
+    var $target = $('#load_bill_to');
     var $hidden = $('#customer_id');
 
-    // Set hidden input on page load to match selected option
-    var initialId = $select.find(':selected').data('id');
-    $hidden.val(initialId || '');
+    if ($target.is('select')) {
+        var initialId = $target.find(':selected').data('id');
+        $hidden.val(initialId || '');
 
-    // Update hidden input whenever customer changes
-    $select.on('change', function() {
-        var selectedId = $(this).find(':selected').data('id');
-        $hidden.val(selectedId || '');
-    });
+        $target.on('change', function() {
+            var selectedId = $(this).find(':selected').data('id');
+            $hidden.val(selectedId || '');
+        });
+    } else {
+        $hidden.val($hidden.val() || '');
+    }
 });
 
 
