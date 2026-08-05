@@ -37,6 +37,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\File;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Services\CreditService;
 
 
 class AdminController extends Controller
@@ -2029,6 +2030,7 @@ public function all_search(Request $request)
 
     public function loadUpdate(Request $request, $id)
     {
+    return DB::transaction(function () use ($request, $id) {
 
         $load = Load::findOrFail($id);
 
@@ -2036,27 +2038,28 @@ public function all_search(Request $request)
             return redirect()->back()->with('error', 'please enter the Customer Final Rate');
          }
    
-        // ✅ VALIDATION: Check if total load creation amount would exceed assigned credit limit
+        // ✅ VALIDATION: Check if total load creation amount would exceed the customer's effective credit limit
         $newFinalRate = (float) $request->input('shipper_load_final_rate');
         $oldFinalRate = (float) $load->shipper_load_final_rate;
         $rateDifference = $newFinalRate - $oldFinalRate;
         
         $customer = Customer::find($load->customer_id);
-        if ($customer && $rateDifference > 0) { // Only validate if rate is increasing
+        if ($customer && $rateDifference > 0) {
             $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
-            
-            // Calculate total load creation amount for this customer (excluding this load)
-            $totalLoadCreationAmount = (float) Load::where('customer_id', $load->customer_id)
+            $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
                 ->where('load_status', '!=', 'Cancelled')
                 ->where('id', '!=', $load->id)
+                ->where(function ($query) {
+                    $query->where('invoice_status', '!=', 'Paid Record')
+                        ->orWhereNull('invoice_status');
+                })
                 ->sum('shipper_load_final_rate');
-            
-            $newTotalLoadAmount = $totalLoadCreationAmount + $newFinalRate;
-            
-            // Check if total load creation would exceed assigned credit limit
+
+            $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
+
             if ($newTotalLoadAmount > $assignedCreditLimit) {
-                $availableCredit = $assignedCreditLimit - $totalLoadCreationAmount;
-                return back()->with('error', "Cannot update load. Assigned credit limit is ₹{$assignedCreditLimit}. Total load creation so far: ₹{$totalLoadCreationAmount}. Available credit: ₹{$availableCredit}. New load amount: ₹{$newFinalRate}.");
+                $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
+                return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
             }
         }
    
@@ -2613,16 +2616,36 @@ public function all_search(Request $request)
         
         $customerId = $request->customer_id;
         $newShipperLoadFinalRate = $request->shipper_load_final_rate;
-        $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate;
+        // $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate;
+        $rateDifference = $newFinalRate - $oldFinalRate;
     
         // Calculate the difference between old and new rates
         $rateDifference = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
 
-        $customer = Customer::find($customerId);
+        $customer = Customer::where('id', $customerId)->lockForUpdate()->first();
 
         if ($customer) {
-            $customer->remaining_credit -= $rateDifference;
-            $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit (actual remaining amount)
+            $loadCreationAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('load_status', '!=', 'Cancelled')
+                ->where(function ($query) {
+                    $query->where('invoice_status', '!=', 'Paid Record')
+                        ->orWhereNull('invoice_status');
+                })
+                ->sum('shipper_load_final_rate');
+
+            $paymentReceivedAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('invoice_status', 'Paid Record')
+                ->sum('receiving_amount');
+
+            $creditSummary = app(CreditService::class)->calculateCustomerCreditSummary(
+                $customer,
+                (float) ($customer->adv_customer_credit_limit ?? 0),
+                $loadCreationAmount,
+                $paymentReceivedAmount
+            );
+
+            $customer->remaining_credit = $creditSummary['remaining_credit'];
+            $customer->remaining_credit_amount = $creditSummary['remaining_credit'];
             $customer->save();
         }
         
@@ -2639,6 +2662,7 @@ public function all_search(Request $request)
 
         return back()->with('success', 'Load updated successfully');
         
+    }); // end DB::transaction
     }
 	
 	

@@ -89,6 +89,7 @@
                         <form method="POST" action="{{ route('load.create') }}" id="myFormLoad"
                         enctype="multipart/form-data">
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-warning d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Add Load</h3>
@@ -106,12 +107,18 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to">
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
-                                            <option value="{{$cust->id}}">{{$cust->customer_name}}</option>
+                                            <option value="{{$cust->id}}"
+                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
+                                                {{$cust->customer_name}}
+                                            </option>
                                             @endforeach
                                         </select>
+                                        <input type="hidden" id="customer_id" name="customer_id" value="" >
                                     </div>
                                 </div>
 
@@ -202,7 +209,7 @@
                                         <label>Equipment Type
                                             <code>*</code></label>
                                         <select class="form-control mySelect2" name="load_equipment_type"
-                                            id="load_equipment_type" style="width: 100%;" required>
+                                            id="load_equipment_type" style="width: 100%;" required data-placeholder="Select Equipment">
 
                                             <option value="">Select Equipment </option>
                                             @foreach($equipmentType as $equipment)
@@ -725,7 +732,7 @@
 
                         </div>
                         <div class="modal-footer">
-                            <input type="submit" class="btn btn-info" value="Save">
+                            <input type="submit" class="btn btn-info" value="Save" id="submitLoadButton">
                             <input type="button" style="font-size:14px !important;" class="btn btn-warning"
                                 id="clearFormButton" Value="Clear Form">
                             <input type="button" class="btn btn-danger" data-dismiss="modal" value="Cancel">
@@ -740,10 +747,89 @@
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    function formatCreditAmount(value) {
+        return '$' + parseFloat(value || 0).toFixed(2);
+    }
+
+    function getSelectedCustomerCreditLimit() {
+        var $select = $('#load_bill_to');
+        if (!$select.length) {
+            return 0;
+        }
+
+        var selectedOption = $select.find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+
+        if (availableCredit > 0) {
+            return availableCredit;
+        }
+
+        if (remainingCredit > 0) {
+            return remainingCredit;
+        }
+
+        return invoiceCreditLimit;
+    }
+
+    function validateCreditForLoad() {
+        var $form = $('#myFormLoad');
+        var $select = $('#load_bill_to');
+        var $rate = $('#shipper_load_final_rate');
+        var $message = $('#credit-limit-message');
+        var $submitButton = $('#submitLoadButton');
+
+        if (!$form.length || !$select.length || !$rate.length) {
+            return true;
+        }
+
+        if (!$select.val()) {
+            $message.text('').addClass('d-none');
+            $submitButton.prop('disabled', false).removeClass('disabled');
+            $form.data('credit-valid', true);
+            return true;
+        }
+
+        var creditLimit = getSelectedCustomerCreditLimit();
+        var enteredAmount = parseFloat($rate.val()) || 0;
+
+        if (creditLimit <= 0) {
+            $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled');
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (enteredAmount > creditLimit) {
+            $message.text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled');
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+        $submitButton.prop('disabled', false).removeClass('disabled');
+        $form.data('credit-valid', true);
+        return true;
+    }
+
     $(document).ready(function () {
         $('#load_bill_to').on('change', function() {
+            $('#customer_id').val($(this).val() || '');
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
+            validateCreditForLoad();
+        });
+
+        $('#shipper_load_final_rate').on('input change', function() {
+            validateCreditForLoad();
+        });
+
+        $('#myFormLoad').on('submit', function (e) {
+            if (!validateCreditForLoad()) {
+                e.preventDefault();
+            }
         });
 	});
         $(document).ready(function () {
@@ -1095,6 +1181,7 @@ $(document).ready(function () {
                 total += (loadFscRate / 100) * loadShipperRate;
 
                 $('#shipper_load_final_rate').val(total.toFixed(2));
+                validateCreditForLoad();
 
                 var customer_id = $('#load_bill_to').val();
                 
@@ -1154,7 +1241,7 @@ $(document).ready(function () {
             total += (loadFscRate / 100) * loadShipperRate;
 
             $('#shipper_load_final_rate').val(total.toFixed(2));
-            
+            validateCreditForLoad();
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 
@@ -1194,8 +1281,6 @@ $(document).ready(function () {
     </script>
     <script>
         $(document).ready(function () {
-
-
             // Function to calculate and update the total amount
             function updateTotalcarrier() {
 
@@ -1252,46 +1337,6 @@ $(document).ready(function () {
         });
 </script>
 <script>
-    const inputFields = ['load_bill_to', 'load_carrier', 'carrier_mc_ff_input', 'carrier_dot'];
-
-    // Loop through each ID and disable copy, paste, and cut
-    inputFields.forEach(function(id) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('paste', function(event) {
-                event.preventDefault(); // Prevent paste action
-                //alert('Paste is not allowed'); // Display an error message
-				$('#mc-error-message').text('Paste is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('copy', function(event) {
-                event.preventDefault(); // Prevent copy action
-                //alert('Copy is not allowed'); // Display an error message
-				$('#mc-error-message').text('Copy is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('cut', function(event) {
-                event.preventDefault(); // Prevent cut action
-                //alert('Cut is not allowed'); // Display an error message
-				$('#mc-error-message').text('Cut is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-        }
-    });
 	
 	
 	$(document).ready(function () {
