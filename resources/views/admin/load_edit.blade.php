@@ -151,18 +151,21 @@ select.form-control {
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
 
                                         @if(!empty($post->customer_id))
-                                            <div class="input-group">
-                                                <select id="load_bill_to_select" class="form-control bill-to-select" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
-                                                    <option value="">Select Customer</option>
+                                            <div class="position-relative bill-to-combo-wrapper">
+                                                <input type="text" id="load_bill_to_input" class="form-control bill-to-select" name="load_bill_to"
+                                                    value="{{ $post->load_bill_to ?? '' }}" placeholder="Type or select customer"
+                                                    autocomplete="off" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                <span class="bill-to-arrow" aria-hidden="true">▼</span>
+
+                                                <ul id="load_bill_to_dropdown" class="dropdown-menu" style="display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;">
                                                     @foreach($allcustomer as $cust)
                                                         @if($post->user->id == $cust->user_id)
-                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
-                                                                @if($post->load_bill_to == $cust->customer_name) selected @endif>
+                                                            <li class="dropdown-item" data-id="{{ $cust->id }}" data-name="{{ $cust->customer_name }}" style="cursor:pointer; padding:8px 12px;">
                                                                 {{ $cust->customer_name }}
-                                                            </option>
+                                                            </li>
                                                         @endif
                                                     @endforeach
-                                                </select>
+                                                </ul>
                                             </div>
                                         @else
                                             <input type="text" id="load_bill_to_input" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Customer name">
@@ -190,7 +193,7 @@ select.form-control {
                                                 value="{{ $post->user->id ?? '' }}">
                                         @else
                                             <!-- Show select normally -->
-                                            <select class="form-control" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
+                                            <select class="form-control no-select2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
                                                 <option value="">Select a Broker</option>
                                                 @foreach($users as $user)
                                                     <option value="{{ $user->name }}" data-id="{{ $user->id }}" 
@@ -216,7 +219,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
     <label>Customer Payment Status</label>
-    <select class="form-control" name="load_status" style="width: 100%;">
+    <select class="form-control no-select2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
                 Invoiced
@@ -270,7 +273,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Payment Type
                                             <code>*</code></label>
-                                        <select class="form-control" required name="load_payment_type"
+                                        <select class="form-control no-select2" required name="load_payment_type"
                                             style="width: 100%;">
                                             <option value="">Select payment Type</option>
                                             <option value="Prepaid" {{ $post->load_payment_type == 'Prepaid' ? 'selected' : '' }}>Prepaid</option>
@@ -283,7 +286,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Load type <code>*</code></label>
                                         <div class="purple">
-                                            <select class="form-control" name="load_type_two" required style="width: 100%;">
+                                            <select class="form-control no-select2" name="load_type_two" required style="width: 100%;">
                                                 <option value="">Selected</option>
                                                 <option value="OTR" {{ $post->load_type_two == 'OTR' ? 'selected' : '' }}>OTR</option>
                                                 <option value="DRAYAGE" {{ $post->load_type_two == 'DRAYAGE' ? 'selected' : '' }}>DRAYAGE</option>
@@ -294,7 +297,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control" required name="load_type" style="width: 100%;">
+                                        <select class="form-control no-select2" required name="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -306,7 +309,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Currency</label>
-                                        <select class="form-control" name="load_currency" style="width: 100%;">
+                                        <select class="form-control no-select2" name="load_currency" style="width: 100%;">
                                             <option selected="selected">Select
                                                 Currency
                                             </option>
@@ -319,7 +322,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Equipment Type
                                             <code>*</code></label>
-                                        <select class="form-control" name="load_equipment_type"
+                                        <select class="form-control no-select2" name="load_equipment_type"
                                             id="load_equipment_type" style="width: 100%;" required>
 
                                             <option value="">Select Equipment </option>
@@ -618,7 +621,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Billing Type</label>
-                                        <select class="form-control" name="load_billing_type" style="width: 100%;">
+                                        <select class="form-control no-select2" name="load_billing_type" style="width: 100%;">
                                              <option selected="selected" value="{{ $post->load_billing_type }}">
                                                         {{ $post->load_billing_type }}</option>
                                                     <option>Factoring</option>
@@ -1846,16 +1849,153 @@ $(document).ready(function () {
 </script>
 <script>
 
- 
+function initCustomComboSelect($select) {
+    if (!$select.length || $select.data('combo-ready')) {
+        return;
+    }
+
+    var originalId = $select.attr('id') || ('combo_' + Math.floor(Math.random() * 1000000));
+    var originalName = $select.attr('name') || '';
+    var placeholder = $select.data('placeholder') || 'Type or select...';
+    var selectedText = $select.find('option:selected').text().trim();
+
+    var $wrapper = $('<div>', {
+        class: 'custom-combo-wrapper position-relative'
+    });
+
+    var $input = $('<input>', {
+        type: 'text',
+        class: 'form-control custom-combo-input',
+        autocomplete: 'off',
+        placeholder: placeholder,
+        value: selectedText
+    });
+
+    var $arrow = $('<span>', {
+        class: 'custom-combo-arrow',
+        text: '▼'
+    });
+
+    var $dropdown = $('<ul>', {
+        class: 'dropdown-menu custom-combo-dropdown',
+        style: 'display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;'
+    });
+
+    $select.find('option').each(function() {
+        var $option = $(this);
+        var optionText = $option.text().trim();
+        if (!optionText) {
+            return;
+        }
+
+        $('<li>', {
+            class: 'dropdown-item custom-combo-item',
+            html: optionText,
+            'data-value': $option.val(),
+            'data-text': optionText,
+            style: 'cursor:pointer; padding:8px 12px;'
+        }).appendTo($dropdown);
+    });
+
+    $wrapper.append($input, $arrow, $dropdown);
+    $select.after($wrapper);
+    $select.css('display', 'none');
+    $select.attr('data-combo-ready', 'true');
+    $select.data('combo-ready', true);
+
+    $input.on('focus', function() {
+        $dropdown.show();
+        filterCustomComboItems($input, $dropdown);
+    });
+
+    $input.on('input', function() {
+        filterCustomComboItems($input, $dropdown);
+        $dropdown.show();
+    });
+
+    $dropdown.on('click', '.custom-combo-item', function() {
+        var text = $(this).data('text');
+        var value = $(this).data('value');
+
+        $input.val(text);
+        $select.val(value).trigger('change');
+        $dropdown.hide();
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest($wrapper).length) {
+            $dropdown.hide();
+        }
+    });
+
+    $select.on('change', function() {
+        var selectedText = $select.find('option:selected').text().trim();
+        $input.val(selectedText);
+    });
+}
+
+function filterCustomComboItems($input, $dropdown) {
+    var term = ($input.val() || '').toLowerCase().trim();
+
+    $dropdown.find('.custom-combo-item').each(function() {
+        var text = ($(this).data('text') || '').toLowerCase();
+        $(this).toggle(term === '' || text.indexOf(term) !== -1);
+    });
+}
+
 	$(document).ready(function () {
 
-    $('#load_bill_to_select').on('change', function() {
-        var customer_id =  $(this).find('option:selected').data('id');
-        $('#customer_id').val(customer_id);
-        $('#load_shipper_rate').prop('readonly', false);
-        $('#load_shipper_rate').val(0);
-        $('#shipper_load_final_rate').val(0);
+    $('#myFormLoad select').addClass('no-select2');
+
+    $('#myFormLoad select').not('[data-combo-ready="true"]').each(function() {
+        if (!$(this).closest('.custom-combo-wrapper').length) {
+            initCustomComboSelect($(this));
+        }
     });
+
+    var $input = $('#load_bill_to_input');
+    var $dropdown = $('#load_bill_to_dropdown');
+
+    if ($input.length && $dropdown.length) {
+        $input.on('focus', function() {
+            $dropdown.show();
+        });
+
+        $input.on('input', function() {
+            var term = $(this).val().toLowerCase().trim();
+            var matched = false;
+
+            $dropdown.find('li').each(function() {
+                var name = $(this).data('name') || '';
+                var show = term === '' || name.toLowerCase().indexOf(term) !== -1;
+                $(this).toggle(show);
+
+                if (!matched && show) {
+                    matched = true;
+                }
+            });
+
+            $dropdown.show();
+        });
+
+        $dropdown.on('click', 'li', function() {
+            var selectedName = $(this).data('name') || '';
+            var selectedId = $(this).data('id') || '';
+
+            $input.val(selectedName);
+            $('#customer_id').val(selectedId);
+            $dropdown.hide();
+            $('#load_shipper_rate').prop('readonly', false);
+            $('#load_shipper_rate').val(0);
+            $('#shipper_load_final_rate').val(0);
+        });
+
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_input')) {
+                $dropdown.hide();
+            }
+        });
+    }
 
     $('#shipper_load_final_rate').on('keydown paste input', function (e) {
         e.preventDefault();
@@ -2413,17 +2553,21 @@ $(document).on('click', '#customerInfoBtn', function() {
 });
 
 $(document).ready(function() {
-    var $target = $('#load_bill_to_select');
+    var $target = $('#load_bill_to_input');
     var $hidden = $('#customer_id');
 
     if ($target.length) {
-        var initialId = $target.find(':selected').data('id');
-        $hidden.val(initialId || '');
+        var initialValue = $target.val() || '';
+        var initialId = '';
 
-        $target.on('change', function() {
-            var selectedId = $(this).find(':selected').data('id');
-            $hidden.val(selectedId || '');
+        $('#load_bill_to_dropdown li').each(function() {
+            if ($(this).data('name') === initialValue) {
+                initialId = $(this).data('id') || '';
+                return false;
+            }
         });
+
+        $hidden.val(initialId || '');
     } else {
         $hidden.val($hidden.val() || '');
     }
@@ -2470,5 +2614,26 @@ $(document).on('click', '#carrierInfoBtn', function() {
 .is-invalid {
     border: 1px solid red;
     background: #ffe5e5;
+}
+
+.bill-to-combo-wrapper,
+.custom-combo-wrapper {
+    position: relative;
+}
+
+.bill-to-arrow,
+.custom-combo-arrow {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6c757d;
+    font-size: 11px;
+}
+
+.bill-to-select,
+.custom-combo-input {
+    padding-right: 28px;
 }
 </style>

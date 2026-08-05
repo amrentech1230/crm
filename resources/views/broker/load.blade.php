@@ -576,7 +576,22 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
+                                        <div class="position-relative bill-to-combo-wrapper">
+                                            <input type="text" id="load_bill_to_input" class="form-control bill-to-select" name="load_bill_to_input"
+                                                placeholder="Type or select customer" autocomplete="off">
+                                            <span class="bill-to-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6c757d; font-size:11px; pointer-events:none;">▼</span>
+
+                                            <ul id="load_bill_to_dropdown" class="dropdown-menu" style="display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;">
+                                                @foreach($customer as $cust)
+                                                    <li class="dropdown-item" data-customer-id="{{$cust->id}}" data-customer-name="{{$cust->customer_name}}"
+                                                        style="cursor:pointer; padding:8px 12px;">
+                                                        {{$cust->customer_name}}
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+
+                                        <select id="load_bill_to" class="form-control mySelect2 no-select2" name="load_bill_to" data-placeholder="Select Customer" style="display:none;">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
                                             <option value="{{$cust->customer_name}}"
@@ -1477,6 +1492,46 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         }
 
         $(document).ready(function () {
+            var $input = $('#load_bill_to_input');
+            var $dropdown = $('#load_bill_to_dropdown');
+            var $select = $('#load_bill_to');
+
+            if ($input.length && $dropdown.length && $select.length) {
+                function filterBillToOptions(term) {
+                    term = (term || '').toLowerCase().trim();
+                    $dropdown.find('li').each(function() {
+                        var customerName = ($(this).data('customer-name') || '').toLowerCase();
+                        $(this).toggle(term === '' || customerName.indexOf(term) !== -1);
+                    });
+                }
+
+                $input.on('focus', function() {
+                    filterBillToOptions($input.val());
+                    $dropdown.show();
+                });
+
+                $input.on('input', function() {
+                    filterBillToOptions($(this).val());
+                    $dropdown.show();
+                });
+
+                $dropdown.on('click', 'li', function() {
+                    var customerName = $(this).data('customer-name') || '';
+                    var customerId = $(this).data('customer-id') || '';
+
+                    $input.val(customerName);
+                    $select.val(customerName).trigger('change');
+                    $('#customer_id').val(customerId);
+                    $dropdown.hide();
+                });
+
+                $(document).on('click', function(e) {
+                    if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_input')) {
+                        $dropdown.hide();
+                    }
+                });
+            }
+
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {
                 var selectedOption = $(this).find('option:selected').data('customer-id');
