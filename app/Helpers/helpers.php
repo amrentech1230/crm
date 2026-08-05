@@ -133,20 +133,6 @@ if (!function_exists('getdiffrance')) {
 		$array1 = is_array($array1) ? $array1 : [];
 		$array2 = is_array($array2) ? $array2 : [];
 
-		$isListPayload = (function_exists('array_is_list') && array_is_list($array1)) || (function_exists('array_is_list') && array_is_list($array2));
-		if ($isListPayload) {
-			$oldDisplay = format_log_value($array1);
-			$newDisplay = format_log_value($array2);
-			if ($oldDisplay === $newDisplay) {
-				return '<div class="text-muted">No details found.</div>';
-			}
-
-			return '<div class="mb-3 border-bottom pb-2">'
-				. '<div class="small text-muted mt-1"><span class="fw-semibold">From:</span> ' . e($oldDisplay) . '</div>'
-				. '<div class="small text-muted mt-1"><span class="fw-semibold">To:</span> ' . e($newDisplay) . '</div>'
-				. '</div>';
-		}
-
 		if (!empty($array1) || !empty($array2)) {
 			$allKeys = array_unique(array_merge(array_keys($array1), array_keys($array2)));
 			foreach ($allKeys as $key) {
@@ -197,92 +183,11 @@ if (!function_exists('format_log_label')) {
 
 	function format_log_label($key)
 	{
-		$labelMap = [
-			'carrier_load_other_charge' => 'Carrier other charge',
-			'shipper_load_other_charge' => 'Shipper other charge',
-			'load_final_rate' => 'Final rate',
-			'load_billing_fsc_rate' => 'Billing FSC rate',
-			'load_other_charge' => 'Other charge',
-			'load_shipper_discription' => 'Shipper description',
-			'load_shipper_commodity_type' => 'Commodity type',
-			'load_shipper_qty' => 'Quantity',
-			'load_shipper_weight' => 'Weight',
-			'load_shipper_commodity' => 'Commodity',
-			'load_shipper_value' => 'Value',
-			'load_shipper_shipping_notes' => 'Shipping notes',
-			'load_shipper_commodity_name' => 'Commodity',
-			'load_shipper_qty_qty' => 'Quantity',
-			'load_shipper_weight_weight' => 'Weight',
-			'load_shipper_value_value' => 'Value',
-			'load_shipper_shipping_notes_shipping_notes' => 'Shipping notes',
-			'description' => 'Description',
-			'commodity_type' => 'Commodity type',
-			'shipper_qty' => 'Quantity',
-			'qty' => 'Quantity',
-			'shipper_weight' => 'Weight',
-			'weight' => 'Weight',
-			'commodity_name' => 'Commodity',
-			'commodity' => 'Commodity',
-			'shipper_value' => 'Value',
-			'value' => 'Value',
-			'shipping_notes' => 'Shipping notes',
-			'type' => 'Type',
-			'amount' => 'Amount',
-		];
-
-		if (isset($labelMap[$key])) {
-			return $labelMap[$key];
-		}
-
 		$key = str_replace(['_', '-'], ' ', $key);
 		$key = preg_replace('/\s+/', ' ', trim($key));
 		$key = ucwords(strtolower($key));
-		$key = preg_replace('/\bLoad\b/i', '', $key);
-		$key = preg_replace('/\s+/', ' ', trim($key));
-		$key = preg_replace('/\bShipper\b/i', 'Shipper', $key);
 
 		return $key;
-	}
-}
-
-if (!function_exists('format_log_array_entry')) {
-
-	function format_log_array_entry($item)
-	{
-		if (is_array($item) && isset($item['appointment'])) {
-			return \Carbon\Carbon::parse($item['appointment'])->format('d-m-Y h:i A');
-		}
-
-		if (is_array($item)) {
-			$parts = [];
-			foreach ($item as $key => $subValue) {
-				$label = format_log_label($key);
-				if ($subValue === null || $subValue === '') {
-					$parts[] = $label . ': No value';
-					continue;
-				}
-
-				if (is_array($subValue)) {
-					$parts[] = $label . ': ' . format_log_value($subValue);
-					continue;
-				}
-
-				if (is_string($subValue) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $subValue)) {
-					try {
-						$parts[] = $label . ': ' . \Carbon\Carbon::parse($subValue)->format('d-m-Y h:i:s A');
-					} catch (\Exception $e) {
-						$parts[] = $label . ': ' . $subValue;
-					}
-					continue;
-				}
-
-				$parts[] = $label . ': ' . $subValue;
-			}
-
-			return implode('; ', $parts);
-		}
-
-		return format_log_value($item);
 	}
 }
 
@@ -291,32 +196,36 @@ if (!function_exists('format_log_value')) {
 	function format_log_value($value)
 	{
 		if ($value === null || $value === '') {
-			return 'No value';
+			return '—';
 		}
 
 		if (is_array($value)) {
-			if (empty($value)) {
-				return 'No value';
-			}
+			$items = [];
+			foreach ($value as $item) {
+				if (is_array($item) && isset($item['appointment'])) {
+					$items[] = \Carbon\Carbon::parse($item['appointment'])->format('d-m-Y h:i A');
+					continue;
+				}
 
-			$hasSequentialKeys = array_keys($value) === range(0, count($value) - 1);
-			if ($hasSequentialKeys) {
-				$items = [];
-				foreach ($value as $item) {
-					$formatted = format_log_array_entry($item);
-					if ($formatted !== 'No value' && $formatted !== '') {
-						$items[] = $formatted;
+				if (is_array($item)) {
+					foreach ($item as $key => $subValue) {
+						if (is_string($subValue)) {
+							$items[] = $subValue;
+						}
 					}
+					continue;
 				}
 
-				if (!empty($items)) {
-					return implode(' | ', $items);
+				if (is_string($item)) {
+					$items[] = $item;
 				}
-
-				return 'No value';
 			}
 
-			return format_log_array_entry($value);
+			if (!empty($items)) {
+				return implode(', ', $items);
+			}
+
+			return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 		}
 
 		if (is_string($value)) {
