@@ -3,6 +3,15 @@
 
 @section('content')
 <style>
+#myFormLoad input[type="submit"].disabled,
+#myFormLoad input[type="submit"]:disabled {
+    background-color: #b8b8b8 !important;
+    border-color: #b8b8b8 !important;
+    color: #ffffff !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+}
+
 /* General */
 .load-row {
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -1392,7 +1401,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
             if (!$select.val()) {
                 $message.text('').addClass('d-none');
-                $submitButton.prop('disabled', false).removeClass('disabled');
+                $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
                 $form.data('credit-valid', true);
                 return true;
             }
@@ -1401,21 +1410,34 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var enteredAmount = parseFloat($rate.val()) || 0;
 
             if (creditLimit <= 0) {
-                $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled');
+                $message
+                    .removeClass('alert-warning alert-success')
+                    .addClass('alert-danger')
+                    .text('You do not have sufficient limit to create this load.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load.');
                 $form.data('credit-valid', false);
                 return false;
             }
 
             if (enteredAmount > creditLimit) {
-                $message.text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled');
+                var shortageAmount = enteredAmount - creditLimit;
+                $message
+                    .removeClass('alert-warning alert-success')
+                    .addClass('alert-danger')
+                    .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
                 $form.data('credit-valid', false);
                 return false;
             }
 
-            $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
-            $submitButton.prop('disabled', false).removeClass('disabled');
+            $message
+                .removeClass('alert-danger')
+                .addClass('alert-warning')
+                .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
             $form.data('credit-valid', true);
             return true;
         }
@@ -1460,6 +1482,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 var selectedOption = $(this).find('option:selected').data('customer-id');
                 $('#customer_id').val(selectedOption || '');
 				$('#load_shipper_rate').prop('readonly', false).val(0);
+                $('#shipper_load_final_rate').val('');
                 toggleLoadFormByCredit();
                 validateCreditForLoad();
 			});

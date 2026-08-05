@@ -1642,9 +1642,10 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
         $customerdata = Customer::where('id', $customer_id)->first();
         $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
         if($final_rate > $remaining_limit){
+            $shortage = round($final_rate - $remaining_limit, 2);
             return response()->json([
                 'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
+                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit . '. You need ' . $shortage . ' more credits to create this load.'
             ]);
         }else{
             return response()->json([
@@ -1662,9 +1663,10 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
         $customerdata = Customer::where('id', $customer_id)->first();
         $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
         if($final_rate > $remaining_limit){
+            $shortage = round($final_rate - $remaining_limit, 2);
             return response()->json([
                 'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
+                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit . '. You need ' . $shortage . ' more credits to create this load.'
             ]);
         }else{
             return response()->json([

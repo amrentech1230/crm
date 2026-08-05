@@ -111,9 +111,11 @@ class CreditService
         }
 
         if ($loadAmount > $availableCredit) {
+            $shortage = round($loadAmount - $availableCredit, 2);
+
             return [
                 'allowed' => false,
-                'message' => "You do not have sufficient limit to create this load. Available limit is {$availableCredit}. Requested amount: {$loadAmount}.",
+                'message' => "You do not have sufficient limit to create this load. Available limit is {$availableCredit}. Requested amount: {$loadAmount}. You need {$shortage} more credits to create this load.",
                 'available_credit' => $availableCredit,
             ];
         }
@@ -167,9 +169,11 @@ class CreditService
             }
 
             if ($loadAmount > $availableCredit) {
+                $shortage = round($loadAmount - $availableCredit, 2);
+
                 return [
                     'allowed' => false,
-                    'message' => "You do not have sufficient limit to create this load. Available limit is {$availableCredit}. Requested amount: {$loadAmount}.",
+                    'message' => "You do not have sufficient limit to create this load. Available limit is {$availableCredit}. Requested amount: {$loadAmount}. You need {$shortage} more credits to create this load.",
                     'available_credit' => $availableCredit,
                 ];
             }

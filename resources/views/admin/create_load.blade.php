@@ -1,6 +1,17 @@
 @extends('layout.compact.app')
 @section('content')
 <style>
+    #submitLoadButton.disabled,
+    #submitLoadButton:disabled,
+    input[type="submit"].disabled,
+    input[type="submit"]:disabled {
+        background-color: #b8b8b8 !important;
+        border-color: #b8b8b8 !important;
+        color: #ffffff !important;
+        cursor: not-allowed !important;
+        opacity: 1 !important;
+    }
+
     ul#navTabs,
     ul#navTabs1 {
         background: #a6ce3a;
@@ -732,7 +743,7 @@
 
                         </div>
                         <div class="modal-footer">
-                            <input type="submit" class="btn btn-info" value="Save" id="submitLoadButton">
+                            <input type="submit" class="btn btn-info" value="Save" id="submitLoadButton" title="Save">
                             <input type="button" style="font-size:14px !important;" class="btn btn-warning"
                                 id="clearFormButton" Value="Clear Form">
                             <input type="button" class="btn btn-danger" data-dismiss="modal" value="Cancel">
@@ -786,7 +797,7 @@
 
         if (!$select.val()) {
             $message.text('').addClass('d-none');
-            $submitButton.prop('disabled', false).removeClass('disabled');
+            $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
             $form.data('credit-valid', true);
             return true;
         }
@@ -795,21 +806,34 @@
         var enteredAmount = parseFloat($rate.val()) || 0;
 
         if (creditLimit <= 0) {
-            $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
-            $submitButton.prop('disabled', true).addClass('disabled');
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('You do not have sufficient limit to create this load.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load.');
             $form.data('credit-valid', false);
             return false;
         }
 
         if (enteredAmount > creditLimit) {
-            $message.text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
-            $submitButton.prop('disabled', true).addClass('disabled');
+            var shortageAmount = enteredAmount - creditLimit;
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
             $form.data('credit-valid', false);
             return false;
         }
 
-        $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
-        $submitButton.prop('disabled', false).removeClass('disabled');
+        $message
+            .removeClass('alert-danger')
+            .addClass('alert-warning')
+            .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+            .removeClass('d-none');
+        $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
         $form.data('credit-valid', true);
         return true;
     }
@@ -819,6 +843,7 @@
             $('#customer_id').val($(this).val() || '');
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
+            $('#shipper_load_final_rate').val('');
             validateCreditForLoad();
         });
 
