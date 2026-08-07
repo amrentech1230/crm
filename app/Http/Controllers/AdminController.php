@@ -2615,10 +2615,9 @@ public function all_search(Request $request)
         }
         
         $customerId = $request->customer_id;
-        $newShipperLoadFinalRate = $request->shipper_load_final_rate;
-        // $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate;
-        $rateDifference = $newFinalRate - $oldFinalRate;
-    
+        $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
+        $oldShipperLoadFinalRate = (float) ($load->shipper_load_final_rate ?? 0);
+
         // Calculate the difference between old and new rates
         $rateDifference = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
 
