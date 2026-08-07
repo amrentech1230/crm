@@ -47,7 +47,6 @@ class EnsureUserIsAuthenticated
 		// Get the first segment of the requested URL
 		$firstSegment = $request->segment(1);
 		$isSharedLoadRoute = $firstSegment === 'admin' && ($request->is('admin/load/edit/*') || $request->is('admin/load/update/*'));
-
 		// Check permission
 		if (!in_array($firstSegment, $urls) && !($isSharedLoadRoute && in_array($role_id, $accounts))) {
 			abort(404); // Permission denied
