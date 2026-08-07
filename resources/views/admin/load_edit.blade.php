@@ -152,23 +152,30 @@ select.form-control {
 
                                         @if(!empty($post->customer_id))
                                             <div class="position-relative bill-to-combo-wrapper">
-                                                <input type="text" id="load_bill_to_input" class="form-control bill-to-select" name="load_bill_to"
-                                                    value="{{ $post->load_bill_to ?? '' }}" placeholder="Type or select customer"
-                                                    autocomplete="off" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
-                                                <span class="bill-to-arrow" aria-hidden="true">▼</span>
+                                                <input type="text" id="load_bill_to_search" class="form-control bill-to-search" style="display:none;"
+                                                    placeholder="Type or select customer"
+                                                    title="Type to search customer"
+                                                    autocomplete="off">
 
                                                 <ul id="load_bill_to_dropdown" class="dropdown-menu" style="display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;">
                                                     @foreach($allcustomer as $cust)
-                                                        @if($post->user->id == $cust->user_id)
-                                                            <li class="dropdown-item" data-id="{{ $cust->id }}" data-name="{{ $cust->customer_name }}" style="cursor:pointer; padding:8px 12px;">
-                                                                {{ $cust->customer_name }}
-                                                            </li>
-                                                        @endif
+                                                        <li class="dropdown-item" data-id="{{ $cust->id }}" data-name="{{ $cust->customer_name }}" style="cursor:pointer; padding:8px 12px;">
+                                                            {{ $cust->customer_name }}
+                                                        </li>
                                                     @endforeach
                                                 </ul>
                                             </div>
+                                            <div class="position-relative mt-2">
+                                                <input type="text" id="load_bill_to_selected" name="load_bill_to" class="form-control"
+                                                    value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Selected customer">
+                                                <span class="bill-to-arrow selected-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;">▼</span>
+                                            </div>
                                         @else
-                                            <input type="text" id="load_bill_to_input" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Customer name">
+                                            <input type="text" id="load_bill_to_search" name="load_bill_to" class="form-control" value="" autocomplete="off" placeholder="Type customer name" style="display:none;">
+                                            <div class="position-relative mt-2">
+                                                <input type="text" id="load_bill_to_selected" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Selected customer">
+                                                <span class="bill-to-arrow selected-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;">▼</span>
+                                            </div>
                                         @endif
                                     </div>
                                 </div>
@@ -1863,17 +1870,34 @@ function initCustomComboSelect($select) {
         class: 'custom-combo-wrapper position-relative'
     });
 
-    var $input = $('<input>', {
+    var $searchInput = $('<input>', {
         type: 'text',
-        class: 'form-control custom-combo-input',
+        id: originalId + '_search',
+        class: 'form-control custom-combo-search',
         autocomplete: 'off',
         placeholder: placeholder,
-        value: selectedText
+        value: '',
+        style: 'display:none;'
+    });
+
+    var $selectedInput = $('<input>', {
+        type: 'text',
+        id: originalId + '_selected',
+        class: 'form-control custom-combo-selected',
+        autocomplete: 'off',
+        readonly: 'readonly',
+        value: selectedText,
+        placeholder: placeholder
+    });
+
+    var $selectedWrap = $('<div>', {
+        class: 'position-relative'
     });
 
     var $arrow = $('<span>', {
         class: 'custom-combo-arrow',
-        text: '▼'
+        text: '▼',
+        style: 'position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;'
     });
 
     var $dropdown = $('<ul>', {
@@ -1897,19 +1921,27 @@ function initCustomComboSelect($select) {
         }).appendTo($dropdown);
     });
 
-    $wrapper.append($input, $arrow, $dropdown);
+    $selectedWrap.append($selectedInput, $arrow);
+    $wrapper.append($searchInput, $selectedWrap, $dropdown);
     $select.after($wrapper);
     $select.css('display', 'none');
     $select.attr('data-combo-ready', 'true');
     $select.data('combo-ready', true);
 
-    $input.on('focus', function() {
+    $selectedInput.on('click', function() {
+        $searchInput.show();
+        $searchInput.val('');
         $dropdown.show();
-        filterCustomComboItems($input, $dropdown);
+        $searchInput.focus();
     });
 
-    $input.on('input', function() {
-        filterCustomComboItems($input, $dropdown);
+    $searchInput.on('focus', function() {
+        $searchInput.show();
+        $dropdown.show();
+    });
+
+    $searchInput.on('input', function() {
+        filterCustomComboItems($searchInput, $dropdown);
         $dropdown.show();
     });
 
@@ -1917,7 +1949,9 @@ function initCustomComboSelect($select) {
         var text = $(this).data('text');
         var value = $(this).data('value');
 
-        $input.val(text);
+        $selectedInput.val(text);
+        $searchInput.val('');
+        $searchInput.hide();
         $select.val(value).trigger('change');
         $dropdown.hide();
     });
@@ -1925,12 +1959,13 @@ function initCustomComboSelect($select) {
     $(document).on('click', function(e) {
         if (!$(e.target).closest($wrapper).length) {
             $dropdown.hide();
+            $searchInput.hide();
         }
     });
 
     $select.on('change', function() {
         var selectedText = $select.find('option:selected').text().trim();
-        $input.val(selectedText);
+        $selectedInput.val(selectedText);
     });
 }
 
@@ -1953,15 +1988,24 @@ function filterCustomComboItems($input, $dropdown) {
         }
     });
 
-    var $input = $('#load_bill_to_input');
+    var $searchInput = $('#load_bill_to_search');
+    var $selectedInput = $('#load_bill_to_selected');
     var $dropdown = $('#load_bill_to_dropdown');
 
-    if ($input.length && $dropdown.length) {
-        $input.on('focus', function() {
+    if ($searchInput.length && $dropdown.length) {
+        $('#load_bill_to_selected').on('click', function() {
+            $searchInput.show();
+            $searchInput.val('');
+            $dropdown.show();
+            $searchInput.focus();
+        });
+
+        $searchInput.on('focus', function() {
+            $searchInput.show();
             $dropdown.show();
         });
 
-        $input.on('input', function() {
+        $searchInput.on('input', function() {
             var term = $(this).val().toLowerCase().trim();
             var matched = false;
 
@@ -1982,7 +2026,9 @@ function filterCustomComboItems($input, $dropdown) {
             var selectedName = $(this).data('name') || '';
             var selectedId = $(this).data('id') || '';
 
-            $input.val(selectedName);
+            $searchInput.val('');
+            $searchInput.hide();
+            $selectedInput.val(selectedName);
             $('#customer_id').val(selectedId);
             $dropdown.hide();
             $('#load_shipper_rate').prop('readonly', false);
@@ -1991,8 +2037,9 @@ function filterCustomComboItems($input, $dropdown) {
         });
 
         $(document).on('click', function(e) {
-            if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_input')) {
+            if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_selected') && !$(e.target).is('#load_bill_to_search')) {
                 $dropdown.hide();
+                $searchInput.hide();
             }
         });
     }
@@ -2551,31 +2598,6 @@ $(document).on('click', '#customerInfoBtn', function() {
         }
     });
 });
-
-$(document).ready(function() {
-    var $target = $('#load_bill_to_input');
-    var $hidden = $('#customer_id');
-
-    if ($target.length) {
-        var initialValue = $target.val() || '';
-        var initialId = '';
-
-        $('#load_bill_to_dropdown li').each(function() {
-            if ($(this).data('name') === initialValue) {
-                initialId = $(this).data('id') || '';
-                return false;
-            }
-        });
-
-        $hidden.val(initialId || '');
-    } else {
-        $hidden.val($hidden.val() || '');
-    }
-});
-
-
-
-
 
 </script>
 
