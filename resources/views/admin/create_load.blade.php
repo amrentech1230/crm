@@ -57,6 +57,25 @@
     z-index: 9999;
     top: 10px;
 }
+
+#credit-limit-message {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    margin-bottom: 12px;
+    width: 100%;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+#credit-limit-message.alert {
+    position: sticky;
+    top: 0;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -762,6 +781,16 @@
         return '$' + parseFloat(value || 0).toFixed(2);
     }
 
+    function zeroRateFields() {
+        $('#shipper_load_final_rate').val(0);
+        $('#load_shipper_rate').val(0);
+        $('#load_fsc_rate').val(0);
+        $('[name="shipperchargeAmount[]"]').val(0);
+        $('#totalChargeAmount').val(0);
+        $('#load_final_carrier_fee').val(0);
+        $('#totalShipperOtherChgarges').val(0);
+    }
+
     function getSelectedCustomerCreditLimit() {
         var $select = $('#load_bill_to');
         if (!$select.length) {
@@ -812,6 +841,7 @@
                 .text('You do not have sufficient limit to create this load.')
                 .removeClass('d-none');
             $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load.');
+            zeroRateFields();
             $form.data('credit-valid', false);
             return false;
         }
@@ -824,6 +854,7 @@
                 .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
                 .removeClass('d-none');
             $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
+            zeroRateFields();
             $form.data('credit-valid', false);
             return false;
         }
@@ -1205,8 +1236,10 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                $('#shipper_load_final_rate').val(total.toFixed(2));
-                validateCreditForLoad();
+                    $('#shipper_load_final_rate').val(total.toFixed(2));
+                if (!validateCreditForLoad()) {
+                    zeroRateFields();
+                }
 
                 var customer_id = $('#load_bill_to').val();
                 
@@ -1228,10 +1261,9 @@ $(document).ready(function () {
                                 setTimeout(function() {
                                     $('#mc-error-message').text('').fadeOut();
                                 }, 2000); 
-                                
-                                $('#shipper_load_final_rate').val('');
-                                $('#totalChargeAmount').val('');
-                                $('.shipperchargeAmount').val(''); 
+
+                                zeroRateFields();
+                                validateCreditForLoad();
                             }
                                
                         },
@@ -1266,7 +1298,9 @@ $(document).ready(function () {
             total += (loadFscRate / 100) * loadShipperRate;
 
             $('#shipper_load_final_rate').val(total.toFixed(2));
-            validateCreditForLoad();
+            if (!validateCreditForLoad()) {
+                zeroRateFields();
+            }
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 

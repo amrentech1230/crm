@@ -1605,19 +1605,28 @@ for ($i = 1; $i <= 15; $i++) {
     }
 
      public function fetchShipperDetails(Request $request) {
-        $query = $request->input('query');
+        $query = trim((string) $request->input('query', ''));
         $userId = Auth::id();
+        $roleId = Auth::user()->role_id ?? null;
 
+        $queryBuilder = Shipper::query();
 
-$shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
-    ->where('user_id', $userId)
-    ->select('shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
-    ->orderBy('shipper_
-    name', 'asc') // Sort A to Z
-    ->get();
+        if (!empty($query)) {
+            $queryBuilder->where('shipper_name', 'like', '%' . $query . '%');
+        } else {
+            $queryBuilder->whereRaw('1 = 0');
+        }
 
+        $roleIds = [1, 2, 3];
+        if (!in_array($roleId, $roleIds, true)) {
+            $queryBuilder->where('user_id', $userId);
+        }
 
-        $datashipper = Shipper::get();                       
+        $shippers = $queryBuilder
+            ->select('shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
+            ->orderBy('shipper_name', 'asc')
+            ->get();
+
         return response()->json($shippers);
     }
 
