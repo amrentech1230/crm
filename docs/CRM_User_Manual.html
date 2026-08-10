@@ -7,7 +7,23 @@
 <style>
 @page { size: A4; margin: 18mm; }
 * { box-sizing: border-box; }
-body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 35px; color: #2c3e50; line-height: 1.7; font-size: 12px; }
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 35px; color: #2c3e50; line-height: 1.7; font-size: 12px; position: relative; }
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  background-image: url('images/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.04;
+  z-index: -1;
+  pointer-events: none;
+}
 h1 { color: #1a237e; font-size: 24px; border-bottom: 3px solid #1a237e; padding-bottom: 8px; margin-top: 35px; page-break-after: avoid; }
 h2 { color: #283593; font-size: 18px; border-bottom: 2px solid #3949ab; padding-bottom: 6px; margin-top: 28px; }
 h3 { color: #3949ab; font-size: 14px; margin-top: 18px; }
