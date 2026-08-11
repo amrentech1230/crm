@@ -3,6 +3,117 @@
 
 @section('content')
 <style>
+/* The Add Load form sits inside the XL modal (max-width:90%, centred), so the banner is
+   pinned to the viewport and centred to the same width instead of the page content area.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
+#credit-limit-message {
+    position: fixed;
+    top: 82px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: calc(90% - 2rem);
+    max-width: calc(90% - 2rem);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1060;
+}
+#credit-limit-message.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
+/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+   .modal-backdrop. Dim the overlay on the modal element itself instead. */
+#myModal,
+#otherChargesModal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Compact form controls for this page and its modals */
+.page-content .form-control,
+.page-content .form-select,
+.modal .form-control,
+.modal .form-select {
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.page-content .form-control:not(textarea):not([type="file"]),
+.page-content .form-select,
+.modal .form-control:not(textarea):not([type="file"]),
+.modal .form-select {
+    height: 30px;
+    min-height: 30px;
+}
+
+/* The shipper/consignee autocomplete panels are <div class="form-control">, not inputs:
+   keep them out of the fixed input height or the suggestions get clipped to one line */
+.shipperList,
+.consigneeList {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 4px 0 !important;
+    background-color: #fff;
+    z-index: 1070;
+}
+
+.shipperList .item,
+.consigneeList .item {
+    padding: 4px 8px !important;
+    cursor: pointer;
+}
+
+.shipperList .item:hover,
+.consigneeList .item:hover {
+    background-color: #f1f3f5;
+}
+
+.page-content label,
+.modal label {
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+/* Keep the select2 controls the same size as the inputs beside them */
+.select2-container--default .select2-selection--single {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 2px 26px 2px 8px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    font-size: 12px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    width: 24px !important;
+}
+
+/* Dropdowns are appended to body / the modal, so they need their own rule */
+.select2-dropdown,
+.select2-results__option,
+.select2-search__field {
+    font-size: 12px !important;
+}
+
+/* Filter By Agents: its wrapper is an inline <span>, so the layout's width:100% resolves
+   against .card-body and the control grows once DataTables widens the table. Pin it instead. */
+#filteruser + .select2-container {
+    width: 200px !important;
+    vertical-align: middle;
+}
+
 #myFormLoad input[type="submit"].disabled,
 #myFormLoad input[type="submit"]:disabled {
     background-color: #b8b8b8 !important;
@@ -576,22 +687,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <div class="position-relative bill-to-combo-wrapper">
-                                            <input type="text" id="load_bill_to_input" class="form-control bill-to-select" name="load_bill_to_input"
-                                                placeholder="Type or select customer" autocomplete="off">
-                                            <span class="bill-to-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6c757d; font-size:11px; pointer-events:none;">▼</span>
-
-                                            <ul id="load_bill_to_dropdown" class="dropdown-menu" style="display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;">
-                                                @foreach($customer as $cust)
-                                                    <li class="dropdown-item" data-customer-id="{{$cust->id}}" data-customer-name="{{$cust->customer_name}}"
-                                                        style="cursor:pointer; padding:8px 12px;">
-                                                        {{$cust->customer_name}}
-                                                    </li>
-                                                @endforeach
-                                            </ul>
-                                        </div>
-
-                                        <select id="load_bill_to" class="form-control mySelect2 no-select2" name="load_bill_to" data-placeholder="Select Customer" style="display:none;">
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
                                             <option value="{{$cust->customer_name}}"
@@ -1381,6 +1477,16 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             return '$' + parseFloat(value || 0).toFixed(2);
         }
 
+        function zeroRateFields() {
+            $('#shipper_load_final_rate').val(0);
+            $('#load_shipper_rate').val(0);
+            $('#load_fsc_rate').val(0);
+            $('[name="shipperchargeAmount[]"]').val(0);
+            $('#totalChargeAmount').val(0);
+            $('#load_final_carrier_fee').val(0);
+            $('#totalShipperOtherChgarges').val(0);
+        }
+
         function getSelectedCustomerCreditLimit() {
             var $select = $('#load_bill_to');
             if (!$select.length) {
@@ -1431,6 +1537,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                     .text('You do not have sufficient limit to create this load.')
                     .removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load.');
+                zeroRateFields();
                 $form.data('credit-valid', false);
                 return false;
             }
@@ -1443,6 +1550,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                     .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
                     .removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
+                zeroRateFields();
                 $form.data('credit-valid', false);
                 return false;
             }
@@ -1481,9 +1589,18 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             $form.find('input[type="submit"], input[type="reset"], input[type="button"], button').prop('disabled', shouldLock);
 
             if (shouldLock) {
-                $message.text('You do not have sufficient limit to create this load.').removeClass('d-none');
+                zeroRateFields();
+                $message
+                    .removeClass('alert-warning alert-success')
+                    .addClass('alert-danger')
+                    .text('You do not have sufficient limit to create this load.')
+                    .removeClass('d-none');
             } else if ($select.val()) {
-                $message.text('Available limit: ' + formatCreditAmount(creditLimit) + '.').removeClass('d-none');
+                $message
+                    .removeClass('alert-danger')
+                    .addClass('alert-warning')
+                    .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+                    .removeClass('d-none');
             } else {
                 $message.text('').addClass('d-none');
             }
@@ -1492,46 +1609,6 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         }
 
         $(document).ready(function () {
-            var $input = $('#load_bill_to_input');
-            var $dropdown = $('#load_bill_to_dropdown');
-            var $select = $('#load_bill_to');
-
-            if ($input.length && $dropdown.length && $select.length) {
-                function filterBillToOptions(term) {
-                    term = (term || '').toLowerCase().trim();
-                    $dropdown.find('li').each(function() {
-                        var customerName = ($(this).data('customer-name') || '').toLowerCase();
-                        $(this).toggle(term === '' || customerName.indexOf(term) !== -1);
-                    });
-                }
-
-                $input.on('focus', function() {
-                    filterBillToOptions($input.val());
-                    $dropdown.show();
-                });
-
-                $input.on('input', function() {
-                    filterBillToOptions($(this).val());
-                    $dropdown.show();
-                });
-
-                $dropdown.on('click', 'li', function() {
-                    var customerName = $(this).data('customer-name') || '';
-                    var customerId = $(this).data('customer-id') || '';
-
-                    $input.val(customerName);
-                    $select.val(customerName).trigger('change');
-                    $('#customer_id').val(customerId);
-                    $dropdown.hide();
-                });
-
-                $(document).on('click', function(e) {
-                    if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_input')) {
-                        $dropdown.hide();
-                    }
-                });
-            }
-
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {
                 var selectedOption = $(this).find('option:selected').data('customer-id');

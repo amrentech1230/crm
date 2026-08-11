@@ -26,6 +26,13 @@
         border-radius: 10px;
         padding: 0px 10px;
     }
+
+    /* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+       .modal-backdrop. Dim the overlay on the modal element itself instead. */
+    #myModal,
+    #otherChargesModal {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
     #shipperForms {
         padding: 0;
     }
@@ -58,23 +65,35 @@
     top: 10px;
 }
 
+/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
 #credit-limit-message {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    margin-bottom: 12px;
-    width: 100%;
+    position: fixed;
+    top: 82px;
+    left: 264px;
+    right: 24px;
+    width: auto;
     min-height: 38px;
     display: flex;
     align-items: center;
     border-radius: 4px;
     background-color: #fff3cd;
     border-color: #ffecb5;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
 }
-#credit-limit-message.alert {
-    position: sticky;
-    top: 0;
+#credit-limit-message.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+body.vertical-collpsed #credit-limit-message {
+    left: 94px;
+}
+@media (max-width: 991.98px) {
+    #credit-limit-message {
+        left: 24px;
+    }
 }
 </style>
 
@@ -1252,20 +1271,20 @@ $(document).ready(function () {
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                          
+
                             if (response.success) {
-
-                                 $('#mc-error-message').text(response.message).fadeIn();
-
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
 
                                 zeroRateFields();
                                 validateCreditForLoad();
+
+                                // Show the limit message at the top of the load form
+                                $('#credit-limit-message')
+                                    .removeClass('alert-warning alert-success')
+                                    .addClass('alert-danger')
+                                    .text(response.message)
+                                    .removeClass('d-none');
                             }
-                               
+
                         },
                         
                     });

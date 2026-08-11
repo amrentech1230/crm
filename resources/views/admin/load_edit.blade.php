@@ -49,6 +49,40 @@
     pointer-events: none;
 }
 
+/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
+#credit-limit-message {
+    position: fixed;
+    top: 82px;
+    left: 264px;
+    right: 24px;
+    width: auto;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+}
+body.vertical-collpsed #credit-limit-message {
+    left: 94px;
+}
+@media (max-width: 991.98px) {
+    #credit-limit-message {
+        left: 24px;
+    }
+}
+
+/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+   .modal-backdrop. Dim the overlay on the modal element itself instead. */
+#myModal,
+#otherChargesModal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
  input:invalid {
       border: 2px solid red !important;
     }
@@ -69,7 +103,9 @@
     border: 0 !important;
     display: block !important;
 }
-.select2-container {
+/* Only lift the dropdown while it is open. Applying this to .select2-container put every
+   closed control above the fixed topbar (1002) and sidebar (1001) during scrolling. */
+.select2-container--open {
     z-index: 99999 !important;
 }
 
@@ -132,6 +168,7 @@ select.form-control {
 
                         <form method="POST" action="{{ route('load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-danger d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Edit Load</h3>
@@ -150,33 +187,26 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
 
-                                        @if(!empty($post->customer_id))
-                                            <div class="position-relative bill-to-combo-wrapper">
-                                                <input type="text" id="load_bill_to_search" class="form-control bill-to-search" style="display:none;"
-                                                    placeholder="Type or select customer"
-                                                    title="Type to search customer"
-                                                    autocomplete="off">
-
-                                                <ul id="load_bill_to_dropdown" class="dropdown-menu" style="display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;">
-                                                    @foreach($allcustomer as $cust)
-                                                        <li class="dropdown-item" data-id="{{ $cust->id }}" data-name="{{ $cust->customer_name }}" style="cursor:pointer; padding:8px 12px;">
-                                                            {{ $cust->customer_name }}
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
-                                            <div class="position-relative mt-2">
-                                                <input type="text" id="load_bill_to_selected" name="load_bill_to" class="form-control"
-                                                    value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Selected customer">
-                                                <span class="bill-to-arrow selected-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;">▼</span>
-                                            </div>
-                                        @else
-                                            <input type="text" id="load_bill_to_search" name="load_bill_to" class="form-control" value="" autocomplete="off" placeholder="Type customer name" style="display:none;">
-                                            <div class="position-relative mt-2">
-                                                <input type="text" id="load_bill_to_selected" class="form-control" value="{{ $post->load_bill_to ?? '' }}" readonly autocomplete="off" placeholder="Selected customer">
-                                                <span class="bill-to-arrow selected-arrow" aria-hidden="true" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;">▼</span>
-                                            </div>
-                                        @endif
+                                        @php
+                                            $currentBillTo = (string) ($post->load_bill_to ?? '');
+                                            $billToNames = array_map('strval', collect($allcustomer)->pluck('customer_name')->all());
+                                            $billToIsCustom = $currentBillTo !== '' && !in_array($currentBillTo, $billToNames, true);
+                                        @endphp
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
+                                            <option value="">Select Customer</option>
+                                            @if($billToIsCustom)
+                                                {{-- Keep the saved value selectable even if that customer is no longer listed --}}
+                                                <option value="{{ $currentBillTo }}" data-id="{{ $post->customer_id ?? '' }}" selected>
+                                                    {{ $currentBillTo }}
+                                                </option>
+                                            @endif
+                                            @foreach($allcustomer as $cust)
+                                                <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
+                                                    @if(!empty($post->customer_id) ? (string) $post->customer_id === (string) $cust->id : $currentBillTo === (string) $cust->customer_name) selected @endif>
+                                                    {{ $cust->customer_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
 
@@ -200,7 +230,7 @@ select.form-control {
                                                 value="{{ $post->user->id ?? '' }}">
                                         @else
                                             <!-- Show select normally -->
-                                            <select class="form-control no-select2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
+                                            <select class="form-control mySelect2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
                                                 <option value="">Select a Broker</option>
                                                 @foreach($users as $user)
                                                     <option value="{{ $user->name }}" data-id="{{ $user->id }}" 
@@ -226,7 +256,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
     <label>Customer Payment Status</label>
-    <select class="form-control no-select2" name="load_status" style="width: 100%;">
+    <select class="form-control mySelect2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
                 Invoiced
@@ -280,7 +310,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Payment Type
                                             <code>*</code></label>
-                                        <select class="form-control no-select2" required name="load_payment_type"
+                                        <select class="form-control mySelect2" required name="load_payment_type"
                                             style="width: 100%;">
                                             <option value="">Select payment Type</option>
                                             <option value="Prepaid" {{ $post->load_payment_type == 'Prepaid' ? 'selected' : '' }}>Prepaid</option>
@@ -293,7 +323,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Load type <code>*</code></label>
                                         <div class="purple">
-                                            <select class="form-control no-select2" name="load_type_two" required style="width: 100%;">
+                                            <select class="form-control mySelect2" name="load_type_two" required style="width: 100%;">
                                                 <option value="">Selected</option>
                                                 <option value="OTR" {{ $post->load_type_two == 'OTR' ? 'selected' : '' }}>OTR</option>
                                                 <option value="DRAYAGE" {{ $post->load_type_two == 'DRAYAGE' ? 'selected' : '' }}>DRAYAGE</option>
@@ -304,7 +334,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control no-select2" required name="load_type" style="width: 100%;">
+                                        <select class="form-control mySelect2" required name="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -316,7 +346,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Currency</label>
-                                        <select class="form-control no-select2" name="load_currency" style="width: 100%;">
+                                        <select class="form-control mySelect2" name="load_currency" style="width: 100%;">
                                             <option selected="selected">Select
                                                 Currency
                                             </option>
@@ -329,7 +359,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Equipment Type
                                             <code>*</code></label>
-                                        <select class="form-control no-select2" name="load_equipment_type"
+                                        <select class="form-control mySelect2" name="load_equipment_type"
                                             id="load_equipment_type" style="width: 100%;" required>
 
                                             <option value="">Select Equipment </option>
@@ -628,7 +658,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Billing Type</label>
-                                        <select class="form-control no-select2" name="load_billing_type" style="width: 100%;">
+                                        <select class="form-control mySelect2" name="load_billing_type" style="width: 100%;">
                                              <option selected="selected" value="{{ $post->load_billing_type }}">
                                                         {{ $post->load_billing_type }}</option>
                                                     <option>Factoring</option>
@@ -1744,6 +1774,11 @@ $(document).ready(function () {
         });
 
         $('#tabContent').append(newContent);
+
+        // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
+        if (window.initSelect2) {
+            window.initSelect2(newContent);
+        }
     });
 
     // 🔁 Delegated event for dynamic .load_shipper change
@@ -1816,6 +1851,11 @@ $(document).ready(function () {
                 });
 
                 $('#tabContent1').append(newContent);
+
+                // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
+                if (window.initSelect2) {
+                    window.initSelect2(newContent);
+                }
             });
 
             // ✅ Delegate change event for dynamically added `.load_consignee`
@@ -1856,193 +1896,16 @@ $(document).ready(function () {
 </script>
 <script>
 
-function initCustomComboSelect($select) {
-    if (!$select.length || $select.data('combo-ready')) {
-        return;
-    }
-
-    var originalId = $select.attr('id') || ('combo_' + Math.floor(Math.random() * 1000000));
-    var originalName = $select.attr('name') || '';
-    var placeholder = $select.data('placeholder') || 'Type or select...';
-    var selectedText = $select.find('option:selected').text().trim();
-
-    var $wrapper = $('<div>', {
-        class: 'custom-combo-wrapper position-relative'
-    });
-
-    var $searchInput = $('<input>', {
-        type: 'text',
-        id: originalId + '_search',
-        class: 'form-control custom-combo-search',
-        autocomplete: 'off',
-        placeholder: placeholder,
-        value: '',
-        style: 'display:none;'
-    });
-
-    var $selectedInput = $('<input>', {
-        type: 'text',
-        id: originalId + '_selected',
-        class: 'form-control custom-combo-selected',
-        autocomplete: 'off',
-        readonly: 'readonly',
-        value: selectedText,
-        placeholder: placeholder
-    });
-
-    var $selectedWrap = $('<div>', {
-        class: 'position-relative'
-    });
-
-    var $arrow = $('<span>', {
-        class: 'custom-combo-arrow',
-        text: '▼',
-        style: 'position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#6c757d; font-size:11px;'
-    });
-
-    var $dropdown = $('<ul>', {
-        class: 'dropdown-menu custom-combo-dropdown',
-        style: 'display:none; width:100%; max-height:220px; overflow:auto; margin-top:2px; position:absolute; z-index:9999;'
-    });
-
-    $select.find('option').each(function() {
-        var $option = $(this);
-        var optionText = $option.text().trim();
-        if (!optionText) {
-            return;
-        }
-
-        $('<li>', {
-            class: 'dropdown-item custom-combo-item',
-            html: optionText,
-            'data-value': $option.val(),
-            'data-text': optionText,
-            style: 'cursor:pointer; padding:8px 12px;'
-        }).appendTo($dropdown);
-    });
-
-    $selectedWrap.append($selectedInput, $arrow);
-    $wrapper.append($searchInput, $selectedWrap, $dropdown);
-    $select.after($wrapper);
-    $select.css('display', 'none');
-    $select.attr('data-combo-ready', 'true');
-    $select.data('combo-ready', true);
-
-    $selectedInput.on('click', function() {
-        $searchInput.show();
-        $searchInput.val('');
-        $dropdown.show();
-        $searchInput.focus();
-    });
-
-    $searchInput.on('focus', function() {
-        $searchInput.show();
-        $dropdown.show();
-    });
-
-    $searchInput.on('input', function() {
-        filterCustomComboItems($searchInput, $dropdown);
-        $dropdown.show();
-    });
-
-    $dropdown.on('click', '.custom-combo-item', function() {
-        var text = $(this).data('text');
-        var value = $(this).data('value');
-
-        $selectedInput.val(text);
-        $searchInput.val('');
-        $searchInput.hide();
-        $select.val(value).trigger('change');
-        $dropdown.hide();
-    });
-
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest($wrapper).length) {
-            $dropdown.hide();
-            $searchInput.hide();
-        }
-    });
-
-    $select.on('change', function() {
-        var selectedText = $select.find('option:selected').text().trim();
-        $selectedInput.val(selectedText);
-    });
-}
-
-function filterCustomComboItems($input, $dropdown) {
-    var term = ($input.val() || '').toLowerCase().trim();
-
-    $dropdown.find('.custom-combo-item').each(function() {
-        var text = ($(this).data('text') || '').toLowerCase();
-        $(this).toggle(term === '' || text.indexOf(term) !== -1);
-    });
-}
-
 	$(document).ready(function () {
 
-    $('#myFormLoad select').addClass('no-select2');
+    // Bill To is a select2 dropdown: keep the hidden customer_id in step and reset the rates
+    $('#load_bill_to').on('change', function () {
+        var selectedId = $(this).find('option:selected').data('id') || '';
 
-    $('#myFormLoad select').not('[data-combo-ready="true"]').each(function() {
-        if (!$(this).closest('.custom-combo-wrapper').length) {
-            initCustomComboSelect($(this));
-        }
+        $('#customer_id').val(selectedId);
+        $('#load_shipper_rate').prop('readonly', false).val(0);
+        $('#shipper_load_final_rate').val(0);
     });
-
-    var $searchInput = $('#load_bill_to_search');
-    var $selectedInput = $('#load_bill_to_selected');
-    var $dropdown = $('#load_bill_to_dropdown');
-
-    if ($searchInput.length && $dropdown.length) {
-        $('#load_bill_to_selected').on('click', function() {
-            $searchInput.show();
-            $searchInput.val('');
-            $dropdown.show();
-            $searchInput.focus();
-        });
-
-        $searchInput.on('focus', function() {
-            $searchInput.show();
-            $dropdown.show();
-        });
-
-        $searchInput.on('input', function() {
-            var term = $(this).val().toLowerCase().trim();
-            var matched = false;
-
-            $dropdown.find('li').each(function() {
-                var name = $(this).data('name') || '';
-                var show = term === '' || name.toLowerCase().indexOf(term) !== -1;
-                $(this).toggle(show);
-
-                if (!matched && show) {
-                    matched = true;
-                }
-            });
-
-            $dropdown.show();
-        });
-
-        $dropdown.on('click', 'li', function() {
-            var selectedName = $(this).data('name') || '';
-            var selectedId = $(this).data('id') || '';
-
-            $searchInput.val('');
-            $searchInput.hide();
-            $selectedInput.val(selectedName);
-            $('#customer_id').val(selectedId);
-            $dropdown.hide();
-            $('#load_shipper_rate').prop('readonly', false);
-            $('#load_shipper_rate').val(0);
-            $('#shipper_load_final_rate').val(0);
-        });
-
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#load_bill_to_dropdown').length && !$(e.target).is('#load_bill_to_selected') && !$(e.target).is('#load_bill_to_search')) {
-                $dropdown.hide();
-                $searchInput.hide();
-            }
-        });
-    }
 
     $('#shipper_load_final_rate').on('keydown paste input', function (e) {
         e.preventDefault();
@@ -2098,19 +1961,18 @@ function filterCustomComboItems($input, $dropdown) {
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                          
+
+                            var $creditMessage = $('#credit-limit-message');
+
                             if (response.success) {
+                                // Show the limit message at the top of the load form
+                                $creditMessage.text(response.message).removeClass('d-none');
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
-
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
-                               
-                                $('#shipper_load_final_rate').val(''); 
+                                $('#shipper_load_final_rate').val(0);
+                            } else {
+                                $creditMessage.text('').addClass('d-none');
                             }
-                               
+
                         },
                         
                     });
@@ -2638,24 +2500,4 @@ $(document).on('click', '#carrierInfoBtn', function() {
     background: #ffe5e5;
 }
 
-.bill-to-combo-wrapper,
-.custom-combo-wrapper {
-    position: relative;
-}
-
-.bill-to-arrow,
-.custom-combo-arrow {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #6c757d;
-    font-size: 11px;
-}
-
-.bill-to-select,
-.custom-combo-input {
-    padding-right: 28px;
-}
 </style>

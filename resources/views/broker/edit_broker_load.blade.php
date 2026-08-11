@@ -54,6 +54,40 @@
     z-index: 9999;
     top: 10px;
 }
+
+/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
+#credit-limit-message {
+    position: fixed;
+    top: 82px;
+    left: 264px;
+    right: 24px;
+    width: auto;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+}
+body.vertical-collpsed #credit-limit-message {
+    left: 94px;
+}
+@media (max-width: 991.98px) {
+    #credit-limit-message {
+        left: 24px;
+    }
+}
+
+/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+   .modal-backdrop. Dim the overlay on the modal element itself instead. */
+#myModal,
+#otherChargesModal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
 .form-check-input[type=checkbox] {
     border-radius: .25em;
     border: 2px solid;
@@ -107,6 +141,7 @@ select.form-control {
 
                         <form method="POST" action="{{ route('broker.load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-danger d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Edit Load</h3>
@@ -1939,6 +1974,11 @@ $(document).ready(function () {
         });
 
         $('#tabContent').append(newContent);
+
+        // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
+        if (window.initSelect2) {
+            window.initSelect2(newContent);
+        }
     });
 
     // 🔁 Delegated event for dynamic .load_shipper change
@@ -2011,6 +2051,11 @@ $(document).ready(function () {
                 });
 
                 $('#tabContent1').append(newContent);
+
+                // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
+                if (window.initSelect2) {
+                    window.initSelect2(newContent);
+                }
             });
 
             // ✅ Delegate change event for dynamically added `.load_consignee`
@@ -2126,19 +2171,18 @@ $(document).ready(function () {
                             _token: '{{ csrf_token() }}'
                         },  
                         success: function(response) {
-                          
+
+                            var $creditMessage = $('#credit-limit-message');
+
                             if (response.success) {
+                                // Show the limit message at the top of the load form
+                                $creditMessage.text(response.message).removeClass('d-none');
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
-
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
-                               
-                                $('#shipper_load_final_rate').val(''); 
+                                $('#shipper_load_final_rate').val(0);
+                            } else {
+                                $creditMessage.text('').addClass('d-none');
                             }
-                               
+
                         },
                         
                     });

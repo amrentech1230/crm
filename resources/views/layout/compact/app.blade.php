@@ -36,7 +36,8 @@
 		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 		<style>
-		span.select2-container{z-index:999999 !important;}
+		/* Only the open dropdown needs to clear modals (see rules below). A blanket z-index here
+		   made every closed select2 control float above open modals. */
 		span.select2.select2-container.select2-container--default {
 				width: 100% !important;
 			}
@@ -374,37 +375,62 @@ select.form-control {
      
         <script> 
 		
-			$(document).ready(function () {
-				function select2TextMatcher(params, data) {
-					if ($.trim(params.term) === '') {
-						return data;
-					}
-
-					if (data && data.text) {
-						var text = data.text.toLowerCase();
-						var term = params.term.toLowerCase();
-						if (text.indexOf(term) > -1) {
-							return data;
-						}
-					}
-
-					return null;
+			function select2TextMatcher(params, data) {
+				if ($.trim(params.term) === '') {
+					return data;
 				}
 
-				// Initialize ALL selects with dropdownParent body so they always open downward
-				$('select').not('.no-select2').each(function () {
+				if (data && data.text) {
+					var text = data.text.toLowerCase();
+					var term = params.term.toLowerCase();
+					if (text.indexOf(term) > -1) {
+						return data;
+					}
+				}
+
+				return null;
+			}
+
+			// Initialize ALL selects with dropdownParent body so they always open downward.
+			// Pass a container (e.g. a freshly cloned form) to initialise only that subtree.
+			window.initSelect2 = function (scope) {
+				var $selects = scope ? $(scope).find('select') : $('select');
+
+				$selects.not('.no-select2').each(function () {
 					var $select = $(this);
+					var $modal = $select.closest('.modal');
+					// A placeholder overwrites the text of the empty option, so reuse that option's
+					// own wording ("Select Status", "Select Customer", ...) instead of a generic label
+					var $emptyOption = $select.find('option[value=""]').first();
+					var placeholder = $select.data('placeholder')
+						|| $emptyOption.text().trim()
+						|| 'Select';
+
 					if ($select.data('select2')) {
 						$select.select2('destroy');
+					} else if ($select.hasClass('select2-hidden-accessible')) {
+						// Markup copied by .clone() from an initialised select: drop the orphan container
+						$select.siblings('.select2-container').remove();
+						$select.removeClass('select2-hidden-accessible')
+							.removeAttr('data-select2-id aria-hidden tabindex');
 					}
+
 					$select.select2({
-						dropdownParent: $('body'),
+						// Inside a modal the dropdown must live in the modal, or Bootstrap's
+						// focus trap steals keystrokes from the search box
+						dropdownParent: $modal.length ? $modal : $('body'),
 						width: '100%',
-						allowClear: true,
-						placeholder: $select.data('placeholder') || 'Select an option',
+						// allowClear needs an empty option to clear back to, else select2 warns
+						allowClear: $emptyOption.length > 0,
+						placeholder: placeholder,
 						matcher: select2TextMatcher
 					});
 				});
+			};
+
+			$(document).ready(function () {
+				window.initSelect2();
+			});
 
             // Wait for the DOM to be fully loaded
             document.addEventListener("DOMContentLoaded", function() {
