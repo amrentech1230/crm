@@ -161,11 +161,11 @@
                             </ul>
                         </div>
                         <div class="row filterdata">
-                            <h4>Filter Users</h4>
+                            <h4>Filter By Agents</h4>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="officeSelect">Office:</label>
-                                <select id="officeSelect" class="form-control">
+                                <select id="officeSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Office --</option>
                                     @foreach($office as $data)
                                     <option value="{{$data->id}}">{{$data->office_name}}</option>
@@ -173,9 +173,9 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="managerSelect">Manager:</label>
-                                <select id="managerSelect" class="form-control">
+                                <select id="managerSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Manager --</option>
                                     @foreach($manager as $data)
                                     <option value="{{$data->id}}">{{$data->manager}}</option>
@@ -183,9 +183,9 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="teamLeaderSelect">Team Leader:</label>
-                                <select id="teamLeaderSelect" class="form-control">
+                                <select id="teamLeaderSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Team Leader --</option>
                                     @foreach($teamlead as $data)
                                     <option value="{{$data->id}}">{{$data->tl}}</option>
@@ -193,10 +193,10 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
-                                <label for="agentSelect">Agent:</label>
-                                <select id="agentSelect" class="form-control">
-                                    <option value="">-- Select Agent --</option>
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
+                                <label for="agentSelect">Broker/Customer:</label>
+                                <select id="agentSelect" class="form-control no-select2" style="width:100%;">
+                                    <option value="">-- Select Broker/Customer --</option>
                                     @foreach($agent as $data)
                                     <option value="{{$data->id}}">{{$data->name}}</option>
                                     @endforeach

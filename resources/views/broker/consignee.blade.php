@@ -42,7 +42,7 @@
 
                         <h4 class="card-title">Consignee</h4>
                           <span style="float: left;margin-right: 10px;">Filter By Agents</span>
-                         <span><select style="width:200px;" name="filterusers" class="form-control" id="filterusers">
+                         <span style="display:inline-block;width:200px;"><select style="width:200px;max-width:200px;" name="filterusers" class="no-select2" id="filterusers">
 						<option value="{{Auth::id()}}">{{Auth::user()->name}}</option>
                             @foreach($userInfos as $key => $user)
                                 <option value="{{$key}}">{{$user}}</option>
