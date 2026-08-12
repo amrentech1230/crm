@@ -60,9 +60,11 @@
 #credit-limit-message {
     position: fixed;
     top: 82px;
-    left: 264px;
-    right: 24px;
-    width: auto;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
     min-height: 38px;
     display: flex;
     align-items: center;
@@ -72,13 +74,17 @@
     color: #842029;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     z-index: 1000;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 body.vertical-collpsed #credit-limit-message {
-    left: 94px;
+    left: 50%;
 }
 @media (max-width: 991.98px) {
     #credit-limit-message {
-        left: 24px;
+        width: min(96vw, 1180px);
+        left: 50%;
     }
 }
 

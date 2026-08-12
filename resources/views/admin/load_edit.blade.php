@@ -1,4 +1,4 @@
-@extends('layout.compact.app')
+﻿@extends('layout.compact.app')
 @section('content')
 <style>
     ul#navTabs,
@@ -53,10 +53,12 @@
    position: sticky cannot be used here: .main-content has overflow:hidden. */
 #credit-limit-message {
     position: fixed;
-    top: 82px;
-    left: 264px;
-    right: 24px;
-    width: auto;
+    top: 182px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
     min-height: 38px;
     display: flex;
     align-items: center;
@@ -65,14 +67,18 @@
     border-color: #f5c2c7;
     color: #842029;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
+    /* z-index: 1000; */
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 body.vertical-collpsed #credit-limit-message {
-    left: 94px;
+    left: 50%;
 }
 @media (max-width: 991.98px) {
     #credit-limit-message {
-        left: 24px;
+        width: min(96vw, 1180px);
+        left: 50%;
     }
 }
 
@@ -439,7 +445,7 @@ select.form-control {
                                         <label>Customer Base Rate
                                             <code>*</code></label>
                                         <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
-                                            autocomplete="off" id="load_shipper_rate" required style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
+                                            autocomplete="off" id="load_shipper_rate" required min="0" style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
                                         
                                     </div>
                                 </div>
@@ -1910,6 +1916,14 @@ $(document).ready(function () {
     $('#shipper_load_final_rate').on('keydown paste input', function (e) {
         e.preventDefault();
     });
+
+    $('#load_shipper_rate').on('keydown', function (e) {
+        if (e.key === '-' || e.key === 'e') e.preventDefault();
+    });
+
+    $('#load_shipper_rate').on('input', function () {
+        if (parseFloat($(this).val()) < 0) $(this).val(0);
+    });
 });
 
         $(document).ready(function () {
@@ -1938,12 +1952,13 @@ $(document).ready(function () {
 
                 $('#totalChargeAmount').val(total.toFixed(2));
 
-                var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+                var loadShipperRate = Math.max(0, parseFloat($('#load_shipper_rate').val()) || 0);
                 total += loadShipperRate;
 
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
+                if (total < 0) total = 0;
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
                 var final_total_rate = parseFloat(total) - parseFloat($('#old_shipper_load_final_rate').val());
@@ -2120,12 +2135,13 @@ $(document).ready(function () {
         // Update the total charge field
         $('#totalChargeAmount').val(total.toFixed(2));
 
-        var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+        var loadShipperRate = Math.max(0, parseFloat($('#load_shipper_rate').val()) || 0);
         total += loadShipperRate;
 
         var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
         total += (loadFscRate / 100) * loadShipperRate;
 
+        if (total < 0) total = 0;
         $('#shipper_load_final_rate').val(total.toFixed(2));
     }
     // Remove row

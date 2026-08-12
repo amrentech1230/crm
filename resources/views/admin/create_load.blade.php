@@ -70,9 +70,11 @@
 #credit-limit-message {
     position: fixed;
     top: 82px;
-    left: 264px;
-    right: 24px;
-    width: auto;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
     min-height: 38px;
     display: flex;
     align-items: center;
@@ -81,6 +83,9 @@
     border-color: #ffecb5;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     z-index: 1000;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 #credit-limit-message.alert-danger {
     background-color: #f8d7da;
@@ -88,11 +93,12 @@
     color: #842029;
 }
 body.vertical-collpsed #credit-limit-message {
-    left: 94px;
+    left: 50%;
 }
 @media (max-width: 991.98px) {
     #credit-limit-message {
-        left: 24px;
+        width: min(96vw, 1180px);
+        left: 50%;
     }
 }
 </style>
@@ -853,6 +859,18 @@ body.vertical-collpsed #credit-limit-message {
         var creditLimit = getSelectedCustomerCreditLimit();
         var enteredAmount = parseFloat($rate.val()) || 0;
 
+        if (enteredAmount < 0) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Shipper rate cannot be negative.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Shipper rate cannot be negative.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
         if (creditLimit <= 0) {
             $message
                 .removeClass('alert-warning alert-success')
@@ -861,6 +879,7 @@ body.vertical-collpsed #credit-limit-message {
                 .removeClass('d-none');
             $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load.');
             zeroRateFields();
+            $rate.val(0);
             $form.data('credit-valid', false);
             return false;
         }
@@ -874,6 +893,7 @@ body.vertical-collpsed #credit-limit-message {
                 .removeClass('d-none');
             $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
             zeroRateFields();
+            $rate.val(0);
             $form.data('credit-valid', false);
             return false;
         }

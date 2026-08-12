@@ -12,8 +12,8 @@
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-    width: calc(90% - 2rem);
-    max-width: calc(90% - 2rem);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
     min-height: 38px;
     display: flex;
     align-items: center;
@@ -22,6 +22,9 @@
     border-color: #ffecb5;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     z-index: 1060;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 #credit-limit-message.alert-danger {
     background-color: #f8d7da;
@@ -1529,6 +1532,17 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
             var creditLimit = getSelectedCustomerCreditLimit();
             var enteredAmount = parseFloat($rate.val()) || 0;
+
+            if (enteredAmount < 0) {
+                $message
+                    .removeClass('alert-warning alert-success')
+                    .addClass('alert-danger')
+                    .text('Shipper rate cannot be negative.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Shipper rate cannot be negative.');
+                $form.data('credit-valid', false);
+                return false;
+            }
 
             if (creditLimit <= 0) {
                 $message
