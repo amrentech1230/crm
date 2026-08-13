@@ -15,7 +15,15 @@ class CreditService
             return 0.0;
         }
 
-        return $this->calculateCustomerCreditSummary($customer, $this->getAssignedCreditLimit($customer), $this->getLoadCreationAmount($customer))['remaining_credit'];
+        $remainingCredit = (float) ($customer->remaining_credit ?? 0);
+
+        // If remaining_credit has been tracked (> 0 or explicitly set), use it directly.
+        // Fall back to assigned limit only when remaining_credit has never been set.
+        if ($remainingCredit > 0 || $customer->remaining_credit !== null) {
+            return max(0.0, $remainingCredit);
+        }
+
+        return max(0.0, (float) ($customer->adv_customer_credit_limit ?? $customer->invoice_credit_limit ?? 0));
     }
 
     public function calculateCustomerCreditSummary($customer, float $assignedCreditLimit, float $loadCreateAmount, float $receivingAmount = 0.0): array
