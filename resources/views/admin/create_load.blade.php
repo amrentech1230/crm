@@ -1412,7 +1412,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not graterthe Shipper Final rate").fadeIn();
+                      $('#mc-error-message').text("Final Carrier Fee not greater then Shipper Final rate").fadeIn();
                       $('.shipper_other_charge').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);
