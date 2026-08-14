@@ -582,6 +582,8 @@ if (!empty($term)) {
             'load_bill_to' => 'required|string',
             'load_delivery_do_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'shipper_load_final_rate' => 'required|numeric|gt:0',
+            'load_shipper_commodity' => 'required|string',
+            'load_consignee_commodity' => 'required|string',
         ]);
 
             $yourModel = new Load();

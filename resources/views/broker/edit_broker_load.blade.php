@@ -2435,7 +2435,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not greater then Shipper Final rate").fadeIn();
+                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
                         $('#load_carrier_fee').val(0);
                         $('#load_final_carrier_fee').val(0);
                         // Hide after 10 seconds

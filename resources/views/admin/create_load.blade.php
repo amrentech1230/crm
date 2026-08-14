@@ -36,6 +36,10 @@
     #shipperForms {
         padding: 0;
     }
+    #load_shipper_commodity.field-error,
+    #load_consignee_commodity.field-error {
+        border: 1px solid red !important;
+    }
 
 #mc-success-message{
     padding: 10px;
@@ -142,7 +146,7 @@ body.vertical-collpsed #credit-limit-message {
                     <div class="card-body">
 
                         <form method="POST" action="{{ route('load.create') }}" id="myFormLoad"
-                        enctype="multipart/form-data">
+                        enctype="multipart/form-data" novalidate>
                         @csrf
                         <div id="credit-limit-message" class="alert alert-warning d-none mb-3"></div>
                         <div class="card-header">
@@ -608,7 +612,8 @@ body.vertical-collpsed #credit-limit-message {
                                                 <label>Commodity Name <code>*</code></label>
                                                 <input class="form-control load_shipper_commodity" id="load_shipper_commodity"
                                                     name="load_shipper_commodity" autocomplete="off" type="text"
-                                                     style="width: 100%;">
+                                                    required style="width: 100%;">
+                                                <div id="error_load_shipper_commodity" style="color:red; font-size:11px; display:none;">Please fill Commodity Name *</div>
                                             </div>
                                         </div>
                                         <div class="col-md-2 mb-2">
@@ -729,7 +734,8 @@ body.vertical-collpsed #credit-limit-message {
                                                 <div class="form-group">
                                                     <label>Commodity Name <code>*</code></label>
                                                     <input class="form-control load_consignee_commodity" name="load_consignee_commodity"
-                                                        id="load_consignee_commodity" autocomplete="off" type="text" style="width: 100%;">
+                                                        id="load_consignee_commodity" autocomplete="off" type="text" required style="width: 100%;">
+                                                    <div id="error_load_consignee_commodity" style="color:red; font-size:11px; display:none;">Please fill Commodity Name *</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -922,8 +928,42 @@ body.vertical-collpsed #credit-limit-message {
         });
 
         $('#myFormLoad').on('submit', function (e) {
-            if (!validateCreditForLoad()) {
+            var valid = true;
+
+            if (!$('#load_shipper_commodity').val().trim()) {
+                $('#load_shipper_commodity').addClass('field-error');
+                $('#error_load_shipper_commodity').show();
+                valid = false;
+            } else {
+                $('#load_shipper_commodity').removeClass('field-error');
+                $('#error_load_shipper_commodity').hide();
+            }
+
+            if (!$('#load_consignee_commodity').val().trim()) {
+                $('#load_consignee_commodity').addClass('field-error');
+                $('#error_load_consignee_commodity').show();
+                valid = false;
+            } else {
+                $('#load_consignee_commodity').removeClass('field-error');
+                $('#error_load_consignee_commodity').hide();
+            }
+
+            if (!valid || !validateCreditForLoad()) {
                 e.preventDefault();
+            }
+        });
+
+        $(document).on('input', '#load_shipper_commodity', function () {
+            if ($(this).val().trim()) {
+                $(this).removeClass('field-error');
+                $('#error_load_shipper_commodity').hide();
+            }
+        });
+
+        $(document).on('input', '#load_consignee_commodity', function () {
+            if ($(this).val().trim()) {
+                $(this).removeClass('field-error');
+                $('#error_load_consignee_commodity').hide();
             }
         });
 	});
@@ -1412,7 +1452,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not greater then Shipper Final rate").fadeIn();
+                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
                       $('.shipper_other_charge').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);

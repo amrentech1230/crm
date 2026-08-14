@@ -1171,7 +1171,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             <div class="form-group">
                                                 <label>Commodity Name <code>*</code></label>
                                                 <input class="form-control load_shipper_commodity" id="load_shipper_commodity"
-                                                    name="load_shipper_commodity" autocomplete="off" type="text"
+                                                    name="load_shipper_commodity" autocomplete="off" type="text" required
                                                      style="width: 100%;">
                                             </div>
                                         </div>
@@ -1292,7 +1292,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                                 <div class="form-group">
                                                     <label>Commodity Name <code>*</code></label>
                                                     <input class="form-control load_consignee_commodity" name="load_consignee_commodity"
-                                                        id="load_consignee_commodity" autocomplete="off" type="text" style="width: 100%;">
+                                                        id="load_consignee_commodity" autocomplete="off" type="text" required style="width: 100%;">
                                                 </div>
                                             </div>
                                         </div>
@@ -2092,7 +2092,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not greater then Shipper Final rate").fadeIn();
+                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
                       $('.shipper_other_charge').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);
