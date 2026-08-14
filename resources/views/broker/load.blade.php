@@ -1486,8 +1486,8 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             $('#shipper_load_final_rate').val(0);
             $('#load_shipper_rate').val(0);
             $('#load_fsc_rate').val(0);
-            $('[name="shipperchargeAmount[]"]').val(0);
             $('#totalChargeAmount').val(0);
+            $('[name="shipperchargeAmount[]"]').val(0);
             $('#load_final_carrier_fee').val(0);
             $('#totalShipperOtherChgarges').val(0);
         }
@@ -1989,7 +1989,13 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                $('#shipper_load_final_rate').val(total.toFixed(2));
+                // Check if total exceeds credit limit before setting final rate
+                var creditLimit = getSelectedCustomerCreditLimit();
+                if (creditLimit > 0 && total > creditLimit) {
+                    $('#shipper_load_final_rate').val(0);
+                } else {
+                    $('#shipper_load_final_rate').val(total.toFixed(2));
+                }
                 validateCreditForLoad();
             }
 
@@ -2018,8 +2024,15 @@ $(document).ready(function () {
             var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
             total += (loadFscRate / 100) * loadShipperRate;
 
-            $('#shipper_load_final_rate').val(total.toFixed(2));
+            // Check if total exceeds credit limit - if yes, set final rate to 0
+            var creditLimit = getSelectedCustomerCreditLimit();
+            if (creditLimit > 0 && total > creditLimit) {
+                $('#shipper_load_final_rate').val(0);
+            } else {
+                $('#shipper_load_final_rate').val(total.toFixed(2));
+            }
             validateCreditForLoad();
+        }
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 
