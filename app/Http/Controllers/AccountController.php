@@ -1351,7 +1351,7 @@ public function deleteCarrierDoc(Request $request)
         | Credit Limit Logs
         |--------------------------------------------------------------------------
         */
-        $existingCreditLogs = json_decode($customer->credit_limit_log, true) ?? [];
+        $existingCreditLogs = is_array(json_decode($customer->credit_limit_log, true)) ? json_decode($customer->credit_limit_log, true) : [];
 
         $newCreditLimitLogs = [];
 
@@ -1376,7 +1376,7 @@ public function deleteCarrierDoc(Request $request)
         | Invoice Credit Limit Logs
         |--------------------------------------------------------------------------
         */
-        $existingInvoiceCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+        $existingInvoiceCreditLogs = is_array(json_decode($customer->invoice_credit_limit_log, true)) ? json_decode($customer->invoice_credit_limit_log, true) : [];
 
         $newInvoiceCreditLogs = [];
 
@@ -1403,7 +1403,7 @@ public function deleteCarrierDoc(Request $request)
         | Remaining Credit Logs
         |--------------------------------------------------------------------------
         */
-        $existingRemainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+        $existingRemainingCreditLogs = is_array(json_decode($customer->remaining_credit_logs, true)) ? json_decode($customer->remaining_credit_logs, true) : [];
 
         $newRemainingCreditLogs = [];
 
