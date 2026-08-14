@@ -159,8 +159,8 @@
                                         @include('accounts.reporting.carrier')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($totalRevenueloadcarrier->setPageName('carrier')) !!}
+                                <div class="custom-pagination">
+                                    {{ $totalRevenueloadcarrier->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="customer" role="tabpanel">
@@ -191,8 +191,8 @@
                                         @include('accounts.reporting.customers')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($totalRevenueCustomer->setPageName('customer')) !!}
+                                <div class="custom-pagination">
+                                    {{ $totalRevenueCustomer->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="customer_detail" role="tabpanel">
@@ -228,8 +228,8 @@
                                         @include('accounts.reporting.customer_details')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($get_customers->setPageName('get_customers')) !!}
+                                <div class="custom-pagination">
+                                    
                                 </div>
                             </div>
                             <div class="tab-pane" id="dispatcher" role="tabpanel">
@@ -258,8 +258,8 @@
                                         @include('accounts.reporting.dispatchers')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($totalRevenueCarrier->setPageName('dispatcher')) !!}
+                                <div class="custom-pagination">
+                                    {{ $totalRevenueCarrier->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="load" role="tabpanel">
@@ -294,8 +294,8 @@
                                         @include('accounts.reporting.load')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($dashboard->setPageName('load')) !!}
+                                <div class="custom-pagination">
+                                    {{ $dashboard->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="sales_rep" role="tabpanel">
@@ -322,8 +322,8 @@
                                         @include('accounts.reporting.sales_reps')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($totalRevenueBroker->setPageName('sales_rep')) !!}
+                                <div class="custom-pagination">
+                                    {{ $totalRevenueBroker->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="load_completed_log" role="tabpanel">
@@ -368,8 +368,7 @@
                                             <th>Invoice Date</th>
                                             <th>Paper work Received Date</th>
                                             <th>Payment Receiving Date</th>
-                                            <th>Account Receiving Status</th>
-                                           
+                                            <th>Customer Payment Received Amount</th>
                                             <th>Customer Payment Mark Date</th>
                                             <th>Customer Rate</th>
                                             <th>Carrier Rate</th>
@@ -378,9 +377,9 @@
                                             <th>CPR Check</th>
                                             <th>Macro Sent</th>
                                             <th>Customer Short Pay</th>
-                                            <th>Customer Payment Received Amount</th>
-                                            <th>Remaining Amount</th>
-                                            <th>Excess Amount</th>
+                                            <th>Macro Status</th>
+                                            <th>Macro Number</th>
+                                            <th>Aging</th>
 
                                         </tr>
                                     </thead>
@@ -389,8 +388,8 @@
                                     </tbody>
 
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($dashboard_logs->setPageName('logs')) !!}
+                                <div class="custom-pagination">
+                                    {{ $dashboard_logs->links() }}
                                 </div>
                             </div>
                             
@@ -420,8 +419,8 @@
                                         @include('accounts.reporting.aging')
                                     </tbody>
                                 </table>
-                                <div class="custom-pagination" style="display:block;">
-                                    {!! render_pagination_links($customersData->setPageName('limits')) !!}
+                                <div class="custom-pagination">
+                                    {{ $customersData->links() }}
                                 </div>
                             </div>
                         </div>
@@ -488,23 +487,15 @@
     $.ajax({
         url: url,
         type: 'GET',
-        dataType: 'json',
         data: {
             tab: activeTab 
         },
-        success: function(response) {
-            const html = response.html || '';
-            const pagination = response.pagination || '';
-
+        success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
 
-            $(resultContainer).html(html);
-            const paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
-            paginationContainer.css('display', 'block');
-            paginationContainer.html(pagination || '');
-            paginationContainer.show();
+            $(resultContainer).html(data);
 
             $(tableSelector).DataTable({
                 responsive: true,
@@ -514,12 +505,8 @@
 				paging: false
             });
 
-            const separator = url.includes('?') ? '&' : '?';
-            const tabParam = activeTab ? encodeURIComponent(activeTab) : '';
-            const finalUrl = tabParam ? url + separator + 'tab=' + tabParam : url;
-
             // Optional: update the browser URL
-            window.history.pushState("", "", finalUrl);
+            window.history.pushState("", "", url);
         }
     });
 });

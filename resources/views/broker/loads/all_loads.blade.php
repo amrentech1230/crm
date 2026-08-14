@@ -197,17 +197,105 @@
 
 
 
-    @if(!empty($loads->shipper_load_final_rate))
-    <td class="dynamic-data">{{ $loads->shipper_load_final_rate }}</td>
-    @else
-    <td class="dynamic-data"> - </td>
+@php
+    $finalRate = (float) ($loads->load_shipper_rate ?? 0);
+
+    $otherCharges = json_decode($loads->shipper_load_other_charge, true);
+
+    // Ensure it's always an array
+    if (!is_array($otherCharges)) {
+        $otherCharges = [];
+    }
+
+    $totalOtherCharges = 0;
+@endphp
+
+<td class="dynamic-data">
+    @php
+        $baseRate = (float) $finalRate;
+        $fscPercentage = (float) ($loads->load_fsc_rate ?? 0);
+        $fscAmount = ($baseRate * $fscPercentage) / 100;
+
+        $totalOtherCharges = 0;
+    @endphp
+
+    <div>
+        <strong>Customer Base Rate:</strong>
+        ${{ number_format($baseRate, 2) }}
+    </div>
+
+    @if($fscPercentage > 0)
+        <div>
+            F.S.C ({{ $fscPercentage }}%):
+            <strong>${{ number_format($fscAmount, 2) }}</strong>
+        </div>
     @endif
 
-    @if(!empty($loads->load_final_carrier_fee))
-    <td class="dynamic-data">{{ $loads->load_final_carrier_fee }}</td>
-    @else
-    <td class="dynamic-data"> - </td>
+    @foreach($otherCharges as $charge)
+        @php
+            $amount = (float) ($charge['amount'] ?? 0);
+            $totalOtherCharges += $amount;
+        @endphp
+
+        <div>
+            {{ $charge['type'] ?? '-' }} :
+            <strong>${{ number_format($amount, 2) }}</strong>
+        </div>
+    @endforeach
+
+    <hr style="margin:5px 0;">
+
+    <div>
+        <strong>Final Customer Rate:</strong>
+        ${{ number_format($baseRate + $fscAmount + $totalOtherCharges, 2) }}
+    </div>
+</td>
+
+@php
+    $carrierFee = (float) ($loads->load_carrier_fee ?? 0);
+    $carrierFscPercentage = (float) ($loads->load_billing_fsc_rate ?? 0);
+    $carrierFscAmount = ($carrierFee * $carrierFscPercentage) / 100;
+
+    $carrierCharges = json_decode($loads->carrier_load_other_charge, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($carrierCharges)) {
+        $carrierCharges = [];
+    }
+
+    $totalOtherCharges = 0;
+@endphp
+
+<td class="dynamic-data">
+    <div>
+        <strong>Carrier Base Rate:</strong>
+        ${{ number_format($carrierFee, 2) }}
+    </div>
+
+    @if($carrierFscPercentage > 0)
+        <div style="font-size:12px;color:#555;">
+            F.S.C ({{ $carrierFscPercentage }}%) :
+            <strong>${{ number_format($carrierFscAmount, 2) }}</strong>
+        </div>
     @endif
+
+    @foreach($carrierCharges as $charge)
+        @php
+            $amount = (float) ($charge['amount'] ?? 0);
+            $totalOtherCharges += $amount;
+        @endphp
+
+        <div style="font-size:12px;color:#555;">
+            {{ $charge['type'] ?? '-' }} :
+            <strong>${{ number_format($amount, 2) }}</strong>
+        </div>
+    @endforeach
+
+    <hr style="margin:4px 0;">
+
+    <div>
+        <strong>Total: ${{ number_format($carrierFee + $carrierFscAmount + $totalOtherCharges, 2) }}</strong>
+    </div>
+</td>
 
     @php
     $shipperRate = floatval($loads->shipper_load_final_rate);
@@ -252,7 +340,7 @@
         // Calculate the difference in days based on the invoice status
         if ($loads->invoice_status == 'Paid') {
         // Calculate days since the invoice was paid
-        $differenceInDays = $invoiceDate->diffInDays($currentDate);
+        $differenceInDays = round($invoiceDate->diffInDays($currentDate));
         } elseif ($loads->invoice_status == 'Paid Record') {
         // If the invoice status is 'Paid Record', aging is complete
         $differenceInDays = 'Paid';
@@ -283,6 +371,13 @@
     @else
     <td class="dynamic-data">{{ $loads->cpr_check }}</td>
     @endif
+        <td class="dynamic-data">
+        @if($loads->carrier_mark_as_paid == 'Paid')
+            <span style="color:green">Paid</span>
+        @else
+            <span style="color:red"> Not Paid</span>
+        @endif
+    </td>
 
     @if($loads->load_status)
     <td class="dynamic-data" colspan="2">

@@ -430,6 +430,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             <th>Margin %</th>
                                             <th>Aging</th>
                                             <th>CPR Status</th>
+                                            <th>Carrier Payment Status</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -723,6 +724,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             style="width: 100%;">
                                             <option value="None">None</option>
                                             <option value="Rachel">Rachel</option>
+                                            <option value="Amelia">Amelia</option>
                                         </select>
                                 </div>
                                 </div>

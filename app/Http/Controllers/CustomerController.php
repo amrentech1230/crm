@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\http\Controllers\LoadController;
 use Illuminate\Http\Request;
@@ -677,14 +678,33 @@ public function uploadRemittance(Request $request)
         return view('broker.customerapprovalformbroker',compact('customerApprovalFormBroker'));
     }
 
+
+
 private function appendToGoogleSheet($data)
 {
-    $url = "https://script.google.com/macros/s/AKfycbzjK0fiMeIYxg8F7B4mK92KVRlCL-UyWIpM1kFqa8ImZ0-QL2I462-ogVmZNaqEt5iWSA/exec";
+    // PASTE YOUR NEW DEPLOYMENT URL BELOW
+    $url = "https://script.google.com/a/macros/cargoconvoy.co/s/AKfycbydbQCeunLgFGPGqQvXfvm-MHNVtFxSQR_PkLVPhlsL25rdRQIoQ5y0nP9H9ENhOKzO/exec";
 
-    $response = \Illuminate\Support\Facades\Http::post($url, $data);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
-    return $response->body();
+    $response = curl_exec($ch);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    if ($error) {
+        \Log::error('Google Sheet Error: ' . $error);
+    }
+dd($response); die;
+    return $response;
 }
+
 
 
 

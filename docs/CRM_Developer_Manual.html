@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Convoy CRM - Developer Manual</title>
+<style>
+@page { size: A4; margin: 18mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 35px; color: #2c3e50; line-height: 1.7; font-size: 12px; }
+h1 { color: #0d47a1; font-size: 24px; border-bottom: 3px solid #0d47a1; padding-bottom: 8px; margin-top: 35px; page-break-after: avoid; }
+h2 { color: #1565c0; font-size: 18px; border-bottom: 2px solid #1976d2; padding-bottom: 6px; margin-top: 28px; }
+h3 { color: #1976d2; font-size: 14px; margin-top: 18px; }
+h4 { color: #1e88e5; font-size: 12px; margin-top: 14px; }
+p { margin: 8px 0; }
+ul, ol { margin: 6px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+code { background: #eceff1; padding: 1px 5px; border-radius: 3px; font-size: 11px; font-family: 'Fira Code', monospace; }
+</style>
+</head>
+<body>
+
+<style>
+.cover { text-align: center; padding: 50px 0; page-break-after: always; }
+.cover h1 { font-size: 36px; color: #0d47a1; border: none; margin-bottom: 8px; }
+.cover .subtitle { font-size: 16px; color: #1976d2; margin-bottom: 25px; }
+.cover .company { font-size: 13px; color: #666; margin-top: 40px; }
+.cover .version { font-size: 11px; color: #999; margin-top: 15px; }
+.toc { page-break-after: always; }
+.toc ul { list-style: none; padding: 0; columns: 2; }
+.toc li { padding: 5px 0; border-bottom: 1px dotted #ddd; font-size: 12px; }
+.toc li a { text-decoration: none; color: #0d47a1; }
+.svg-diagram { margin: 14px auto; text-align: center; page-break-inside: avoid; }
+.svg-diagram svg { max-width: 100%; height: auto; }
+.code-block { background: #263238; color: #eeffff; padding: 12px 16px; border-radius: 7px; font-family: 'Fira Code', monospace; font-size: 10px; overflow-x: auto; margin: 12px 0; white-space: pre-wrap; line-height: 1.5; }
+.info-box { background: #e3f2fd; border-left: 4px solid #1976d2; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
+.warning-box { background: #fff3e0; border-left: 4px solid #e65100; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
+.success-box { background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
+.table-styled { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+.table-styled th { background: #0d47a1; color: white; padding: 7px 9px; text-align: left; }
+.table-styled td { padding: 6px 9px; border-bottom: 1px solid #e0e0e0; }
+.table-styled tr:nth-child(even) { background: #f5f5f5; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 10px 0; }
+.card { border: 1px solid #bbdefb; border-radius: 8px; padding: 12px; background: #f8fbff; }
+.card .card-title { font-weight: bold; color: #0d47a1; font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #e3f2fd; padding-bottom: 4px; }
+.card ul { margin: 4px 0; padding-left: 14px; font-size: 10px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 600; color: white; }
+.flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.flow-box { background: #1565c0; color: white; padding: 7px 12px; border-radius: 7px; font-size: 10px; font-weight: 600; min-width: 75px; text-align: center; }
+.flow-box.green { background: #2e7d32; }
+.flow-box.orange { background: #e65100; }
+.flow-box.purple { background: #6a1b9a; }
+.flow-box.red { background: #c62828; }
+.flow-box.teal { background: #00695c; }
+.flow-arrow { font-size: 16px; color: #64b5f6; font-weight: bold; }
+.file-tree { font-family: monospace; font-size: 10px; line-height: 1.8; background: #f5f5f5; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0; }
+.file-tree .folder { color: #0d47a1; font-weight: bold; }
+.file-tree .file { color: #333; }
+.file-tree .comment { color: #999; font-style: italic; }
+</style>
+
+<!-- COVER PAGE -->
+<div class="cover">
+<img src="images/logo.png" alt="Cargo Convoy Logo" style="width:130px; height:auto; margin-bottom:15px;">
+<h1>CARGO CONVOY CRM</h1>
+<div class="subtitle">Developer Manual & Technical Reference</div>
+<div style="margin:25px auto; width:60%; height:3px; background: linear-gradient(to right, #0d47a1, #1976d2, #64b5f6);"></div>
+<div style="margin:20px auto; padding:15px; max-width:400px; background:#f5f5f5; border-radius:8px; font-size:11px; text-align:left;">
+<strong>Quick Reference:</strong><br>
+Framework: Laravel 12 (PHP 8.4)<br>
+Database: MySQL 8<br>
+Routes: 305 | Controllers: 15 | Models: 34<br>
+Migrations: 32 | Views: 123<br>
+</div>
+<div class="company"><strong>Cargo Convoy Inc</strong><br>7119 Pennsylvania Ave, Upper Darby, PA 19082<br>+1 (267) 513-0604 | MC: 01512751</div>
+<div class="version">Version 1.0 | July 2026<br>For Internal Development Team Only</div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+<h1 style="border:none; text-align:center;">Table of Contents</h1>
+<ul>
+<li><a href="#setup">1. Project Setup & Installation</a></li>
+<li><a href="#architecture">2. Architecture & Directory Structure</a></li>
+<li><a href="#request">3. Request Lifecycle</a></li>
+<li><a href="#controllers">4. Controllers Reference</a></li>
+<li><a href="#models">5. Models & Relationships</a></li>
+<li><a href="#middleware">6. Middleware & Auth</a></li>
+<li><a href="#services">7. Services & Helpers</a></li>
+<li><a href="#database">8. Database Schema</a></li>
+<li><a href="#routes">9. Routes & API</a></li>
+<li><a href="#views">10. Views & Frontend</a></li>
+<li><a href="#credit">11. Credit System (Technical)</a></li>
+<li><a href="#email">12. Email & PDF System</a></li>
+<li><a href="#deployment">13. Deployment & CI/CD</a></li>
+<li><a href="#testing">14. Testing</a></li>
+<li><a href="#troubleshooting">15. Troubleshooting</a></li>
+<li><a href="#conventions">16. Code Conventions</a></li>
+</ul>
+</div>
+
+<!-- SECTION 1: SETUP -->
+<div id="setup">
+<h1>1. Project Setup & Installation</h1>
+
+<h3>1.1 Requirements</h3>
+<table class="table-styled">
+<tr><th>Software</th><th>Version</th><th>Purpose</th></tr>
+<tr><td>PHP</td><td>^8.2 (8.4 recommended)</td><td>Application runtime</td></tr>
+<tr><td>MySQL</td><td>8.0+</td><td>Database</td></tr>
+<tr><td>Composer</td><td>2.x</td><td>PHP dependency manager</td></tr>
+<tr><td>Node.js</td><td>18+ (optional)</td><td>Frontend build tools</td></tr>
+<tr><td>Git</td><td>2.x</td><td>Version control</td></tr>
+</table>
+
+<h3>1.2 PHP Extensions Required</h3>
+<div class="code-block">php -m | grep -E "(pdo_mysql|mbstring|openssl|tokenizer|xml|ctype|json|bcmath|gd|zip|curl|dom)"</div>
+
+<h3>1.3 Local Setup Steps</h3>
+<div class="code-block"># 1. Clone repository
+git clone https://github.com/amrentech1230/crm.git
+cd crm
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Setup environment
+cp .env.example .env
+php artisan key:generate
+
+# 4. Configure .env
+# DB_DATABASE=ccicrm
+# DB_USERNAME=root
+# DB_PASSWORD=your_password
+# APP_URL=http://localhost:8000
+
+# 5. Run migrations
+php artisan migrate
+
+# 6. Create storage symlink
+php artisan storage:link
+
+# 7. Start development server
+php artisan serve</div>
+
+<h3>1.4 Key Dependencies (composer.json)</h3>
+<table class="table-styled">
+<tr><th>Package</th><th>Version</th><th>Purpose</th></tr>
+<tr><td>laravel/framework</td><td>^12.0</td><td>Core framework</td></tr>
+<tr><td>dompdf/dompdf</td><td>*</td><td>PDF generation (BOL, invoices)</td></tr>
+<tr><td>maatwebsite/excel</td><td>^3.1</td><td>Excel export for reports</td></tr>
+<tr><td>guzzlehttp/guzzle</td><td>*</td><td>HTTP client</td></tr>
+<tr><td>google/apiclient</td><td>^2.0</td><td>Google API integration</td></tr>
+<tr><td>symfony/process</td><td>^7.3</td><td>Shell command execution</td></tr>
+</table>
+
+<h3>1.5 Environment Variables</h3>
+<div class="code-block"># Application
+APP_ENV=local|staging|production
+APP_DEBUG=true|false
+APP_URL=https://your-domain.com
+
+# Database
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=ccicrm
+
+# Mail (Production)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.your-provider.com
+MAIL_PORT=587
+MAIL_USERNAME=ar@cargoconvoy.co
+MAIL_PASSWORD=xxxxx
+MAIL_FROM_ADDRESS=ar@cargoconvoy.co
+
+# Session
+SESSION_DRIVER=database
+SESSION_LIFETIME=120</div>
+</div>
+
+<!-- SECTION 2: ARCHITECTURE -->
+<div id="architecture">
+<h1>2. Architecture & Directory Structure</h1>
+
+<h3>2.1 Application Architecture</h3>
+<div class="svg-diagram">
+<svg width="520" height="300" viewBox="0 0 520 300">
+<rect x="10" y="10" width="500" height="35" rx="6" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/><text x="260" y="32" text-anchor="middle" font-size="11" fill="#0d47a1" font-weight="bold">HTTP Request (Browser / API)</text>
+<line x1="260" y1="45" x2="260" y2="60" stroke="#64b5f6" stroke-width="2"/>
+<rect x="10" y="60" width="500" height="30" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/><text x="260" y="80" text-anchor="middle" font-size="10" fill="#e65100" font-weight="bold">Middleware Layer (Auth, CSRF, Session)</text>
+<line x1="260" y1="90" x2="260" y2="105" stroke="#64b5f6" stroke-width="2"/>
+<rect x="10" y="105" width="500" height="30" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/><text x="260" y="125" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="bold">Routes (web.php) &rarr; Controller Resolution</text>
+<line x1="130" y1="135" x2="130" y2="155" stroke="#64b5f6" stroke-width="1.5"/>
+<line x1="260" y1="135" x2="260" y2="155" stroke="#64b5f6" stroke-width="1.5"/>
+<line x1="390" y1="135" x2="390" y2="155" stroke="#64b5f6" stroke-width="1.5"/>
+<rect x="40" y="155" width="150" height="40" rx="6" fill="#c8e6c9" stroke="#2e7d32"/><text x="115" y="173" text-anchor="middle" font-size="9" fill="#1b5e20" font-weight="bold">AdminController</text><text x="115" y="185" text-anchor="middle" font-size="8" fill="#666">LoadController</text>
+<rect x="200" y="155" width="120" height="40" rx="6" fill="#bbdefb" stroke="#1565c0"/><text x="260" y="173" text-anchor="middle" font-size="9" fill="#0d47a1" font-weight="bold">AccountController</text><text x="260" y="185" text-anchor="middle" font-size="8" fill="#666">MailController</text>
+<rect x="330" y="155" width="150" height="40" rx="6" fill="#f3e5f5" stroke="#6a1b9a"/><text x="405" y="173" text-anchor="middle" font-size="9" fill="#4a148c" font-weight="bold">CustomerController</text><text x="405" y="185" text-anchor="middle" font-size="8" fill="#666">CarrierController</text>
+<line x1="260" y1="195" x2="260" y2="215" stroke="#64b5f6" stroke-width="2"/>
+<rect x="100" y="215" width="320" height="30" rx="6" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/><text x="260" y="235" text-anchor="middle" font-size="10" fill="#c62828" font-weight="bold">Eloquent Models (ORM) + CreditService</text>
+<line x1="260" y1="245" x2="260" y2="265" stroke="#64b5f6" stroke-width="2"/>
+<rect x="150" y="265" width="220" height="30" rx="6" fill="#263238"/><text x="260" y="285" text-anchor="middle" font-size="10" fill="#eeffff" font-weight="bold">MySQL Database</text>
+</svg>
+</div>
+
+<h3>2.2 Directory Structure</h3>
+<div class="file-tree">
+<span class="folder">crm/</span><br>
+├── <span class="folder">app/</span><br>
+│   ├── <span class="folder">Helpers/</span> <span class="comment">── helpers.php (global functions)</span><br>
+│   ├── <span class="folder">Http/</span><br>
+│   │   ├── <span class="folder">Controllers/</span> <span class="comment">── 15 controllers</span><br>
+│   │   └── <span class="folder">Middleware/</span> <span class="comment">── EnsureUserIsAuthenticated, RedirectIfAuthenticated</span><br>
+│   ├── <span class="folder">Models/</span> <span class="comment">── 34 Eloquent models</span><br>
+│   ├── <span class="folder">Providers/</span> <span class="comment">── AppServiceProvider.php</span><br>
+│   └── <span class="folder">Services/</span> <span class="comment">── CreditService.php</span><br>
+├── <span class="folder">config/</span> <span class="comment">── app.php, database.php, mail.php, etc.</span><br>
+├── <span class="folder">database/</span><br>
+│   ├── <span class="folder">migrations/</span> <span class="comment">── 32 migration files</span><br>
+│   ├── <span class="folder">factories/</span><br>
+│   └── <span class="folder">seeders/</span><br>
+├── <span class="folder">public/</span> <span class="comment">── Web root (assets, uploads, index.php)</span><br>
+│   ├── <span class="folder">assets/</span> <span class="comment">── CSS, JS, libs, fonts, images</span><br>
+│   ├── <span class="folder">uploads/</span> <span class="comment">── User-uploaded files</span><br>
+│   └── <span class="file">index.php</span> <span class="comment">── Entry point</span><br>
+├── <span class="folder">resources/views/</span> <span class="comment">── 123 Blade templates</span><br>
+│   ├── <span class="folder">accounts/</span> <span class="comment">── Accounting views + partials</span><br>
+│   ├── <span class="folder">admin/</span> <span class="comment">── Admin panel views</span><br>
+│   ├── <span class="folder">broker/</span> <span class="comment">── Broker portal views</span><br>
+│   ├── <span class="folder">auth/</span> <span class="comment">── Login/error pages</span><br>
+│   └── <span class="folder">layout/</span> <span class="comment">── Master layout + partials</span><br>
+├── <span class="folder">routes/</span><br>
+│   └── <span class="file">web.php</span> <span class="comment">── 305 routes (all web, no API)</span><br>
+├── <span class="folder">.github/workflows/</span> <span class="comment">── CI/CD pipelines</span><br>
+├── <span class="file">composer.json</span><br>
+└── <span class="file">.env.example</span>
+</div>
+</div>
+
+<!-- SECTION 3: REQUEST LIFECYCLE -->
+<div id="request">
+<h1>3. Request Lifecycle</h1>
+
+<h3>3.1 How a Request Flows</h3>
+<div class="svg-diagram">
+<svg width="520" height="200" viewBox="0 0 520 200">
+<rect x="5" y="80" width="70" height="35" rx="5" fill="#546e7a"/><text x="40" y="101" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Browser</text>
+<polygon points="80,97 92,97 86,91 86,103" fill="#64b5f6"/>
+<rect x="95" y="80" width="65" height="35" rx="5" fill="#e65100"/><text x="127" y="97" text-anchor="middle" fill="white" font-size="7" font-weight="bold">public/</text><text x="127" y="107" text-anchor="middle" fill="white" font-size="7">index.php</text>
+<polygon points="165,97 177,97 171,91 171,103" fill="#64b5f6"/>
+<rect x="180" y="80" width="70" height="35" rx="5" fill="#6a1b9a"/><text x="215" y="97" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Middleware</text><text x="215" y="107" text-anchor="middle" fill="white" font-size="7">Auth Check</text>
+<polygon points="255,97 267,97 261,91 261,103" fill="#64b5f6"/>
+<rect x="270" y="80" width="70" height="35" rx="5" fill="#2e7d32"/><text x="305" y="97" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Router</text><text x="305" y="107" text-anchor="middle" fill="white" font-size="7">web.php</text>
+<polygon points="345,97 357,97 351,91 351,103" fill="#64b5f6"/>
+<rect x="360" y="80" width="70" height="35" rx="5" fill="#1565c0"/><text x="395" y="97" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Controller</text><text x="395" y="107" text-anchor="middle" fill="white" font-size="7">Method</text>
+<polygon points="435,97 447,97 441,91 441,103" fill="#64b5f6"/>
+<rect x="450" y="80" width="65" height="35" rx="5" fill="#00695c"/><text x="482" y="97" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Blade</text><text x="482" y="107" text-anchor="middle" fill="white" font-size="7">Response</text>
+<!-- DB access -->
+<line x1="395" y1="115" x2="395" y2="155" stroke="#64b5f6" stroke-width="1.5" stroke-dasharray="3"/>
+<rect x="350" y="155" width="90" height="25" rx="5" fill="#263238"/><text x="395" y="172" text-anchor="middle" fill="#eeffff" font-size="8" font-weight="bold">MySQL DB</text>
+<!-- Labels -->
+<text x="40" y="70" text-anchor="middle" font-size="7" fill="#999">HTTP Request</text>
+<text x="215" y="70" text-anchor="middle" font-size="7" fill="#999">custom.auth</text>
+<text x="395" y="70" text-anchor="middle" font-size="7" fill="#999">Business Logic</text>
+<text x="482" y="70" text-anchor="middle" font-size="7" fill="#999">HTML/JSON</text>
+</svg>
+</div>
+
+<h3>3.2 Middleware: EnsureUserIsAuthenticated</h3>
+<div class="code-block">// Checks URL segment against user's role:
+$admin    = [1, 2, 3, 22];       // Can access: admin/, broker/, account/
+$accounts = [4-18, 24];          // Can access: account/, broker/
+$broker   = [19, 20, 21];        // Can access: broker/ only
+
+// If URL segment not in allowed list → abort(404)</div>
+
+<h3>3.3 View Composer (Global Menu)</h3>
+<div class="code-block">// AppServiceProvider.php → boot()
+View::composer('*', function ($view) {
+    $roleId = Auth::user()->role_id;
+    $menusdata = RoleHasPermission::where('role_id', $roleId)
+                                   ->where('read', 1)->get();
+    $view->with('userMenus', $menus);  // Available in ALL views
+});</div>
+</div>
+
+<!-- SECTION 4: CONTROLLERS -->
+<div id="controllers">
+<h1>4. Controllers Reference</h1>
+<h3>4.1 Controller List</h3>
+<table class="table-styled">
+<tr><th>Controller</th><th>Lines</th><th>Responsibility</th></tr>
+<tr><td><code>LoadController</code></td><td>~1800</td><td>Load CRUD, clone, BOL, credit check, carrier suggest</td></tr>
+<tr><td><code>AccountController</code></td><td>~6500</td><td>AR accounting, invoicing, compliance, reporting, vendor, credit</td></tr>
+<tr><td><code>AdminController</code></td><td>~2800</td><td>Users, roles, master data, admin load edit, IT tickets</td></tr>
+<tr><td><code>CustomerController</code></td><td>~600</td><td>Customer CRUD, remittance, approval form</td></tr>
+<tr><td><code>CarrierController</code></td><td>~400</td><td>Carrier CRUD (externals table)</td></tr>
+<tr><td><code>ShipperController</code></td><td>~300</td><td>Shipper CRUD</td></tr>
+<tr><td><code>ConsigneeController</code></td><td>~300</td><td>Consignee CRUD</td></tr>
+<tr><td><code>MailController</code></td><td>~220</td><td>Email sending with PDF merge</td></tr>
+<tr><td><code>FilesUploadController</code></td><td>~200</td><td>File upload, merge PDFs</td></tr>
+<tr><td><code>LoginController</code></td><td>~150</td><td>Auth: login, logout, session</td></tr>
+<tr><td><code>RolesController</code></td><td>~200</td><td>Roles & permissions management</td></tr>
+<tr><td><code>BackupController</code></td><td>~50</td><td>Database backup download</td></tr>
+</table>
+<h3>4.2 Key Controller Methods</h3>
+<div class="code-block">// LoadController — Most Important Methods:
+create(Request)          → Load creation + credit validation
+BrokerLoadUpdate($id)    → Load edit + credit delta + DB transaction
+cloneLoad($id)           → Duplicate a load
+editload($id)            → Show edit form
+checkRemaingLimit()      → AJAX credit check endpoint
+generateBolPdf($id)      → Download BOL as PDF
+fetchCarrierSuggestions() → AJAX carrier auto-complete</div>
+</div>
+
+<!-- SECTION 5: MODELS -->
+<div id="models">
+<h1>5. Models & Relationships</h1>
+<h3>5.1 Core Models</h3>
+<div class="svg-diagram">
+<svg width="480" height="200" viewBox="0 0 480 200">
+<circle cx="240" cy="100" r="30" fill="#1565c0"/><text x="240" y="104" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Load</text>
+<circle cx="100" cy="50" r="25" fill="#2e7d32"/><text x="100" y="54" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Customer</text>
+<circle cx="380" cy="50" r="25" fill="#e65100"/><text x="380" y="54" text-anchor="middle" fill="white" font-size="8" font-weight="bold">External</text>
+<circle cx="100" cy="160" r="22" fill="#6a1b9a"/><text x="100" y="164" text-anchor="middle" fill="white" font-size="8" font-weight="bold">User</text>
+<circle cx="380" cy="160" r="22" fill="#00695c"/><text x="380" y="164" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Role</text>
+<circle cx="240" cy="180" r="18" fill="#546e7a"/><text x="240" y="184" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Log</text>
+<line x1="125" y1="60" x2="210" y2="90" stroke="#81c784" stroke-width="1.5"/>
+<line x1="355" y1="60" x2="270" y2="90" stroke="#ffb74d" stroke-width="1.5"/>
+<line x1="115" y1="140" x2="215" y2="110" stroke="#ce93d8" stroke-width="1.5"/>
+<line x1="358" y1="155" x2="122" y2="155" stroke="#80cbc4" stroke-width="1" stroke-dasharray="3"/>
+<text x="170" y="70" font-size="7" fill="#666">belongs_to</text>
+<text x="310" y="70" font-size="7" fill="#666">assigned_to</text>
+<text x="160" y="120" font-size="7" fill="#666">created_by</text>
+<text x="240" y="148" font-size="7" fill="#666">has role</text>
+</svg>
+</div>
+<h3>5.2 All 34 Models</h3>
+<div class="grid-3">
+<div class="card"><div class="card-title">Core Business</div><ul><li>Load</li><li>Customer</li><li>External (Carrier)</li><li>Shipper</li><li>Consignee</li><li>InvoiceEmail</li></ul></div>
+<div class="card"><div class="card-title">Users & Auth</div><ul><li>User</li><li>Role</li><li>Permission</li><li>RoleHasPermission</li><li>PasswordResets</li><li>IpConfig</li></ul></div>
+<div class="card"><div class="card-title">Organization</div><ul><li>Department</li><li>Office</li><li>Manger</li><li>TeamLeader</li><li>ProfileData</li></ul></div>
+<div class="card"><div class="card-title">Master Data</div><ul><li>Country</li><li>State</li><li>City</li><li>Subregion</li><li>EquipmentType</li><li>ShipmentType</li><li>StatusType</li></ul></div>
+<div class="card"><div class="card-title">Operations</div><ul><li>CarrierVerification</li><li>McCheck</li><li>Factoring</li><li>Cmt</li><li>ItHardware</li></ul></div>
+<div class="card"><div class="card-title">System</div><ul><li>Log</li><li>LogActivity</li><li>Notification</li><li>Chat</li><li>CustomerApprovalForm</li></ul></div>
+</div>
+</div>
+
+<!-- SECTION 6: MIDDLEWARE -->
+<div id="middleware">
+<h1>6. Middleware & Authentication</h1>
+<h3>6.1 Custom Middleware</h3>
+<table class="table-styled">
+<tr><th>Middleware</th><th>Applied To</th><th>Logic</th></tr>
+<tr><td><code>custom.auth</code></td><td>All authenticated routes</td><td>Checks session + validates URL segment against role permissions</td></tr>
+<tr><td><code>guest</code></td><td>Login page only</td><td>Redirects authenticated users away from login</td></tr>
+</table>
+<h3>6.2 Authentication Flow</h3>
+<div class="code-block">// LoginController@loginuser
+1. Validate email + password
+2. Check user status == 'active'
+3. Check no duplicate session (sessions table)
+4. Auth::attempt($credentials)
+5. Log activity (IP, timestamp)
+6. Redirect based on role_id → appropriate dashboard</div>
+</div>
+
+<!-- SECTION 7: SERVICES -->
+<div id="services">
+<h1>7. Services & Helpers</h1>
+<h3>7.1 CreditService (app/Services/CreditService.php)</h3>
+<p>Centralized credit logic used by all controllers. Registered as singleton in AppServiceProvider.</p>
+<div class="code-block">// Key methods:
+getAvailableCreditLimit($customer)       → float: current available credit
+validateCreditForLoad($customer, $amt)   → ['allowed' => bool, 'message' => ...]
+reserveCreditForLoad($customer, $amt)    → Atomic: validate + deduct with lockForUpdate
+applyEditCreditDelta($customer, $delta)  → Atomic: apply +/- delta on load edit
+calculateCustomerCreditSummary(...)      → ['assigned', 'used', 'remaining']</div>
+
+<h3>7.2 Helpers (app/Helpers/helpers.php)</h3>
+<div class="code-block">// Auto-loaded via composer.json "files" array
+addToLog($customerId, $loadId, $subject, $oldData, $newData)
+   → Logs every action to logs table
+
+calculate_customer_credit_summary($customer, $limit, $loadAmt, $received)
+   → Returns credit breakdown array
+
+getDifference($old, $new)
+   → Used in load edit to compute rate delta</div>
+</div>
+
+<!-- SECTION 8: DATABASE -->
+<div id="database">
+<h1>8. Database Schema</h1>
+<h3>8.1 Core Tables ER Diagram</h3>
+<div class="svg-diagram">
+<svg width="500" height="220" viewBox="0 0 500 220">
+<rect x="180" y="5" width="140" height="50" rx="5" fill="#1565c0"/><text x="250" y="25" text-anchor="middle" fill="white" font-size="9" font-weight="bold">loads</text><text x="250" y="38" text-anchor="middle" fill="#bbdefb" font-size="7">id, customer_id, carrier_id</text><text x="250" y="48" text-anchor="middle" fill="#bbdefb" font-size="7">rates, status, invoice</text>
+<rect x="10" y="80" width="130" height="45" rx="5" fill="#2e7d32"/><text x="75" y="98" text-anchor="middle" fill="white" font-size="9" font-weight="bold">customers</text><text x="75" y="112" text-anchor="middle" fill="#c8e6c9" font-size="7">credit_limit, remaining</text>
+<rect x="360" y="80" width="130" height="45" rx="5" fill="#e65100"/><text x="425" y="98" text-anchor="middle" fill="white" font-size="9" font-weight="bold">externals (carriers)</text><text x="425" y="112" text-anchor="middle" fill="#ffcc80" font-size="7">mc#, dot#, status</text>
+<rect x="10" y="160" width="130" height="40" rx="5" fill="#6a1b9a"/><text x="75" y="180" text-anchor="middle" fill="white" font-size="9" font-weight="bold">users</text><text x="75" y="192" text-anchor="middle" fill="#e1bee7" font-size="7">role_id, dept, office</text>
+<rect x="360" y="160" width="130" height="40" rx="5" fill="#00695c"/><text x="425" y="180" text-anchor="middle" fill="white" font-size="9" font-weight="bold">logs</text><text x="425" y="192" text-anchor="middle" fill="#b2dfdb" font-size="7">user, action, old/new json</text>
+<rect x="185" y="160" width="130" height="40" rx="5" fill="#546e7a"/><text x="250" y="180" text-anchor="middle" fill="white" font-size="9" font-weight="bold">invoice_emails</text><text x="250" y="192" text-anchor="middle" fill="#b0bec5" font-size="7">from, to, load_id</text>
+<line x1="140" y1="100" x2="180" y2="30" stroke="#81c784" stroke-width="1.5"/>
+<line x1="360" y1="100" x2="320" y2="30" stroke="#ffb74d" stroke-width="1.5"/>
+<line x1="75" y1="160" x2="180" y2="50" stroke="#ce93d8" stroke-width="1" stroke-dasharray="3"/>
+</svg>
+</div>
+
+<h3>8.2 Loads Table — Key Columns</h3>
+<table class="table-styled">
+<tr><th>Column</th><th>Type</th><th>Purpose</th></tr>
+<tr><td>id / load_number</td><td>bigint</td><td>PK, also used as load_number</td></tr>
+<tr><td>customer_id</td><td>bigint</td><td>FK → customers.id</td></tr>
+<tr><td>user_id</td><td>bigint</td><td>FK → users.id (creator)</td></tr>
+<tr><td>load_status</td><td>varchar</td><td>Open/Delivered/Completed/Cancelled</td></tr>
+<tr><td>invoice_status</td><td>varchar</td><td>null/Paid/Paid Record</td></tr>
+<tr><td>shipper_load_final_rate</td><td>float</td><td>Customer's total rate</td></tr>
+<tr><td>load_final_carrier_fee</td><td>float</td><td>Carrier's total fee</td></tr>
+<tr><td>load_shipperr</td><td>JSON</td><td>Array of shipper objects</td></tr>
+<tr><td>load_consignee</td><td>JSON</td><td>Array of consignee objects</td></tr>
+<tr><td>shipper_load_other_charge</td><td>JSON</td><td>Extra charges [{type, amount, for_invoice}]</td></tr>
+<tr><td>public_file</td><td>JSON</td><td>Array of uploaded doc paths</td></tr>
+<tr><td>bol_edit_data</td><td>JSON</td><td>Saved BOL edits for PDF generation</td></tr>
+</table>
+
+<h3>8.3 Customers Table — Credit Columns</h3>
+<table class="table-styled">
+<tr><th>Column</th><th>Type</th><th>Note</th></tr>
+<tr><td>adv_customer_credit_limit</td><td>float</td><td>Total assigned limit (from logs sum)</td></tr>
+<tr><td>remaining_credit</td><td>float</td><td>Balance left (server-computed only)</td></tr>
+<tr><td>remaining_credit_amount</td><td>varchar(100)</td><td>Synced copy of remaining_credit</td></tr>
+<tr><td>credit_limit_log</td><td>longtext</td><td>JSON array of {credit_limit, credit_time}</td></tr>
+<tr><td>remaining_credit_logs</td><td>longtext</td><td>JSON audit of balance changes</td></tr>
+<tr><td>invoice_credit_limit</td><td>longtext</td><td>Separate invoice limit</td></tr>
+</table>
+</div>
+
+<!-- SECTION 9-12 -->
+<div id="routes">
+<h1>9. Routes & API</h1>
+<h3>9.1 Route Organization</h3>
+<p>All 305 routes are in <code>routes/web.php</code> inside a single <code>middleware('custom.auth')</code> group. No separate API routes file.</p>
+<div class="code-block">Route::middleware('custom.auth')->group(function () {
+    // Admin routes:  /admin/*    (~80 routes)
+    // Account routes: /account/* (~120 routes)  
+    // Broker routes:  /broker/*  (~60 routes)
+    // Shared routes:  /files/*, /remaing/* (~10 routes)
+});</div>
+<h3>9.2 Route Naming Convention</h3>
+<table class="table-styled">
+<tr><th>Pattern</th><th>Example</th><th>Controller</th></tr>
+<tr><td>admin/{action}</td><td>admin/create-user</td><td>AdminController</td></tr>
+<tr><td>account/{module}</td><td>account/accounting</td><td>AccountController</td></tr>
+<tr><td>broker/{entity}</td><td>broker/load</td><td>LoadController</td></tr>
+<tr><td>broker/{entity}-create</td><td>broker/load-create</td><td>LoadController@create</td></tr>
+</table>
+</div>
+
+<div id="views">
+<h1>10. Views & Frontend</h1>
+<h3>10.1 Layout Structure</h3>
+<div class="code-block">resources/views/layout/compact/app.blade.php   ← Master layout
+├── @include('layout.partials.header')          ← Topbar + Sidebar
+├── @yield('content')                            ← Page content
+└── @include('layout.partials.footer')          ← Footer + JS libs
+
+// All pages extend: @extends('layout.compact.app')</div>
+<h3>10.2 Frontend Stack</h3>
+<table class="table-styled">
+<tr><th>Library</th><th>Version</th><th>Usage</th></tr>
+<tr><td>Bootstrap</td><td>5.x</td><td>CSS framework, grid, components</td></tr>
+<tr><td>jQuery</td><td>3.6</td><td>DOM manipulation, AJAX</td></tr>
+<tr><td>Select2</td><td>4.1</td><td>Searchable dropdowns</td></tr>
+<tr><td>DataTables</td><td>1.x</td><td>Server-side tables with sort/search</td></tr>
+<tr><td>ApexCharts</td><td>3.x</td><td>Dashboard charts (reporting)</td></tr>
+<tr><td>TinyMCE</td><td>6.8</td><td>Rich text editor</td></tr>
+</table>
+<div class="warning-box"><strong>No build step:</strong> All assets are pre-compiled in <code>public/assets/</code>. No Vite/Webpack. CSS/JS loaded directly via <code>asset()</code> helper.</div>
+</div>
+
+<div id="credit">
+<h1>11. Credit System (Technical Deep Dive)</h1>
+<h3>11.1 Credit Deduction on Load Create</h3>
+<div class="code-block">// LoadController@create() — Simplified flow:
+1. Validate request (rate > 0, customer exists)
+2. Build Load model with all fields
+3. Call CreditService::reserveCreditForLoad($customer, $amount)
+   └→ DB::transaction with lockForUpdate
+   └→ Check: available >= amount
+   └→ Deduct: remaining_credit -= amount
+   └→ Sync: remaining_credit_amount = remaining_credit
+4. If credit check fails → return error, load NOT saved
+5. If passes → save load, log activity</div>
+<h3>11.2 Credit Restoration on Load Cancel</h3>
+<div class="code-block">// AdminController::applyCancelledLoadAccounting()
+$finalRate = $originalLoad->shipper_load_final_rate;
+$invoiceCredit = min(invoiceCreditAmount($load), $finalRate);
+$actualCredit = max($finalRate - $invoiceCredit, 0);
+
+$customer->remaining_credit += $actualCredit;
+$customer->invoice_credit_limit += $invoiceCredit;</div>
+<h3>11.3 Credit Delta on Load Edit</h3>
+<div class="code-block">// BrokerLoadUpdate — wrapped in DB::transaction
+$oldRate = $request->old_shipper_load_final_rate;
+$newRate = $request->shipper_load_final_rate;
+$delta = $oldRate - $newRate;  // positive = credit freed
+
+if (remaining_credit + delta < 0) → BLOCK
+else → remaining_credit += delta</div>
+</div>
+
+<div id="email">
+<h1>12. Email & PDF System</h1>
+<h3>12.1 MailController Flow</h3>
+<div class="code-block">// MailController@send()
+1. Validate: email required, documents[] optional
+2. resolveEmailSubject() → custom or default
+3. prepareAttachments($files, $loadNo):
+   a. Validate each file path is under allowed directories
+   b. If single file → attach directly
+   c. If multiple → merge all into ONE PDF via FPDI
+   d. Images → converted to PDF via Dompdf first
+4. Mail::mailer('smtp')->raw('', callback)
+5. Cleanup temporary merged files in finally{}</div>
+<h3>12.2 PDF Generation (BOL)</h3>
+<div class="code-block">// LoadController@generateBolPdf($id)
+$load = Load::find($id);
+$editData = json_decode($load->bol_edit_data, true);
+$html = view('broker.bol_pdf', compact('load', 'editData'))->render();
+$dompdf = new Dompdf();
+$dompdf->loadHtml($html);
+$dompdf->setPaper('letter', 'portrait');
+$dompdf->render();
+return $dompdf->stream("BOL_{$load->load_number}.pdf");</div>
+</div>
+
+<!-- SECTION 13-16 -->
+<div id="deployment">
+<h1>13. Deployment & CI/CD</h1>
+<h3>13.1 Deployment Architecture</h3>
+<div class="flow">
+<div class="flow-box green">Push to devN</div><div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Auto-Deploy Staging</div><div class="flow-arrow">&#8594;</div>
+<div class="flow-box">Merge to main</div><div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Manual Approve</div><div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Deploy Production</div>
+</div>
+<h3>13.2 Deploy Script (What happens on each deploy)</h3>
+<div class="code-block">cd $DEPLOY_PATH
+git fetch --all --prune
+git reset --hard origin/$BRANCH
+chmod -R a+rX public              # ← CRITICAL: fixes CSS 404
+composer install --no-dev
+php artisan down --retry=15
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan view:cache
+php artisan storage:link
+php artisan queue:restart
+php artisan up</div>
+<h3>13.3 Environments</h3>
+<table class="table-styled">
+<tr><th>Environment</th><th>Branch</th><th>URL</th><th>Deploy</th></tr>
+<tr><td>Staging</td><td>devN</td><td>https://ccicrm.in</td><td>Auto on push</td></tr>
+<tr><td>Production</td><td>main</td><td>https://crmcargoconvoy.co</td><td>Manual approval</td></tr>
+</table>
+<div class="warning-box"><strong>CSS Not Found Fix:</strong> Always run <code>chmod -R a+rX public</code> after deploying. The server's umask makes files unreadable by nginx otherwise.</div>
+</div>
+
+<div id="testing">
+<h1>14. Testing</h1>
+<h3>14.1 Test Setup</h3>
+<div class="code-block">php artisan test              # Run all tests
+php artisan test --filter=Credit  # Run credit tests only</div>
+<h3>14.2 Key Test Areas</h3>
+<table class="table-styled">
+<tr><th>Area</th><th>What to Test</th></tr>
+<tr><td>Credit validation</td><td>Load creation blocked when credit exceeded</td></tr>
+<tr><td>Load lifecycle</td><td>Status transitions (Open→Delivered→Completed→Paid)</td></tr>
+<tr><td>Rate calculations</td><td>Final rate = base + FSC + charges</td></tr>
+<tr><td>Auth middleware</td><td>Role-based URL access blocked/allowed</td></tr>
+<tr><td>PDF generation</td><td>BOL PDF renders without errors</td></tr>
+</table>
+</div>
+
+<div id="troubleshooting">
+<h1>15. Troubleshooting</h1>
+<table class="table-styled">
+<tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>CSS/JS 404 on server</td><td>File permissions after deploy</td><td><code>chmod -R a+rX public</code></td></tr>
+<tr><td>Credit goes negative</td><td>Missing server-side check</td><td>Ensure CreditService is used in all controllers</td></tr>
+<tr><td>Session conflict</td><td>Multiple logins same user</td><td>Clear sessions table or wait 1 min timeout</td></tr>
+<tr><td>Migration fails</td><td>Table already exists from SQL dump</td><td>Insert migration name into migrations table</td></tr>
+<tr><td>route:cache fails</td><td>Duplicate route names in web.php</td><td>Don't run route:cache until duplicates fixed</td></tr>
+<tr><td>Composer OOM</td><td>Server low on RAM</td><td><code>COMPOSER_MEMORY_LIMIT=-1 composer install</code></td></tr>
+<tr><td>Mail not sending</td><td>SMTP config wrong</td><td>Check .env MAIL_* settings, test with artisan tinker</td></tr>
+<tr><td>PDF merge fails</td><td>FPDI packages missing</td><td><code>composer require setasign/fpdi setasign/fpdi-fpdf</code></td></tr>
+</table>
+</div>
+
+<div id="conventions">
+<h1>16. Code Conventions</h1>
+<h3>16.1 General Rules</h3>
+<ul>
+<li>Follow PSR-12 coding standard (use Laravel Pint)</li>
+<li>All credit operations must go through <code>CreditService</code></li>
+<li>Never trust client-side input for financial fields</li>
+<li>Always wrap credit mutations in <code>DB::transaction</code> + <code>lockForUpdate</code></li>
+<li>Log every significant action via <code>addToLog()</code></li>
+<li>Use <code>$request->validate()</code> for all form inputs</li>
+</ul>
+<h3>16.2 Git Workflow</h3>
+<div class="code-block">Branches:
+  main       → Production (protected, requires PR + approval)
+  devN       → Staging (auto-deploys)
+  devSumit   → Developer branch (Sumit)
+  devNeha    → Developer branch (Neha)
+  feature/*  → Feature branches
+
+Commit format:
+  feat: Add aging close feature
+  fix: Prevent credit bypass on load create
+  docs: Update user manual</div>
+</div>
+
+<!-- FOOTER -->
+<div style="margin-top:50px; padding-top:15px; border-top:3px solid #bbdefb; text-align:center; color:#666; font-size:10px;">
+<img src="images/logo.png" alt="Logo" style="width:40px; height:auto; margin-bottom:8px;"><br>
+<strong>Cargo Convoy CRM - Developer Manual v1.0</strong><br>
+Confidential - Internal Development Team Only | July 2026<br>
+&copy; 2026 Cargo Convoy Inc. All Rights Reserved.
+</div>
+
+</body>
+</html>

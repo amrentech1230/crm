@@ -1,8 +1,6 @@
-@foreach($paid as $i => $record)
-    @php
-        $shouldShowPaymentRow = app(\App\Http\Controllers\AccountController::class)->shouldShowPaymentStatusForLoad($record);
-    @endphp
-    @if($shouldShowPaymentRow)
+
+        @foreach($paid as $i => $record)
+        @if($record->invoice_status == 'Paid Record')
         <tr>
             
             <td class="dynamic-data" id="load_number3">
@@ -23,9 +21,7 @@
             </td>
 
                 @php
-                    $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
-                    $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
-                    $difference = (float)$shipper_val - (float)$receiving_val;
+                    $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
                 @endphp
                 <td style="min-width:120px;" id="payment-status-{{ $record->id }}">
                     <div id="payment-status-label-{{ $record->id }}" style="font-weight:700; margin-bottom:5px; display: {{ $difference > 0 ? 'none' : 'block' }}; color: {{ $difference > 0 ? 'green' : 'green' }};">
@@ -53,9 +49,7 @@
             </td>
 
             @php
-                $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
-                $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
-                $difference = (float)$shipper_val - (float)$receiving_val;
+                $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
                 $paymentIsComplete = abs($difference) < 0.005;
             @endphp
             <td class="dynamic-data">
@@ -78,26 +72,25 @@
 
 <td class="dynamic-data">
     @php
-        $shipper_val = preg_replace('/[^0-9.\-]/', '', $record->shipper_load_final_rate ?? '');
-        $receiving_val = preg_replace('/[^0-9.\-]/', '', $record->receiving_amount ?? '');
-        $difference = (float)$shipper_val - (float)$receiving_val;
+        $difference = floatval($record->shipper_load_final_rate) - floatval($record->receiving_amount);
     @endphp
 
     @if($difference > 0)
-        <span style="background-color:#f8d7da; color:#dc3545; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
-            Remaining: ${{ number_format($difference, 2) }}
-        </span>
-        <br>
-        <label style="margin-top:4px; font-weight:600; cursor:pointer; font-size:0.9em; display:inline-block;">
-            <input type="checkbox" class="mark-paid-checkbox" data-id="{{ $record->id }}" data-shipper="{{ $record->shipper_load_final_rate }}"> Mark Paid
-        </label>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color: red; font-weight: 600;">{{ number_format($difference, 2) }}</span>
+            <label style="margin:0; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="mark-paid-checkbox" data-id="{{ $record->id }}" data-shipper="{{ $record->shipper_load_final_rate }}"> Mark Paid
+            </label>
+        </div>
     @elseif($difference < 0)
-        <span style="background-color:#d4edda; color:#28a745; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
-            Excess: ${{ number_format(abs($difference), 2) }}
+        {{-- Excess Payment --}}
+        <span style="color: green; font-weight: 600;">
+            +{{ number_format(abs($difference), 2) }}
         </span>
     @else
-        <span style="background-color:#d4edda; color:#28a745; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
-            $0.00
+        {{-- Exact Payment --}}
+        <span style="color: green; font-weight: 600;">
+            0.00
         </span>
     @endif
 </td>
@@ -142,17 +135,41 @@
                 <span class="tooltip-text">{{ $consignee_loaction[0]['location'] ?? '' }}</span>
             </td> 
             
-          
-            <td class="dynamic-data">
+            <!-- @php
+            $shipperLoadFinalRate = floatval($record->shipper_load_final_rate);
+            $receivingAmount = floatval($record->remaining_amount);
+            $remaining = max($shipperLoadFinalRate - $receivingAmount, 0);
+            @endphp
+            <td class="dynamic-data">{{ $record->shipper_load_final_rate }}</td>
+			<td class="dynamic-data">{{ $record->invoice_internal_value }}</td> -->
+			<!-- <td class="dynamic-data">{{ $record->load_advance_rec_amount }}</td> -->
+
+
+
+            <!-- @php
+                $receivingAmount = floatval($record->receiving_amount);
+                $shipperRate = floatval($shipperLoadFinalRate);
+                $advpayment = $receivingAmount - $shipperRate;
+
+                if ($advpayment > 0) {
+                    echo $advpayment;
+                } else {
+                    $advpayment = 0;
+                }
+            @endphp -->
+            <!-- <td class="dynamic-data">{{ $advpayment}}</td> -->
+
+            
+            <!-- @if($record->invoice_status == 'Paid Record')
+                <td class="dynamic-data"> Paid</td>
+            @endif -->
+                            <td class="dynamic-data">
                   
                        <textarea name="invoice_internal_value" onkeyup="RemainingAmount(this)" row="10" col="5" style="width: 450px !important;height: 50px;"   data-invoice-id="{{ $record->id }}" class="invoice_internal_value" placeholder="Enter additional notes...">{{ $record->invoice_internal_value }}</textarea>
 
-            </td>
-
-
+                </td>
         </tr>
-		
-    @endif
+	@endif	
 @endforeach
 
  
@@ -190,7 +207,6 @@
 
         var now = new Date();
         // Format as YYYY-MM-DD HH:MM:SS
-
         var yyyy = now.getFullYear();
         var mm = String(now.getMonth() + 1).padStart(2, '0');
         var dd = String(now.getDate()).padStart(2, '0');
@@ -211,7 +227,7 @@
             data: {
                 payment_receiving_date: formatted,
                 receiving_amount: shipper,
-                status: 'Paid'
+                status: 'Paid Record'
             },
             success: function(res) {
                 $('.loader-container').addClass('hide');
@@ -302,7 +318,7 @@
         }
     </script>
 
-    <script>
+        <script>
         $(document).on('change', '.ar-aging-close', function () {
 
     let id = $(this).data('id');

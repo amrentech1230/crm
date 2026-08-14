@@ -1,5 +1,6 @@
-﻿@extends('layout.compact.app')
+@extends('layout.compact.app')
 @section('content')
+
 <style>
     ul#navTabs,
     ul#navTabs1 {
@@ -29,9 +30,8 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 1040;
+    z-index: 9999;
     top: 10px;
-    pointer-events: none;
 }
 
 #mc-error-message{
@@ -44,49 +44,8 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 1040;
+    z-index: 9999;
     top: 10px;
-    pointer-events: none;
-}
-
-/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
-   position: sticky cannot be used here: .main-content has overflow:hidden. */
-#credit-limit-message {
-    position: fixed;
-    top: 182px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: min(90vw, 1180px);
-    max-width: calc(100vw - 48px);
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-    border-radius: 4px;
-    background-color: #f8d7da;
-    border-color: #f5c2c7;
-    color: #842029;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    /* z-index: 1000; */
-    box-sizing: border-box;
-    overflow-wrap: anywhere;
-    white-space: normal;
-}
-body.vertical-collpsed #credit-limit-message {
-    left: 50%;
-}
-@media (max-width: 991.98px) {
-    #credit-limit-message {
-        width: min(96vw, 1180px);
-        left: 50%;
-    }
-}
-
-/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
-   .modal-backdrop. Dim the overlay on the modal element itself instead. */
-#myModal,
-#otherChargesModal {
-    background-color: rgba(0, 0, 0, 0.5);
 }
 
  input:invalid {
@@ -97,41 +56,6 @@ body.vertical-collpsed #credit-limit-message {
     border-radius: .25em;
     border: 2px solid;
 }
-.select2-hidden-accessible {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-    display: block !important;
-}
-/* Only lift the dropdown while it is open. Applying this to .select2-container put every
-   closed control above the fixed topbar (1002) and sidebar (1001) during scrolling. */
-.select2-container--open {
-    z-index: 99999 !important;
-}
-
-.select2-dropdown {
-    z-index: 99999 !important;
-}
-
-/* Keep native selects visibly identifiable and clickable. */
-select.form-control {
-    appearance: none !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    cursor: pointer;
-    padding-right: 2rem !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23555' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 10px center !important;
-    background-size: 10px 6px !important;
-}
-
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -174,7 +98,6 @@ select.form-control {
 
                         <form method="POST" action="{{ route('load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
-                        <div id="credit-limit-message" class="alert alert-danger d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Edit Load</h3>
@@ -192,31 +115,29 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
-
-                                        @php
-                                            $currentBillTo = (string) ($post->load_bill_to ?? '');
-                                            $billToNames = array_map('strval', collect($allcustomer)->pluck('customer_name')->all());
-                                            $billToIsCustom = $currentBillTo !== '' && !in_array($currentBillTo, $billToNames, true);
-                                        @endphp
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
-                                            <option value="">Select Customer</option>
-                                            @if($billToIsCustom)
-                                                {{-- Keep the saved value selectable even if that customer is no longer listed --}}
-                                                <option value="{{ $currentBillTo }}" data-id="{{ $post->customer_id ?? '' }}" selected>
-                                                    {{ $currentBillTo }}
-                                                </option>
+                                        <div class="input-group">
+                                            @if(!empty($post->customer_id))
+                                                <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                    <option value="">Select Customer</option>
+                                                    @foreach($allcustomer as $cust)
+                                                        @if($post->user->id == $cust->user_id)
+                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
+                                                                @if($post->load_bill_to == $cust->customer_name) selected @endif>
+                                                                {{ $cust->customer_name }}
+                                                            </option>
+                                                        @endif
+                                                    @endforeach
+                                                </select>
+                                            @else
+                                                <input type="text" class="form-control" name="load_bill_to" value="{{ $post->load_bill_to }}" readonly>
                                             @endif
-                                            @foreach($allcustomer as $cust)
-                                                <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
-                                                    @if(!empty($post->customer_id) ? (string) $post->customer_id === (string) $cust->id : $currentBillTo === (string) $cust->customer_name) selected @endif>
-                                                    {{ $cust->customer_name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                        </div>
                                     </div>
                                 </div>
+                               <input type="hidden" id="customer_id" name="customer_id" value="">
 
-                                <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? '' }}">
+
+
 
 
                                 <div class="col-md-2 mb-2">
@@ -236,7 +157,7 @@ select.form-control {
                                                 value="{{ $post->user->id ?? '' }}">
                                         @else
                                             <!-- Show select normally -->
-                                            <select class="form-control mySelect2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
+                                            <select class="form-control" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
                                                 <option value="">Select a Broker</option>
                                                 @foreach($users as $user)
                                                     <option value="{{ $user->name }}" data-id="{{ $user->id }}" 
@@ -262,7 +183,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
     <label>Customer Payment Status</label>
-    <select class="form-control mySelect2" name="load_status" style="width: 100%;">
+    <select class="form-control select2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
                 Invoiced
@@ -316,7 +237,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Payment Type
                                             <code>*</code></label>
-                                        <select class="form-control mySelect2" required name="load_payment_type"
+                                        <select class="form-control" required name="load_payment_type"
                                             style="width: 100%;">
                                             <option value="">Select payment Type</option>
                                             <option value="Prepaid" {{ $post->load_payment_type == 'Prepaid' ? 'selected' : '' }}>Prepaid</option>
@@ -329,7 +250,7 @@ select.form-control {
                                     <div class="form-group">
                                         <label>Load type <code>*</code></label>
                                         <div class="purple">
-                                            <select class="form-control mySelect2" name="load_type_two" required style="width: 100%;">
+                                            <select class="form-control" name="load_type_two" required style="width: 100%;">
                                                 <option value="">Selected</option>
                                                 <option value="OTR" {{ $post->load_type_two == 'OTR' ? 'selected' : '' }}>OTR</option>
                                                 <option value="DRAYAGE" {{ $post->load_type_two == 'DRAYAGE' ? 'selected' : '' }}>DRAYAGE</option>
@@ -340,7 +261,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control mySelect2" required name="load_type" style="width: 100%;">
+                                        <select class="form-control" required name="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -352,7 +273,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Currency</label>
-                                        <select class="form-control mySelect2" name="load_currency" style="width: 100%;">
+                                        <select class="form-control" name="load_currency" style="width: 100%;">
                                             <option selected="selected">Select
                                                 Currency
                                             </option>
@@ -361,6 +282,15 @@ select.form-control {
                                         </select>
                                     </div>
                                 </div>
+                                @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-2 mb-2">
+                                    <div class="form-group">
+                                        <label>Carrier Paid Date</label>
+                                        <input type="date" class="form-control" name="load_carrier_due_date_on" id="load_carrier_due_date_on" value="{{ !empty($post->load_carrier_due_date_on) ? \Carbon\Carbon::parse($post->load_carrier_due_date_on)->format('Y-m-d') : '' }}">
+                                    </div>
+                                </div>
+                                @endif
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Equipment Type
@@ -414,14 +344,22 @@ select.form-control {
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Customer Payment Terms</label>
-                                     
-<input type="text" 
-       class="form-control" 
-       name="invoicing_payment_terms"  
-       id="invoicing_payment_terms" 
-       value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                        <input type="text" 
+                                            class="form-control" 
+                                            name="invoicing_payment_terms"  
+                                            id="invoicing_payment_terms" 
+                                            value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                                                            </div>
+                                </div>
+                                    @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-3 mb-2">
+                                    <div class="form-group">
+                                        <label>Customer Paid Date</label>
+                                        <input type="date" class="form-control" name="invoice_status_date" id="invoice_status_date" value="{{ !empty($post->invoice_status_date) ? \Carbon\Carbon::parse($post->invoice_status_date)->format('Y-m-d') : '' }}">
                                     </div>
                                 </div>
+                                @endif
 								
 
                             </div>
@@ -444,8 +382,8 @@ select.form-control {
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
-                                            autocomplete="off" id="load_shipper_rate" required min="0" style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
+                                        <input type="text" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
+                                            autocomplete="off" id="load_shipper_rate" required style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
                                         
                                     </div>
                                 </div>
@@ -664,7 +602,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Billing Type</label>
-                                        <select class="form-control mySelect2" name="load_billing_type" style="width: 100%;">
+                                        <select class="form-control" name="load_billing_type" style="width: 100%;">
                                              <option selected="selected" value="{{ $post->load_billing_type }}">
                                                         {{ $post->load_billing_type }}</option>
                                                     <option>Factoring</option>
@@ -819,10 +757,19 @@ select.form-control {
                                     </div>
                                 </div>
 
-                                                                <div class="col-md-2 mb-2">
+                                <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Carrier Payment Status</label>
-                                        <input type="text" class="form-control" readonly name="carrier_mark_as_paid" id="carrier_mark_as_paid" value="{{ $post->carrier_mark_as_paid ?? 'Not Paid' }}">
+                                            <select class="form-control" name="carrier_mark_as_paid">
+                                                <option value="">Select Carrier Payment Status</option>
+                                                <option value="Not Paid" {{ $post->carrier_mark_as_paid == 'Not Paid' ? 'selected' : '' }}>
+                                                    Not Paid
+                                                </option>
+                                                <option value="Paid" {{ $post->carrier_mark_as_paid == 'Paid' ? 'selected' : '' }}>
+                                                    Paid
+                                                </option>
+                                            </select>
+                                     
                                     </div>
                                 </div>
                             </div>
@@ -1576,7 +1523,7 @@ $notes = json_decode($post->vendorInternalNotes, true);
                         
 
 
-                        <input type="submit" class="btn btn-info" value="update Load">
+                        <input type="submit" class="btn btn-info" value="Update Load">
                        
                     </form>
 <div class="modal fade" id="customerInfoModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -1780,11 +1727,6 @@ $(document).ready(function () {
         });
 
         $('#tabContent').append(newContent);
-
-        // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
-        if (window.initSelect2) {
-            window.initSelect2(newContent);
-        }
     });
 
     // 🔁 Delegated event for dynamic .load_shipper change
@@ -1857,11 +1799,6 @@ $(document).ready(function () {
                 });
 
                 $('#tabContent1').append(newContent);
-
-                // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
-                if (window.initSelect2) {
-                    window.initSelect2(newContent);
-                }
             });
 
             // ✅ Delegate change event for dynamically added `.load_consignee`
@@ -1902,29 +1839,22 @@ $(document).ready(function () {
 </script>
 <script>
 
-	$(document).ready(function () {
-
-    // Bill To is a select2 dropdown: keep the hidden customer_id in step and reset the rates
-    $('#load_bill_to').on('change', function () {
-        var selectedId = $(this).find('option:selected').data('id') || '';
-
-        $('#customer_id').val(selectedId);
-        $('#load_shipper_rate').prop('readonly', false).val(0);
-        $('#shipper_load_final_rate').val(0);
+    $(document).ready(function () {
+		 $('#load_bill_to').select2(); // Initialize Select2
+		$('#load_bill_to').on('change', function() {
+			var customer_id =  $(this).find('option:selected').data('id');
+			$('#customer_id').val(customer_id);
+            $('#load_shipper_rate').prop('readonly', false);
+            $('#load_shipper_rate').val(0);
+			$('#shipper_load_final_rate').val(0);
+			
+        });
+		
+        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
+            e.preventDefault();
+        });
     });
 
-    $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-        e.preventDefault();
-    });
-
-    $('#load_shipper_rate').on('keydown', function (e) {
-        if (e.key === '-' || e.key === 'e') e.preventDefault();
-    });
-
-    $('#load_shipper_rate').on('input', function () {
-        if (parseFloat($(this).val()) < 0) $(this).val(0);
-    });
-});
 
         $(document).ready(function () {
             
@@ -1952,13 +1882,12 @@ $(document).ready(function () {
 
                 $('#totalChargeAmount').val(total.toFixed(2));
 
-                var loadShipperRate = Math.max(0, parseFloat($('#load_shipper_rate').val()) || 0);
+                var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
                 total += loadShipperRate;
 
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                if (total < 0) total = 0;
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
                 var final_total_rate = parseFloat(total) - parseFloat($('#old_shipper_load_final_rate').val());
@@ -1976,18 +1905,19 @@ $(document).ready(function () {
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-
-                            var $creditMessage = $('#credit-limit-message');
-
+                          
                             if (response.success) {
-                                // Show the limit message at the top of the load form
-                                $creditMessage.text(response.message).removeClass('d-none');
 
-                                $('#shipper_load_final_rate').val(0);
-                            } else {
-                                $creditMessage.text('').addClass('d-none');
+                                 $('#mc-error-message').text(response.message).fadeIn();
+
+                                // Hide after 10 seconds
+                                setTimeout(function() {
+                                    $('#mc-error-message').text('').fadeOut();
+                                }, 2000); 
+                               
+                                $('#shipper_load_final_rate').val(''); 
                             }
-
+                               
                         },
                         
                     });
@@ -2135,13 +2065,12 @@ $(document).ready(function () {
         // Update the total charge field
         $('#totalChargeAmount').val(total.toFixed(2));
 
-        var loadShipperRate = Math.max(0, parseFloat($('#load_shipper_rate').val()) || 0);
+        var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
         total += loadShipperRate;
 
         var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
         total += (loadFscRate / 100) * loadShipperRate;
 
-        if (total < 0) total = 0;
         $('#shipper_load_final_rate').val(total.toFixed(2));
     }
     // Remove row
@@ -2290,7 +2219,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 // if(total > customer_rate){
-                //       $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
+                //       $('#mc-error-message').text("Final Carrier Fee not graterthe Shipper Final rate").fadeIn();
                 //         $('#load_carrier_fee').val(0);
                 //         $('#load_final_carrier_fee').val(0);
                 //         // Hide after 10 seconds
@@ -2477,6 +2406,27 @@ $(document).on('click', '#customerInfoBtn', function() {
     });
 });
 
+$(document).ready(function() {
+    var $target = $('#load_bill_to');
+    var $hidden = $('#customer_id');
+
+    if ($target.is('select')) {
+        var initialId = $target.find(':selected').data('id');
+        $hidden.val(initialId || '');
+
+        $target.on('change', function() {
+            var selectedId = $(this).find(':selected').data('id');
+            $hidden.val(selectedId || '');
+        });
+    } else {
+        $hidden.val($hidden.val() || '');
+    }
+});
+
+
+
+
+
 </script>
 
 <script>
@@ -2509,11 +2459,10 @@ $(document).on('click', '#carrierInfoBtn', function() {
 
 </script>
 
-
 <style>
 .is-invalid {
     border: 1px solid red;
     background: #ffe5e5;
 }
-
 </style>
+

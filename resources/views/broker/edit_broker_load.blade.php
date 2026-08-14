@@ -1,5 +1,7 @@
 @extends('layout.compact.app')
 @section('content')
+
+
 <style>
     #bolDownloadArea h3 {
     font-family: Arial, sans-serif;
@@ -54,56 +56,9 @@
     z-index: 9999;
     top: 10px;
 }
-
-/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
-   position: sticky cannot be used here: .main-content has overflow:hidden. */
-#credit-limit-message {
-    position: fixed;
-    top: 82px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: min(90vw, 1180px);
-    max-width: calc(100vw - 48px);
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-    border-radius: 4px;
-    background-color: #f8d7da;
-    border-color: #f5c2c7;
-    color: #842029;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    box-sizing: border-box;
-    overflow-wrap: anywhere;
-    white-space: normal;
-}
-body.vertical-collpsed #credit-limit-message {
-    left: 50%;
-}
-@media (max-width: 991.98px) {
-    #credit-limit-message {
-        width: min(96vw, 1180px);
-        left: 50%;
-    }
-}
-
-/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
-   .modal-backdrop. Dim the overlay on the modal element itself instead. */
-#myModal,
-#otherChargesModal {
-    background-color: rgba(0, 0, 0, 0.5);
-}
 .form-check-input[type=checkbox] {
     border-radius: .25em;
     border: 2px solid;
-}
-select.form-control {
-    appearance: auto !important;
-    -webkit-appearance: menulist !important;
-    -moz-appearance: menulist !important;
-    cursor: pointer;
-    padding-right: 2rem !important;
 }
 </style>
 
@@ -147,7 +102,6 @@ select.form-control {
 
                         <form method="POST" action="{{ route('broker.load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
-                        <div id="credit-limit-message" class="alert alert-danger d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Edit Load</h3>
@@ -240,7 +194,7 @@ select.form-control {
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control" required name="load_type" style="width: 100%;">
+                                        <select class="form-control" required name="load_type" id="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -289,8 +243,15 @@ select.form-control {
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
-                                            autocomplete="off" id="load_shipper_rate" required style="width: 100%;">
+                                        <input type="number"
+    class="form-control number value"
+    name="load_shipper_rate"
+    value="{{ $post->load_shipper_rate }}"
+    autocomplete="off"
+    id="load_shipper_rate"
+    required
+    {{ $post->cpr_check == 'Verified' ? 'readonly' : '' }}
+    style="width: 100%;">
                                         
                                     </div>
                                 </div>
@@ -496,7 +457,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                         <label>Carrier Rate
                                             <code>*</code></label>
                                         <input type="text" class="form-control" id="load_carrier_fee"
-                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required>
+                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required @if($post->cpr_check == 'Verified') readonly @endif>
                                         <span id="error_load_carrier_fee" style="color: red;font-size: 9px !important; display: none;">Only numbers
                                             and decimals allowed</span>
                                     </div>
@@ -505,7 +466,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <div class="form-group">
                                         <label>FSC Rate %</label>
                                         <input type="number" name="load_billing_fsc_rate" id="load_billing_fsc_rate"
-                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required>
+                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required @if($post->cpr_check == 'Verified') readonly @endif>
                                     </div>
                                 </div>
                                 @php
@@ -1234,14 +1195,6 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
     Bill Of Lading
 </a>
 
-@php
-    // Load saved BOL edit data if it exists
-    $bolSaved = null;
-    if (!empty($post->bol_edit_data)) {
-        $bolSaved = is_array($post->bol_edit_data) ? $post->bol_edit_data : json_decode($post->bol_edit_data, true);
-    }
-@endphp
-
 <!-- Modal -->
 <div class="modal fade" id="bolModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -1252,16 +1205,12 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <h5 class="modal-title">Bill Of Lading</h5>
 
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-secondary" id="editBolBtn" onclick="enableEdit()">
-                        Edit
-                    </button>
-
-                    <button type="button" class="btn btn-success" id="saveBolBtn" onclick="saveBolData()" style="display:none;">
-                        Save
-                    </button>
-
                     <button type="button" class="btn btn-primary" onclick="downloadBOL()">
                         Download PDF
+                    </button>
+
+                    <button type="button" class="btn btn-secondary" onclick="enableEdit()">
+                        Edit
                     </button>
 
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1279,20 +1228,34 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
 <div class="col-md-8">
 
-   @php
-    $logoPath = public_path('images/cargoLogo.png');
-    $logoBase64 = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
-@endphp
+                               @php
+                                    $logoPath = public_path('images/cargo.png');
 
-<div>
-    @if($logoBase64)
-        <img 
-            src="data:image/png;base64,{{ $logoBase64 }}"
-            alt="logo"
-            style="width:150px; display:block;"
-        >
-    @endif
-</div>
+                                    if (file_exists($logoPath)) {
+                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
+                                    } else {
+                                        $logoBase64 = '';
+                                        // Optional: dd($logoPath); // Check the resolved path
+                                    }
+                                @endphp
+
+    <div style="
+        display:flex;
+        align-items:flex-start;
+        gap:15px;
+    ">
+
+        <!-- Logo -->
+        <div>
+            <img 
+                src="data:image/png;base64,{{ $logoBase64 }}"
+                alt="logo"
+                style="
+                    width:150px;
+                    display:block;
+                "
+            >
+        </div>
 
         <!-- Content -->
         <div style="line-height:1.3;">
@@ -1334,8 +1297,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>Load Number</th>
                                     <td>
-                                        <input name="load_number" class="editable-field border-0 w-100"
-                                            value="{{ $bolSaved['load_number'] ?? $post->load_number }}" style="font-weight: 900; color: #555;"
+                                        <input class="editable-field border-0 w-100"
+                                            value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
                                 </tr>
@@ -1343,8 +1306,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>BOL Number</th>
                                     <td>
-                                        <input name="load_workorder" class="editable-field border-0 w-100"
-                                            value="{{ $bolSaved['load_workorder'] ?? ($post->load_workorder ?? '') }}" style="font-weight: 900; color: #555;"
+                                        <input class="editable-field border-0 w-100"
+                                            value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
                                 </tr>
@@ -1356,8 +1319,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                             json_decode($post->load_shipper_appointment,true);
                                         @endphp
                                     <td>
-                                        <input name="ship_date" class="editable-field border-0 w-100"
-                                            value="{{ $bolSaved['ship_date'] ?? (isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '') }}"
+                                        <input class="editable-field border-0 w-100"
+                                            value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
                                             readonly style="font-weight: 900; color: #555;">
                                     </td>
                                 </tr>
@@ -1385,8 +1348,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 }
 @endphp
 
-<input name="delivery_date" class="editable-field border-0 w-100"
-    value="{{ $bolSaved['delivery_date'] ?? $formattedDate }}" style="font-weight: 900; color: #555;"
+<input class="editable-field border-0 w-100"
+    value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
     readonly>
                                     </td>
                                 </tr>
@@ -1403,34 +1366,28 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Shipper</h6>
 @php
-    if (!empty($bolSaved['shipper_info'])) {
-        $shipperText = $bolSaved['shipper_info'];
-    } else {
-        $shippers = json_decode($post->load_shipperr, true);
-        $shipperLocs = json_decode($post->load_shipper_location, true);
+    $shippers = json_decode($post->load_shipperr, true);
 
-        $shipperText = '';
+    $shipperText = '';
 
-        if($shippers && is_array($shippers)) {
-            foreach($shippers as $index => $item) {
-                $shipperText .= ($item['name'] ?? '') . "\n";
+    if($shippers && is_array($shippers)) {
 
-                if($shipperLocs && isset($shipperLocs[$index]['location']) && !empty($shipperLocs[$index]['location'])) {
-                    $shipperText .= $shipperLocs[$index]['location'] . "\n";
-                } elseif(!empty($item['location'])) {
-                    $shipperText .= $item['location'] . "\n";
-                }
+        foreach($shippers as $item) {
 
-                $shipperText .= "\n";
+            $shipperText .= ($item['name'] ?? '') . "\n";
+
+            if(!empty($item['location'])) {
+                $shipperText .= $item['location'] . "\n";
             }
+
+            $shipperText .= "\n";
         }
-        $shipperText = trim($shipperText);
     }
 @endphp
 
-<textarea name="shipper_info" class="form-control editable-field border-0"
+<textarea class="form-control editable-field border-0"
     rows="6"
-    readonly>{{ $shipperText }}</textarea>
+    readonly>{{ trim($shipperText) }}</textarea>
                             </div>
                         </div>
 
@@ -1438,33 +1395,27 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Consignee</h6>
 @php
-    if (!empty($bolSaved['consignee_info'])) {
-        $consigneeText = $bolSaved['consignee_info'];
-    } else {
-        $consignees = json_decode($post->load_consignee, true);
-        $consigneeLocs = json_decode($post->load_consignee_location, true);
+    $consignees = json_decode($post->load_consignee, true);
 
-        $consigneeText = '';
+    $consigneeText = '';
 
-        if($consignees && is_array($consignees)) {
-            foreach($consignees as $index => $item) {
-                $consigneeText .= ($item['name'] ?? '') . "\n";
+    if($consignees && is_array($consignees)) {
 
-                if($consigneeLocs && isset($consigneeLocs[$index]['location']) && !empty($consigneeLocs[$index]['location'])) {
-                    $consigneeText .= $consigneeLocs[$index]['location'] . "\n";
-                } elseif(!empty($item['location'])) {
-                    $consigneeText .= $item['location'] . "\n";
-                }
+        foreach($consignees as $item) {
 
-                $consigneeText .= "\n";
+            $consigneeText .= ($item['name'] ?? '') . "\n";
+
+            if(!empty($item['location'])) {
+                $consigneeText .= $item['location'] . "\n";
             }
+
+            $consigneeText .= "\n";
         }
-        $consigneeText = trim($consigneeText);
     }
 @endphp
-                                <textarea name="consignee_info" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                     rows="5"
-                                    readonly>{{ $consigneeText }}</textarea>
+                                    readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
                         </div>
 
@@ -1477,9 +1428,9 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">3rd Party Billing</h6>
 
-                                <textarea name="third_party_billing" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                     rows="5"
-                                    readonly>{{ $bolSaved['third_party_billing'] ?? '' }}</textarea>
+                                    readonly></textarea>
                             </div>
                         </div>
 
@@ -1487,9 +1438,9 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Transportation Company</h6>
 
-                                <textarea name="transportation_company" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                 rows="5"
-                                readonly>{{ $bolSaved['transportation_company'] ?? ("MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '')) }}</textarea>
+                                readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
 
@@ -1514,66 +1465,53 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
     <tbody id="freightTableBody">
 
-        @php
-            $freightItems = (!empty($bolSaved['freight_items']) && is_array($bolSaved['freight_items']))
-                ? $bolSaved['freight_items']
-                : [['pieces' => '#Unit 1', 'description' => '', 'weight' => '', 'type' => '', 'nmfc' => '', 'hm' => '', 'class' => '']];
-        @endphp
-
-        @foreach($freightItems as $fIndex => $fItem)
         <tr>
 
             <td>
-                <input name="freight[{{ $fIndex }}][pieces]" type="text"
+                <input type="text"
                     class="form-control editable-field unit-number"
-                    value="{{ $fItem['pieces'] ?? '#Unit ' . ($fIndex + 1) }}">
+                    value="#Unit 1">
             </td>
 
             <td>
-                <input name="freight[{{ $fIndex }}][description]" type="text"
+                <input type="text"
                     class="form-control editable-field"
-                    placeholder="Description"
-                    value="{{ $fItem['description'] ?? '' }}">
+                    placeholder="Description">
             </td>
 
             <td>
-                <input name="freight[{{ $fIndex }}][weight]" type="number"
+                <input type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
-                    value="{{ $fItem['weight'] ?? '' }}"
                     onkeyup="updateTotals()"
                     onchange="updateTotals()">
             </td>
 
             <td>
-                <input name="freight[{{ $fIndex }}][type]" type="text"
+                <input type="text"
                     class="form-control editable-field"
-                    placeholder="Type"
-                    value="{{ $fItem['type'] ?? '' }}">
+                    placeholder="Type">
             </td>
 
             <td>
-                <input name="freight[{{ $fIndex }}][nmfc]" type="text"
+                <input type="text"
                     class="form-control editable-field"
-                    placeholder="NMFC"
-                    value="{{ $fItem['nmfc'] ?? '' }}">
+                    placeholder="NMFC">
             </td>
 
             <td>
-                <input name="freight[{{ $fIndex }}][hm]" type="text"
+                <input type="text"
                     class="form-control editable-field"
-                    placeholder="HM"
-                    value="{{ $fItem['hm'] ?? '' }}">
+                    placeholder="HM">
             </td>
 
             <td>
 
                 <div class="d-flex gap-2">
 
-                    <input name="freight[{{ $fIndex }}][class]" type="text"
+                    <input type="text"
                         class="form-control editable-field"
-                        placeholder="Class"
-                        value="{{ $fItem['class'] ?? '' }}">
+                        placeholder="Class">
 
                     <button type="button"
                         class="btn btn-danger btn-sm pdf-hide"
@@ -1586,7 +1524,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
             </td>
 
         </tr>
-        @endforeach
 
     </tbody>
 
@@ -1642,9 +1579,9 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <h6 class="fw-bold mb-2">Notes:</h6>
 
-            <textarea name="notes" class="form-control editable-field border-0"
+            <textarea class="form-control editable-field border-0"
                 rows="7"
-                readonly>{{ $bolSaved['notes'] ?? ($post->notes ?? '') }}</textarea>
+                readonly>{{ $post->notes ?? '' }}</textarea>
 
         </td>
 
@@ -1655,24 +1592,24 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                 <tr>
                     <td>
-                        <strong>C.O.D. Amount:</strong> <input name="cod_amount" type="text"
-                class="form-control editable-field border-0" value="{{ $bolSaved['cod_amount'] ?? '$0.00' }}"
+                        <strong>C.O.D. Amount:</strong> <input type="text"
+                class="form-control editable-field border-0" value="$0.00"
                 readonly>
                     </td>
                 </tr>
 
                 <tr>
                     <td>
-                        <strong>C.O.D. Fee:</strong> <input name="cod_fee" type="text"
-                class="form-control editable-field border-0" value="{{ $bolSaved['cod_fee'] ?? 'Collect' }}"
+                        <strong>C.O.D. Fee:</strong> <input type="text"
+                class="form-control editable-field border-0" value="Collect"
                 readonly>
                     </td>
                 </tr>
 
                 <tr>
                     <td>
-                        <strong>Declared Value:</strong> <input name="declared_value" type="text"
-                class="form-control editable-field border-0" value="{{ $bolSaved['declared_value'] ?? '$0.00' }}"
+                        <strong>Declared Value:</strong> <input type="text"
+                class="form-control editable-field border-0" value=" $0.00"
                 readonly>
                     </td>
                 </tr>
@@ -1719,23 +1656,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <tr>
 
         <td>
-            <input name="shipper_signature" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['shipper_signature'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
-            <input name="carrier_signature" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['carrier_signature'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
-            <input name="signature_date" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['signature_date'] ?? '' }}"
                 readonly>
         </td>
 
@@ -1762,23 +1696,20 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     <tr>
 
         <td>
-            <input name="shipper_per" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['shipper_per'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
-            <input name="carrier_per" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['carrier_per'] ?? '' }}"
                 readonly>
         </td>
 
         <td>
-            <input name="signature_time" type="text"
+            <input type="text"
                 class="form-control editable-field border-0"
-                value="{{ $bolSaved['signature_time'] ?? '' }}"
                 readonly>
         </td>
 
@@ -1797,27 +1728,23 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
 <tr>
     <td>
-        <input name="consignee_name_signature" type="text"
+        <input type="text"
             class="form-control editable-field border-0"
-            value="{{ $bolSaved['consignee_name_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
-        <input name="consignee_date_signature" type="text"
+        <input type="text"
             class="form-control editable-field border-0"
-            value="{{ $bolSaved['consignee_date_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
-        <input name="consignee_signature" type="text"
+        <input type="text"
             class="form-control editable-field border-0"
-            value="{{ $bolSaved['consignee_signature'] ?? '' }}"
             readonly>
     </td>
         <td>
-        <input name="consignee_pieces_received" type="text"
+        <input type="text"
             class="form-control editable-field border-0"
-            value="{{ $bolSaved['consignee_pieces_received'] ?? '' }}"
             readonly>
     </td>
 </tr>
@@ -1843,9 +1770,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-
-</script>
 
 <script>
 
@@ -1980,11 +1904,6 @@ $(document).ready(function () {
         });
 
         $('#tabContent').append(newContent);
-
-        // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
-        if (window.initSelect2) {
-            window.initSelect2(newContent);
-        }
     });
 
     // 🔁 Delegated event for dynamic .load_shipper change
@@ -2057,11 +1976,6 @@ $(document).ready(function () {
                 });
 
                 $('#tabContent1').append(newContent);
-
-                // The clone carries copied select2 markup, so rebuild the dropdowns in the new tab
-                if (window.initSelect2) {
-                    window.initSelect2(newContent);
-                }
             });
 
             // ✅ Delegate change event for dynamically added `.load_consignee`
@@ -2177,18 +2091,19 @@ $(document).ready(function () {
                             _token: '{{ csrf_token() }}'
                         },  
                         success: function(response) {
-
-                            var $creditMessage = $('#credit-limit-message');
-
+                          
                             if (response.success) {
-                                // Show the limit message at the top of the load form
-                                $creditMessage.text(response.message).removeClass('d-none');
 
-                                $('#shipper_load_final_rate').val(0);
-                            } else {
-                                $creditMessage.text('').addClass('d-none');
+                                 $('#mc-error-message').text(response.message).fadeIn();
+
+                                // Hide after 10 seconds
+                                setTimeout(function() {
+                                    $('#mc-error-message').text('').fadeOut();
+                                }, 2000); 
+                               
+                                $('#shipper_load_final_rate').val(''); 
                             }
-
+                               
                         },
                         
                     });
@@ -2269,36 +2184,67 @@ $(document).ready(function () {
 
 $(document).ready(function () {
     const $loadType = $('#load_type_two');
+    const $shippmentloadType = $('#load_type');
 
     function RestrictionOTR() {
        
         if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
+            // $('#load_shipper_rate').removeAttr('readonly');
+            // $('#load_fsc_rate').removeAttr('readonly');
+            // $('#load_carrier_fee').removeAttr('readonly');
+            // $('#load_billing_fsc_rate').removeAttr('readonly');
         }
     }
+
+    // function RestrictionOTRonload() {
+    //     const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+
+    //     if ($loadType.val() === "OTR") {
+    //         $('#load_shipper_rate').removeAttr('readonly');
+    //         $('#load_fsc_rate').removeAttr('readonly');
+    //         $('#load_carrier_fee').removeAttr('readonly');
+    //         $('#load_billing_fsc_rate').removeAttr('readonly');
+    //     } else if ($loadType.val() === "DRAYAGE") {
+    //         if (shipperRate > 0) {
+    //             $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+
+	// 			$('#load_shipper_rate').attr('readonly', true);
+	// 			$('#load_fsc_rate').attr('readonly', true);
+	// 			$('#load_carrier_fee').attr('readonly', true);
+	// 			$('#load_billing_fsc_rate').attr('readonly', true);
+    //         }
+    //     }
+    // }
 
     function RestrictionOTRonload() {
-        const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const loadTypeVal = $loadType.val();
+    const shippmentloadTypeVal = $shippmentloadType.val();
 
-        if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
-        } else if ($loadType.val() === "DRAYAGE") {
-            if (shipperRate > 0) {
-                $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+    if (loadTypeVal === "OTR") {
+        // $('#load_shipper_rate').removeAttr('readonly');
+        // $('#load_fsc_rate').removeAttr('readonly');
+        // $('#load_carrier_fee').removeAttr('readonly');
+        // $('#load_billing_fsc_rate').removeAttr('readonly');
 
-				$('#load_shipper_rate').attr('readonly', true);
-				$('#load_fsc_rate').attr('readonly', true);
-				$('#load_carrier_fee').attr('readonly', true);
-				$('#load_billing_fsc_rate').attr('readonly', true);
-            }
+    } else if (shippmentloadTypeVal === "TONU") {
+        // Allow editing shipper rate for TONU
+        $('#load_shipper_rate').removeAttr('readonly');
+
+    } else if (loadTypeVal === "DRAYAGE") {
+        if (shipperRate > 0) {
+            $loadType
+                .attr('readonly', true)
+                .css('pointer-events', 'none')
+                .css('background-color', '#e9ecef');
+
+            // $('#load_shipper_rate').attr('readonly', true);
+            // $('#load_fsc_rate').attr('readonly', true);
+            // $('#load_carrier_fee').attr('readonly', true);
+            // $('#load_billing_fsc_rate').attr('readonly', true);
         }
     }
+}
 
     RestrictionOTRonload();
 
@@ -2435,7 +2381,7 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
+                      $('#mc-error-message').text("Final Carrier Fee not graterthe Shipper Final rate").fadeIn();
                         $('#load_carrier_fee').val(0);
                         $('#load_final_carrier_fee').val(0);
                         // Hide after 10 seconds
@@ -2562,9 +2508,12 @@ $(document).ready(function() {
 
 <script>
 $(document).on('change', 'input[name^="load_consignee_appointment_"]', function () {
+
     let deliveryInput = $(this);
-    let row = deliveryInput.closest('.row'); 
+    let row = deliveryInput.closest('.row');
+
     let pickupInput = row.find('input[name^="load_shipper_appointment_"]');
+
     let pickupValue = pickupInput.val();
     let deliveryValue = deliveryInput.val();
 
@@ -2573,8 +2522,9 @@ $(document).on('change', 'input[name^="load_consignee_appointment_"]', function 
         let pickupDate = new Date(pickupValue);
         let deliveryDate = new Date(deliveryValue);
 
-        if (deliveryDate < pickupDate) {
-            alert("Delivery date & time cannot be earlier than Pickup date & time.");
+        // Delivery must be greater than pickup
+        if (deliveryDate <= pickupDate) {
+            alert("Delivery date & time must be later than Pickup date & time.");
             deliveryInput.val('');
         }
     }
@@ -2596,7 +2546,7 @@ $(document).on('change', 'input[name^="load_shipper_appointment_"]', function ()
 </script>
 
 <!-- html2pdf -->
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 
@@ -2611,59 +2561,84 @@ function enableEdit() {
 
     });
 
-    document.getElementById('editBolBtn').style.display = 'none';
-    document.getElementById('saveBolBtn').style.display = 'inline-block';
-
 }
 
 </script>
+
 <script>
 
 function addFreightRow() {
+
     let tableBody = document.getElementById('freightTableBody');
+
     let rowCount = tableBody.rows.length + 1;
 
     let row = `
         <tr>
+
             <td>
-                <input name="freight[${rowCount-1}][pieces]" type="text"
+                <input type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit ${rowCount}">
             </td>
+
             <td>
-                <input name="freight[${rowCount-1}][description]" type="text"
-                    class="form-control editable-field" placeholder="Description">
+                <input type="text"
+                    class="form-control editable-field"
+                    placeholder="Description">
             </td>
+
             <td>
-                <input name="freight[${rowCount-1}][weight]" type="number"
+                <input type="number"
                     class="form-control editable-field weight-field"
-                    placeholder="Weight" onkeyup="updateTotals()" onchange="updateTotals()">
+                    placeholder="Weight"
+                    onkeyup="updateTotals()"
+                    onchange="updateTotals()">
             </td>
+
             <td>
-                <input name="freight[${rowCount-1}][type]" type="text"
-                    class="form-control editable-field" placeholder="Type">
+                <input type="text"
+                    class="form-control editable-field"
+                    placeholder="Type">
             </td>
+
             <td>
-                <input name="freight[${rowCount-1}][nmfc]" type="text"
-                    class="form-control editable-field" placeholder="NMFC">
+                <input type="text"
+                    class="form-control editable-field"
+                    placeholder="NMFC">
             </td>
+
             <td>
-                <input name="freight[${rowCount-1}][hm]" type="text"
-                    class="form-control editable-field" placeholder="HM">
+                <input type="text"
+                    class="form-control editable-field"
+                    placeholder="HM">
             </td>
+
             <td>
+
                 <div class="d-flex gap-2">
-                    <input name="freight[${rowCount-1}][class]" type="text"
-                        class="form-control editable-field" placeholder="Class">
-                    <button type="button" class="btn btn-danger btn-sm pdf-hide"
-                        onclick="removeRow(this)">×</button>
+
+                    <input type="text"
+                        class="form-control editable-field"
+                        placeholder="Class">
+
+                    <button type="button"
+                        class="btn btn-danger btn-sm pdf-hide"
+                        onclick="removeRow(this)">
+                        ×
+                    </button>
+
                 </div>
+
             </td>
+
         </tr>
     `;
 
     tableBody.insertAdjacentHTML('beforeend', row);
+
     updateTotals();
+
 }
 
 function removeRow(button) {
@@ -2724,97 +2699,14 @@ updateTotals();
 <script>
 
 
-function collectBolData() {
-    const bolArea = document.getElementById('bolDownloadArea');
-    const namedFields = bolArea.querySelectorAll('input[name], textarea[name], select[name]');
-
-    let formData = {};
-    namedFields.forEach(field => {
-        if (!field.name || field.disabled || field.type === 'button' || field.type === 'submit') {
-            return;
-        }
-        const match = field.name.match(/^freight\[(\d+)\]\[(\w+)\]$/);
-        if (match) {
-            if (!formData['freight']) formData['freight'] = {};
-            if (!formData['freight'][match[1]]) formData['freight'][match[1]] = {};
-            formData['freight'][match[1]][match[2]] = field.value ?? '';
-        } else {
-            formData[field.name] = field.value ?? '';
-        }
-    });
-
-    if (formData['freight']) {
-        formData['freight'] = Object.values(formData['freight']);
-    }
-
-    return formData;
-}
-
 async function downloadBOL() {
-    const result = await saveBolDataSilent();
-    if (!result || !result.success) {
-        alert('Error saving BOL data. Please try again.');
-        return;
-    }
 
+    // Redirect to the backend route to generate and download the PDF
     window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
-}
 
-// Save BOL data via AJAX (with alert)
-async function saveBolData() {
-    try {
-        let result = await saveBolDataSilent();
-        if (result && result.success) {
-            // Lock fields back to readonly
-            document.querySelectorAll('.editable-field').forEach(function(el) {
-                el.setAttribute('readonly', true);
-                el.style.border = '';
-                el.style.padding = '';
-            });
-            document.getElementById('saveBolBtn').style.display = 'none';
-            document.getElementById('editBolBtn').style.display = 'inline-block';
-            alert('BOL data saved successfully!');
-        } else {
-            alert('Error saving BOL data. Please try again.');
-        }
-    } catch (error) {
-        console.error('Error saving BOL data:', error);
-        alert('Error saving BOL data. Please try again.');
-    }
-}
-
-// Save BOL data silently (no alert) - used by both save and download
-async function saveBolDataSilent() {
-    const formValues = collectBolData();
-    const payload = new FormData();
-    payload.append('_token', '{{ csrf_token() }}');
-
-    Object.keys(formValues).forEach(key => {
-        if (key === 'freight' && Array.isArray(formValues[key])) {
-            formValues[key].forEach((item, index) => {
-                Object.keys(item).forEach(subKey => {
-                    payload.append(`freight[${index}][${subKey}]`, item[subKey] ?? '');
-                });
-            });
-        } else {
-            payload.append(key, formValues[key] ?? '');
-        }
-    });
-
-    try {
-        let response = await fetch("{{ route('broker.load.bol.save', $post->id) }}", {
-            method: 'POST',
-            body: payload
-        });
-        return await response.json();
-    } catch (error) {
-        console.error('Error saving BOL data:', error);
-        return null;
-    }
 }
 
 </script>
-
 
 <style>
 

@@ -37,7 +37,7 @@ class Load extends Model
     {
         return $this->hasOne(\App\Models\CarrierVerification::class, 'load_id');
     }
-    public function payments()
+   public function payments()
     {
     return $this->hasMany(LoadPayment::class);
     }

@@ -1,24 +1,29 @@
+ 
         @foreach($invoiced as $i => $invoice)
             @php
-                $shouldShowInvoicedRow = app(\App\Http\Controllers\AccountController::class)->shouldShowInvoicedTabForLoad($invoice);
                 $shipperAppointment = json_decode($invoice->load_shipper_appointment, true);
                 $firstAppointment = '';
 
                 if (is_array($shipperAppointment) && !empty($shipperAppointment)) {
-                    reset($shipperAppointment);
-                    $firstItem = current($shipperAppointment);
+                reset($shipperAppointment);
+                $firstItem = current($shipperAppointment);
 
-                    if (is_array($firstItem)) {
-                        if (isset($firstItem['date'])) {
-                            $firstAppointment = $firstItem['date'];
-                        } else {
-                            $firstAppointment = reset($firstItem);
-                        }
-                    } elseif (is_string($firstItem)) {
-                        $firstAppointment = $firstItem;
-                    }
+                if (is_array($firstItem)) {
+                // If first item is an array, get the first string value or a key like 'date'
+                if (isset($firstItem['date'])) {
+                $firstAppointment = $firstItem['date'];
+                } else {
+                // fallback: get first value of the array
+                $firstAppointment = reset($firstItem);
                 }
+                } elseif (is_string($firstItem)) {
+                // If first item is a string directly
+                $firstAppointment = $firstItem;
+                }
+                }
+            @endphp
 
+            @php
                 $consigneeAppointment = json_decode($invoice->load_consignee_appointment, true);
                 $lastAppointment = '';
 
@@ -37,7 +42,6 @@
                     }
                 }
             @endphp
-            @if($shouldShowInvoicedRow)
             <tr>
                 <td>{{ $i + 1 }}</td>
                 <td>{{ $invoice->load_number }}</td>
@@ -82,14 +86,16 @@
 											<label>Email:</label>
 											<input type="text" class="form-control" id="email" name="email" value="{{$invoice->customer?->customer_email}}" required><br><br> 
 											<label>CC Email:</label>
-											<input type="text" class="form-control" id="ccemail" name="ccemail" value="ar@cargoconvoy.co"><br><br>
-								<label>Subject:</label>
-								<input type="text" class="form-control" id="subject" name="subject" value="{{ 'Invoice For Load #' . $invoice->load_number . ' (#' . $invoice->invoice_number . ') REF #' . $invoice->load_workorder }}" required><br><br>
+											<input type="text" class="form-control" id="ccemail" name="ccemail" value="ar@cargoconvoy.co{{ $invoice->user?->email ? ', ' . $invoice->user->email : '' }}"><br><br>
+											<input type="hidden" id="load_no" name="load_no" value="{{$invoice->load_number}}">
+											<input type="hidden" name="refrance_no" value="{{$invoice->load_workorder}}">
+											<input type="hidden" name="invoice_no" value="{{$invoice->invoice_number}}">
+                                            <input type="hidden" name="customer_refrence_number" value="{{ $invoice->customer_refrence_number }}">
+											
 											<strong>Upload new documents:</strong><br><br>
-                                            <input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}" onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" accept="application/pdf" multiple>
-                                            <small class="text-muted d-block mt-1">Select PDF files. Multiple selected documents are sent as one merged PDF.</small>
-                                            <div id="uploadStatus{{ $invoice->load_number }}"></div>
-                                            <div id="uploadedDocsAccordion{{ $invoice->load_number }}" class="mail-document-grid mt-3"></div>
+											<input type="file" class="newDocuments" data-id="{{ $invoice->load_number }}"  onchange="maildocumetupload(this, '{{ $invoice->load_number }}')" multiple>
+											<div id="uploadStatus{{ $invoice->load_number }}"></div>
+											<div id="uploadedDocsAccordion{{ $invoice->load_number }}" class="accordion mt-3"></div>
 
 											<strong>Select documents to attach:</strong><br><br>
 
@@ -98,34 +104,45 @@
 												
 											@endphp
 
-                                            @if(empty($docs))
-                                                <p>No documents found.</p>
-                                            @else
-                                                <div class="mail-document-grid">
-                                                    @foreach($docs as $key => $file)
-                                                        @php
-                                                            $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                                                            $fileName = basename($file);
-                                                            $filePath = public_path(ltrim($file, '/'));
-                                                        @endphp
-                                                        @if(!file_exists($filePath)) @continue @endif
-                                                        <label class="mail-document-card" title="Click to select or deselect">
-                                                            <input type="checkbox" name="documents[]" value="{{ $file }}" checked >
-                                                            <a class="mail-document-preview" href="{{ asset($file) }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
-                                                                @if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
-                                                                    <img src="{{ asset($file) }}" alt="{{ $fileName }}" style="max-width:100%;max-height:150px;object-fit:contain;">
-                                                                @else
-                                                                    <iframe src="{{ asset($file) }}" style="width:150px;height:150px;border:none;pointer-events:none;" scrolling="no"></iframe>
-                                                                @endif
-                                                            </a>
-                                                            <span class="mail-document-name">{{ $fileName }}</span>
-                                                            <button type="button" class="btn btn-sm btn-outline-danger remove-mail-document" title="Remove from this email" aria-label="Remove {{ $fileName }}">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </label>
-                                                    @endforeach
-                                                </div>
-                                            @endif
+											@if(empty($docs))
+												<p>No documents found.</p>
+											@else
+												<div class="accordion" id="accordionExample">
+													@foreach($docs as $key => $file)
+														@php
+														
+															$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+														@endphp
+														@php
+															$fileName = basename($file);
+														@endphp
+
+														<div class="accordion-item">
+															<input type="checkbox" name="documents[]" value="{{ $file }}" @if(Str::startsWith($fileName, 'Load_invoice')) checked @endif>
+															<h2 class="accordion-header" id="heading{{ $key }}">
+																<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ $key }}" aria-expanded="false" aria-controls="collapse{{ $key }}">
+																	View document #{{ $key + 1 }}  ({{basename($file)}})
+																</button>
+															</h2>
+															<div id="collapse{{ $key }}" class="accordion-collapse collapse" aria-labelledby="heading{{ $key }}" data-bs-parent="#accordionExample">
+																<div class="accordion-body">
+																	@if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
+																		<a href="{{ asset('public/'.$file) }}" target="_blank"><img src="{{ asset('public/'.$file) }}" alt="Image" style="max-width: 500px;"></a>
+																	@elseif($extension === 'pdf')
+																		<a href="{{ asset('public/'.$file) }}" target="_blank"><embed src="{{ asset('public/'.$file) }}" type="application/pdf" width="600" height="400"></a>
+																	@elseif(in_array($extension, ['doc', 'docx']))
+																		<iframe src="https://docs.google.com/gview?url={{ urlencode(asset('public/'.$file)) }}&embedded=true" 
+																				style="width:600px; height:500px;" frameborder="0"></iframe>
+																		<br><a href="{{ asset('storage/'.$file) }}" target="_blank">Download Word Document</a>
+																	@else
+																		<p>Unsupported file type.</p>
+																	@endif
+																</div>
+															</div>
+														</div>
+													@endforeach
+												</div>
+											@endif
 
 											<button type="submit"class="btn btn-primary waves-effect waves-light mb-3" onclick="sendemailfunction(this, '{{ $invoice->id }}')" data-id ="{{$invoice->id}}" >Send Email</button>
 										</form>
@@ -157,7 +174,7 @@
                             data-invoice-id="{{ $invoice->id }}"
                             data-shipper-final-rate="{{ $invoice->shipper_load_final_rate }}"
                             id="use_final_rate_{{ $invoice->id }}">
-                        <label class="form-check-label" for="use_final_rate_{{ $invoice->id }}" style="font-size: 12px; margin-left: 4px;">Use ₹{{ number_format(floatval($invoice->shipper_load_final_rate), 2) }}</label>
+                        <label class="form-check-label" for="use_final_rate_{{ $invoice->id }}" style="font-size: 12px; margin-left: 4px;">Use ${{ number_format(floatval($invoice->shipper_load_final_rate), 2) }}</label>
                     </div>
                     <!-- <div>
                         <a href="#" class="add-note-link" data-invoice-id="{{ $invoice->id }}" style="font-size: 12px; color: #0d6efd; text-decoration: underline; display: inline-block; margin-top: 4px;">Additional note</a>
@@ -269,7 +286,6 @@
 </td>
             </tr>
 			
-            @endif
         @endforeach
 		
 <script>
@@ -340,37 +356,6 @@
     }
 </script>
 <script>
-function escapeMailDocumentHtml(value) {
-    return String(value).replace(/[&<>'"]/g, function (character) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character];
-    });
-}
-
-function mailDocumentCard(filePath, fileUrl) {
-    const fileName = filePath.split('/').pop();
-    const safeName = escapeMailDocumentHtml(fileName);
-    const safePath = escapeMailDocumentHtml(filePath);
-    const safeUrl = escapeMailDocumentHtml(fileUrl);
-
-    return `
-        <label class="mail-document-card" title="Click to select or deselect">
-            <input type="checkbox" name="documents[]" value="${safePath}">
-            <a class="mail-document-preview" href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
-                <iframe src="${safeUrl}" style="width:150px;height:150px;border:none;pointer-events:none;" scrolling="no"></iframe>
-            </a>
-            <span class="mail-document-name">${safeName}</span>
-            <button type="button" class="btn btn-sm btn-outline-danger remove-mail-document" title="Remove from this email" aria-label="Remove ${safeName}">
-                <i class="fas fa-trash"></i>
-            </button>
-        </label>`;
-}
-
-$(document).on('click', '.remove-mail-document', function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-    $(this).closest('.mail-document-card').remove();
-});
-
 function maildocumetupload(inputElement, invoiceno) {
     const files = inputElement.files;
     const load_no = $(inputElement).data('id');
@@ -406,10 +391,49 @@ function maildocumetupload(inputElement, invoiceno) {
                 $status.html(`<span class="text-success">Uploaded ${data.files.length} file(s) successfully.</span>`);
 
                 data.files.forEach(function (filePath) {
-                    const fileUrl = `{{ url('/') }}/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
-                    $uploadedDocsContainer.append(mailDocumentCard(filePath, fileUrl));
+                    const fileName = filePath.split('/').pop();
+                    const extension = fileName.split('.').pop().toLowerCase();
+                    const fileUrl = `{{ url('/') }}/public/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+
+                    let previewHTML = '';
+
+                    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                        previewHTML = `<img src="${fileUrl}" style="max-width: 500px;">`;
+                    } else if (extension === 'pdf') {
+                        previewHTML = `<embed src="${fileUrl}" type="application/pdf" width="600" height="400">`;
+                    } else if (['doc', 'docx'].includes(extension)) {
+                        previewHTML = `
+                            <iframe src="https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true"
+                                    style="width:600px; height:500px;" frameborder="0"></iframe>
+                            <br><a href="${fileUrl}" target="_blank">Download Word Document</a>
+                        `;
+                    } else {
+                        previewHTML = `<a href="${fileUrl}" target="_blank">Download File</a>`;
+                    }
+
+                    const uniqueId = 'uploaded_' + Math.floor(Math.random() * 100000);
+
+                    const accordionItem = `
+                        <div class="accordion-item">
+                            <input type="checkbox" name="documents[]" value="${filePath}" checked>
+                            <h2 class="accordion-header" id="heading${uniqueId}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapse${uniqueId}" aria-expanded="false"
+                                        aria-controls="collapse${uniqueId}">
+                                    Uploaded: ${fileName}
+                                </button>
+                            </h2>
+                            <div id="collapse${uniqueId}" class="accordion-collapse collapse"
+                                 aria-labelledby="heading${uniqueId}">
+                                <div class="accordion-body">
+                                    ${previewHTML}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    $uploadedDocsContainer.append(accordionItem);
                 });
-                inputElement.value = '';
             } else {
                 $status.html(`<span class="text-danger">Upload failed.</span>`);
             }
@@ -493,6 +517,8 @@ function markAsBackDeliveredRecord(loadId) {
         });
     }
 }
+
+
         function updateRemainingAmount(invoiceId, receiving_amount) {
             
             var shipperLoadFinalRate = parseFloat($('#receiving_amount_' + invoiceId).data(

@@ -77,12 +77,18 @@ li{
                 <h3>CARRIER RATE & LOAD CONFIRMATION</h3>
                         <div class="direction">
                             <div class="logo" style="text-align:center; width: 30%;">
-                                @php
-                                    $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-                                    $logoBase64 = base64_encode(file_get_contents($logoUrl));
+                               @php
+                                    $logoPath = public_path('images/cargo.png');
+
+                                    if (file_exists($logoPath)) {
+                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
+                                    } else {
+                                        $logoBase64 = '';
+                                        // Optional: dd($logoPath); // Check the resolved path
+                                    }
                                 @endphp
 
-                                <img style="width: 40%;" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">  
+                                <img style="width: 40%;" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo"> 
                             </div>
                             
                         </div>

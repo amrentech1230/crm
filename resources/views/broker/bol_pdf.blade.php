@@ -76,31 +76,17 @@
 </head>
 <body>
     <div class="bol-container">
-        @php
-            $savedBolData = isset($savedBolEdit)
-                ? $savedBolEdit
-                : (is_array($load->bol_edit_data ?? null)
-                    ? $load->bol_edit_data
-                    : (json_decode((string) ($load->bol_edit_data ?? ''), true) ?: []));
-        @endphp
         <!-- Top Section -->
         <table class="no-border" style="margin-bottom: 10px;">
             <tr>
                 <td style="width: 65%; border: none;">
                     <div style="display: flex; align-items: flex-start; gap: 15px;">
-                        @php
-                            $logoPath = public_path('images/cargoLogo.png');
-                            $logoBase64 = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
-                        @endphp
-
                         <div>
-                            @if($logoBase64)
-                                <img
-                                    src="data:image/png;base64,{{ $logoBase64 }}"
-                                    alt="logo"
-                                    style="width:150px; display:block;"
-                                >
-                            @endif
+                            @php
+                                $logoUrl = public_path('images/cargo.png');
+                                $logoBase64 = base64_encode(file_get_contents($logoUrl));
+                            @endphp
+                            <img class="logo" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">
                         </div>
                         <div class="company-info">
                             <h3>CARGO CONVOY INC</h3>
@@ -128,10 +114,7 @@
                             <th>Ship Date</th>
                             @php
                                 $shipper_appointment = json_decode($load->load_shipper_appointment, true);
-                                $shipDate = trim((string) ($load->ship_date ?? ''));
-                                if ($shipDate === '' && isset($shipper_appointment[0]['appointment'])) {
-                                    $shipDate = \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y');
-                                }
+                                $shipDate = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $shipDate }}</td>
                         </tr>
@@ -139,10 +122,7 @@
                             <th>Delivery Date</th>
                             @php
                                 $consignee_appointment = json_decode($load->load_consignee_appointment, true);
-                                $deliveryDate = trim((string) ($load->delivery_date ?? ''));
-                                if ($deliveryDate === '' && isset($consignee_appointment[0]['appointment'])) {
-                                    $deliveryDate = \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y');
-                                }
+                                $deliveryDate = isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $deliveryDate }}</td>
                         </tr>
@@ -157,55 +137,36 @@
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
                     @php
-                        $savedBolData = is_array($load->bol_edit_data ?? null)
-                            ? $load->bol_edit_data
-                            : (json_decode((string) ($load->bol_edit_data ?? ''), true) ?: []);
-                        $shipperText = trim((string) ($savedBolData['shipper_info'] ?? $load->shipper_info ?? ''));
-                        if ($shipperText === '') {
-                            $shippers = json_decode($load->load_shipperr ?? '', true) ?: [];
-                            $shipperLocations = json_decode($load->load_shipper_location ?? '', true) ?: [];
-
-                            $shipperText = '';
-                            foreach ($shippers as $index => $item) {
+                        $shippers = json_decode($load->load_shipperr, true);
+                        $shipperText = '';
+                        if($shippers && is_array($shippers)) {
+                            foreach($shippers as $item) {
                                 $shipperText .= ($item['name'] ?? '') . "\n";
-
-                                $location = $item['location'] ?? ($shipperLocations[$index]['location'] ?? null);
-                                if (!empty($location)) {
-                                    $shipperText .= $location . "\n";
+                                if(!empty($item['location'])) {
+                                    $shipperText .= $item['location'] . "\n";
                                 }
-
                                 $shipperText .= "\n";
                             }
-
-                            $shipperText = trim($shipperText);
                         }
                     @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $shipperText }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($shipperText) }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
                     @php
-                        $consigneeText = trim((string) ($savedBolData['consignee_info'] ?? $load->consignee_info ?? ''));
-                        if ($consigneeText === '') {
-                            $consignees = json_decode($load->load_consignee ?? '', true) ?: [];
-                            $consigneeLocations = json_decode($load->load_consignee_location ?? '', true) ?: [];
-
-                            $consigneeText = '';
-                            foreach ($consignees as $index => $item) {
+                        $consignees = json_decode($load->load_consignee, true);
+                        $consigneeText = '';
+                        if($consignees && is_array($consignees)) {
+                            foreach($consignees as $item) {
                                 $consigneeText .= ($item['name'] ?? '') . "\n";
-
-                                $location = $item['location'] ?? ($consigneeLocations[$index]['location'] ?? null);
-                                if (!empty($location)) {
-                                    $consigneeText .= $location . "\n";
+                                if(!empty($item['location'])) {
+                                    $consigneeText .= $item['location'] . "\n";
                                 }
-
                                 $consigneeText .= "\n";
                             }
-
-                            $consigneeText = trim($consigneeText);
                         }
                     @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $consigneeText }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($consigneeText) }}</pre>
                 </td>
             </tr>
         </table>
@@ -215,17 +176,13 @@
             <tr>
                 <td style="width: 50%;">
                     <h6>3rd Party Billing</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $savedBolData['third_party_billing'] ?? ($load->third_party_billing ?? '') }}</pre>
+                    <!-- Assuming 3rd party billing info is not directly in $load for now -->
+                    <div style="min-height: 80px;"></div>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    @php
-                        $transportText = trim((string) ($savedBolData['transportation_company'] ?? $load->transportation_company ?? ''));
-                        if ($transportText === '') {
-                            $transportText = "MC #: " . ($load->load_mc_no ?? '') . "\nCarrier Name: " . ($load->load_carrier ?? '');
-                        }
-                    @endphp
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $transportText }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
+Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -245,30 +202,6 @@
             </thead>
             <tbody>
                 <!-- Placeholder for freight items. If freight data is stored in $load, iterate here. -->
-                @php $totalPieces = 0; $totalWeight = 0; @endphp
-                @php
-                    $freightItems = is_array($load->freight_items ?? null) ? $load->freight_items : (is_array($savedBolData['freight_items'] ?? null) ? $savedBolData['freight_items'] : []);
-                @endphp
-                @if(!empty($freightItems))
-                    @foreach($freightItems as $item)
-                    @php
-                        $piecesValue = trim((string) ($item['pieces'] ?? ''));
-                        if ($piecesValue !== '') {
-                            $totalPieces += 1;
-                        }
-                        $totalWeight += (float)($item['weight'] ?? 0);
-                    @endphp
-                    <tr>
-                        <td>{{ $item['pieces'] ?? '' }}</td>
-                        <td>{{ $item['description'] ?? '' }}</td>
-                        <td>{{ $item['weight'] ?? '' }}</td>
-                        <td>{{ $item['type'] ?? '' }}</td>
-                        <td>{{ $item['nmfc'] ?? '' }}</td>
-                        <td>{{ $item['hm'] ?? '' }}</td>
-                        <td>{{ $item['class'] ?? '' }}</td>
-                    </tr>
-                    @endforeach
-                @else
                 <tr>
                     <td>#Unit 1</td>
                     <td></td>
@@ -277,7 +210,6 @@
                     <td></td>
                     <td></td>
                     <td></td>
-                    <td colspan="7" class="text-center">No freight items.</td>
                 </tr>
                 {{--
                 @foreach(json_decode($load->freight_items, true) as $item)
@@ -292,17 +224,18 @@
                 </tr>
                 @endforeach
                 --}}
-                @endif
             </tbody>
             <tfoot>
                 <tr>
                     <td class="text-center">
                         <span class="fw-bold">Total Pieces</span><br>
-                        {{ $totalPieces }}
+                        <!-- Calculate total pieces if freight data is available -->
+                        1
                     </td>
                     <td colspan="2" class="text-center">
                         <span class="fw-bold">Total Weight</span><br>
-                        {{ number_format($totalWeight, 2) }}
+                        <!-- Calculate total weight if freight data is available -->
+                        0.00
                     </td>
                     <td colspan="4" class="text-center">
                         <span class="fw-bold">Emergency Response Phone</span><br>
@@ -317,23 +250,23 @@
             <tr>
                 <td style="width: 70%;">
                     <h6 class="fw-bold">Notes:</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $savedBolData['notes'] ?? ($load->notes ?? '') }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 100px;">{{ $load->notes ?? '' }}</pre>
                 </td>
                 <td style="width: 30%; padding: 0;">
                     <table class="no-border">
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Amount:</span> {{ $savedBolData['cod_amount'] ?? ($load->cod_amount ?? '$0.00') }}
+                                <span class="fw-bold">C.O.D. Amount:</span> $0.00
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">C.O.D. Fee:</span> {{ $savedBolData['cod_fee'] ?? ($load->cod_fee ?? 'Collect') }}
+                                <span class="fw-bold">C.O.D. Fee:</span> Collect
                             </td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #000;">
-                                <span class="fw-bold">Declared Value:</span> {{ $savedBolData['declared_value'] ?? ($load->declared_value ?? '$0.00') }}
+                                <span class="fw-bold">Declared Value:</span> $0.00
                             </td>
                         </tr>
                         <tr>
@@ -347,19 +280,6 @@
         </table>
 
         <!-- Signatures -->
-        @php
-            $bolSaved = $savedBolData;
-            $sigShipper = $bolSaved['shipper_signature'] ?? ($load->shipper_signature ?? '');
-            $sigCarrier = $bolSaved['carrier_signature'] ?? ($load->carrier_signature ?? '');
-            $sigDate = $bolSaved['signature_date'] ?? ($load->signature_date ?? '');
-            $sigPerShipper = $bolSaved['shipper_per'] ?? ($load->shipper_per ?? '');
-            $sigPerCarrier = $bolSaved['carrier_per'] ?? ($load->carrier_per ?? '');
-            $sigTime = $bolSaved['signature_time'] ?? ($load->signature_time ?? '');
-            $conNameSign = $bolSaved['consignee_name_signature'] ?? ($load->consignee_name_signature ?? '');
-            $conDateSign = $bolSaved['consignee_date_signature'] ?? ($load->consignee_date_signature ?? '');
-            $conSignature = $bolSaved['consignee_signature'] ?? ($load->consignee_signature ?? '');
-            $conPiecesReceived = $bolSaved['consignee_pieces_received'] ?? ($load->consignee_pieces_received ?? '');
-        @endphp
         <table>
             <tr>
                 <th style="width: 25%;">Shipper</th>
@@ -368,9 +288,9 @@
                 <th style="width: 25%;" rowspan="2">Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box">{{ $sigShipper }}</td>
-                <td class="signature-box">{{ $sigCarrier }}</td>
-                <td class="signature-box">{{ $sigDate }}</td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
             </tr>
             <tr>
                 <th>Per</th>
@@ -379,9 +299,9 @@
                 <td class="signature-box"></td>
             </tr>
             <tr>
-                <td class="signature-box">{{ $sigPerShipper }}</td>
-                <td class="signature-box">{{ $sigPerCarrier }}</td>
-                <td class="signature-box">{{ $sigTime }}</td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
                 <td class="signature-box"></td>
             </tr>
         </table>
@@ -394,10 +314,10 @@
                 <th>Number Of Pieces Received</th>
             </tr>
             <tr>
-                <td class="signature-box">{{ $conNameSign }}</td>
-                <td class="signature-box">{{ $conDateSign }}</td>
-                <td class="signature-box">{{ $conSignature }}</td>
-                <td class="signature-box">{{ $conPiecesReceived }}</td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
+                <td class="signature-box"></td>
             </tr>
         </table>
     </div>

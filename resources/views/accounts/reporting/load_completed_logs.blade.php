@@ -6,56 +6,8 @@
                                     $shipper_appointment = json_decode($log->load_shipper_appointment,true);
                                     $shipper_location = json_decode($log->load_shipper_location,true);
                                     $appointment = isset($shipper_location[0]['appointment']) ? $shipper_location[0]['appointment'] : '';
-                                    $consignee_location = json_decode($log->load_consignee_location,true);
+                                    $consignee_location = json_decode($log->load_consignee_location,true); 
                                     $consignee_appointment = json_decode($log->load_consignee_appointment,true);
-
-                                    // Account receiving status, parsed the same way as the AR "Invoiced / Paid" tab.
-                                    $shipperRate = (float) preg_replace('/[^0-9.\-]/', '', (string)($log->shipper_load_final_rate ?? ''));
-                                    $receivingAmount = (float) preg_replace('/[^0-9.\-]/', '', (string)($log->receiving_amount ?? ''));
-                                    $difference = $shipperRate - $receivingAmount;
-                                    $remainingAmount = $difference > 0 ? $difference : 0.0;
-                                    $excessAmount = $difference < 0 ? abs($difference) : 0.0;
-
-                                    $isCancelled = strcasecmp((string) $log->load_status, 'Cancelled') === 0;
-
-                                    // Cancelled loads owe nothing and hold no excess — reads "Cancelled" or 0.
-                                    if ($isCancelled) {
-                                        $remainingAmount = 0.0;
-                                        $excessAmount = 0.0;
-                                    }
-
-                                    if ($isCancelled) {
-                                        $paymentStatus = 'Cancelled';
-                                    } elseif (empty($log->invoice_status)) {
-                                        // Not invoiced yet — show a hyphen instead of "Pending".
-                                        $paymentStatus = '-';
-                                    } elseif ($receivingAmount <= 0) {
-                                        $paymentStatus = 'Pending';
-                                    } elseif (abs($difference) < 0.005) {
-                                        $paymentStatus = 'Full Payment';
-                                    } elseif ($difference < 0) {
-                                        $paymentStatus = 'Excess Payment';
-                                    } else {
-                                        $paymentStatus = 'Short Payment';
-                                    }
-
-                                    // Invoice Status follows the real money received: a "Paid Record" with
-                                    // nothing received maps back to "Invoiced", not a false "Paid Record".
-                                    if ($isCancelled) {
-                                        $displayInvoiceStatus = 'Cancelled';
-                                    } elseif (empty($log->invoice_status)) {
-                                        $displayInvoiceStatus = '-';
-                                    } elseif ($log->invoice_status == 'Paid') {
-                                        $displayInvoiceStatus = 'Invoiced';
-                                    } elseif ($log->invoice_status == 'Paid Record') {
-                                        $displayInvoiceStatus = [
-                                            'Full Payment'   => 'Paid Record',
-                                            'Short Payment'  => 'Short Pay',
-                                            'Excess Payment' => 'Excess',
-                                        ][$paymentStatus] ?? 'Invoiced';
-                                    } else {
-                                        $displayInvoiceStatus = $log->invoice_status;
-                                    }
                                 @endphp
                                 <tr>
                                     <td class="dynamic-data">{{ ($dashboard_logs->currentPage() - 1) * $dashboard_logs->perPage() + $index + 1 }}</td>
@@ -95,11 +47,19 @@
                                             </span>
                                         @endif
                                     </td>
-                                    <td class="dynamic-data">{{ $displayInvoiceStatus }}</td>
+                                    <td class="dynamic-data">
+                                        @if(empty($log->invoice_status))
+                                            -
+                                        @elseif($log->invoice_status == "Paid")
+                                            Invoiced
+                                        @else
+                                            {{ $log->invoice_status }}
+                                        @endif
+                                    </td>
 
                                     <td class="dynamic-data">{{ $log->customer_refrence_number }}</td>
                                     <td class="dynamic-data">
-                                        {{ format_report_date($log->created_at ? $log->created_at->setTimezone('America/New_York') : null) }}
+                                        {{ $log->created_at->setTimezone('America/New_York')->format('m/d/Y') }}
                                     </td>
                                     <td class="dynamic-data">{{ $log->load_bill_to }}</td>
                                     <td class="dynamic-data">{{ $log->load_carrier }}</td>
@@ -119,7 +79,7 @@
                                             $appointmentDate = !empty($consignee_appointment[$lastKey]['appointment']) ? $consignee_appointment[$lastKey]['appointment'] : null;
 
                                             // Format the date if it exists
-                                            $formattedDate = format_report_date($appointmentDate);
+                                            $formattedDate = $appointmentDate ? (new DateTime($appointmentDate))->format('m/d/Y') : '';
                                         }
                                     @endphp
 
@@ -127,23 +87,23 @@
                                         {{ $formattedDate }}
                                     </td>
 
-                                    <td class="dynamic-data">{{ format_report_date($log->load_actual_delivery_date) }}</td>
-                                    <td class="dynamic-data">{{ format_report_date($log->load_carrier_due_date) }}</td>
+                                    <td class="dynamic-data">{{ $log->load_actual_delivery_date ? \Carbon\Carbon::parse($log->load_actual_delivery_date)->format('m/d/Y') : '' }}</td>
+                                    <td class="dynamic-data">{{ $log->load_carrier_due_date ? \Carbon\Carbon::parse($log->load_carrier_due_date)->format('m/d/Y') : '' }}</td>
 @php
 $date = trim($log->load_carrier_due_date_on);
 $formatted = '';
 
 try {
-    $formatted = format_report_date($date);
+    $formatted = \Carbon\Carbon::parse($date)->format('m/d/Y');
 } catch (\Exception $e) {
     $formatted = '';
 }
 
 @endphp
 
-<td class="dynamic-data">{{ format_report_date($log->load_carrier_due_date_on) }}</td>
+<td class="dynamic-data">{{ $log->load_carrier_due_date_on ? $log->load_carrier_due_date_on : '' }}</td>
                                     <td class="dynamic-data">{{ $log->load_carrier_fee }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->load_billing_fsc_rate, $isCancelled) }}</td>
+                                    <td class="dynamic-data">{{ $log->load_billing_fsc_rate }}</td>
                                     <td class="dynamic-data">
                                         @php
                                             $charges = json_decode($log->carrier_load_other_charge, true);
@@ -179,37 +139,31 @@ try {
                                         @endif
                                     </td>
 
-                                    <td class="dynamic-data">{{ format_report_value($log->load_final_carrier_fee, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->load_shipper_rate, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->load_fsc_rate, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_other_charge, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_final_rate, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? '-' : $log->invoice_number }}</td>
+                                    <td class="dynamic-data">{{ $log->load_final_carrier_fee }}</td>
+                                    <td class="dynamic-data">{{ $log->load_shipper_rate }}</td>
+                                    <td class="dynamic-data">{{ $log->load_fsc_rate }}</td>
+                                    <td class="dynamic-data">{{ $log->shipper_load_other_charge }}</td>
+                                    <td class="dynamic-data">{{ $log->shipper_load_final_rate }}</td>
+                                    <td class="dynamic-data">{{ $log->invoice_number }}</td>
                                     <td class="dynamic-data">
-                                        @if($isCancelled)
-                                            -
-                                        @elseif(!empty($log->invoice_date) && $log->invoice_date !== '0000-00-00')
-                                            {{ format_report_date($log->invoice_date) }}
+                                        @if(!empty($log->invoice_date) && $log->invoice_date !== '0000-00-00')
+                                            {{ \Carbon\Carbon::parse($log->invoice_date)->format('m/d/Y') }}
                                         @elseif(!empty($log->invoice_status_date) && $log->invoice_status_date !== '0000-00-00')
-                                            {{ format_report_date($log->invoice_status_date) }}
+                                            {{ \Carbon\Carbon::parse($log->invoice_status_date)->format('m/d/Y') }}
                                         @else
                                             -
                                         @endif
                                     </td>
 
-                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->paper_work_date) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->payment_receiving_date) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? 'Cancelled' : $paymentStatus }}</td>
+                                    <td class="dynamic-data">{{ $log->paper_work_date ? \Carbon\Carbon::parse($log->paper_work_date)->format('m/d/Y') : '' }}</td>
+                                    <td class="dynamic-data">{{ $log->payment_receiving_date ? \Carbon\Carbon::parse($log->payment_receiving_date)->format('m/d/Y') : '' }}</td>
+                                    
                                     <td class="dynamic-data">
-                                        @if($isCancelled)
-                                            0
-                                        @elseif(in_array($log->invoice_status, ['Paid Record', 'Paid']))
-                                            {{ $log->receiving_amount }}
+                                        @if($log->invoice_status == "Paid Record") 
+                                            {{ $log->receiving_amount }} 
                                         @endif
                                     </td>
-                                    <td class="dynamic-data">{{ $isCancelled ? 0 : number_format($remainingAmount, 2) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? 0 : number_format($excessAmount, 2) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? '-' : format_report_date($log->invoice_status_date) }}</td>
+                                    <td class="dynamic-data">{{ $log->invoice_status_date ? \Carbon\Carbon::parse($log->invoice_status_date)->format('m/d/Y') : '' }}</td>
                                     @php
                                         
                                         $shipperLoadFinalRate = $log->shipper_load_final_rate ?? 0;
@@ -218,12 +172,29 @@ try {
                                         $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
 
                                     @endphp
-                                    <td class="dynamic-data">{{ format_report_value($log->shipper_load_final_rate, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ format_report_value($log->load_final_carrier_fee, $isCancelled) }}</td>
-                                    <td class="dynamic-data">{{ $isCancelled ? 0 : $margin }}</td>
+                                    <td class="dynamic-data">{{ $log->shipper_load_final_rate }}</td>
+                                    <td class="dynamic-data">{{ $log->load_final_carrier_fee }}</td>
+                                    <td class="dynamic-data">{{ $margin }}</td>
                                     <td class="dynamic-data">{{ $log->load_workorder }}</td>
                                     <td class="dynamic-data">{{ $log->cpr_check }}</td>
                                     <td class="dynamic-data">{{ $log->no_of_macro }}</td>
                                     <td class="dynamic-data">{{ $log->load_advance_rec_amount }}</td>
+                                    <td class="dynamic-data">{{ $log->macro }}</td>
+                                    <td class="dynamic-data">{{ $log->no_of_macro }}</td>
+                                    <td class="dynamic-data">
+@php
+    $invoiceDate = \Carbon\Carbon::parse($log->invoice_date)->addHours(24);
+    $now = \Carbon\Carbon::now();
+
+    $agingDays = 0;
+
+    if ($now->greaterThan($invoiceDate)) {
+        $hours = $invoiceDate->diffInHours($now);
+        $agingDays = ceil($hours / 24);
+    }
+@endphp
+
+{{ $agingDays }} Days
+</td>
                                 </tr>
                                 @endforeach

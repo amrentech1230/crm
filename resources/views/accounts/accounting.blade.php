@@ -13,9 +13,8 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 1040;
+    z-index: 9999;
     top: 10px;
-    pointer-events: none;
 }
 #search-active .pagination-container{
     display:none !important;
@@ -30,9 +29,8 @@
     position: fixed;
     width: 20%;
     right: 10px;
-    z-index: 1040;
+    z-index: 9999;
     top: 10px;
-    pointer-events: none;
 }
 td.dynamic-data a {
     /* color: #a6ce3a !important; */
@@ -49,37 +47,6 @@ table.dataTable tbody > tr.selected td p {
     border-color: rgba(15, 156, 243, .2);
     color: #000 !important;
 }
-.mail-document-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 12px;
-}
-.mail-document-card {
-    position: relative;
-    display: block;
-    min-height: 150px;
-    padding: 10px;
-    border: 1px solid #d9e0e7;
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-}
-.mail-document-card:has(input:not(:checked)) { opacity: .55; }
-.mail-document-card input[type="checkbox"] { margin-right: 6px; }
-.mail-document-preview {
-    display: flex;
-    min-height: 86px;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    color: #dc3545;
-    text-decoration: none;
-    overflow: hidden;
-}
-.mail-document-preview img { max-width: 100%; max-height: 86px; object-fit: contain; }
-.mail-document-preview .fa-file-pdf { font-size: 40px; }
-.mail-document-name { display: block; padding-right: 26px; font-size: 12px; overflow-wrap: anywhere; word-break: break-all; white-space: normal; max-width: 100%; overflow: hidden; }
-.remove-mail-document { position: absolute; right: 8px; bottom: 7px; }
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -214,7 +181,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $open->setPageName('open')->links('pagination::bootstrap-5') }}
+                                    {{ $open->setPageName('open')->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="completed" role="tabpanel">
@@ -253,7 +220,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination" id="completed-search">
-                                    {{ $complete->setPageName('complete')->links('pagination::bootstrap-5') }}
+                                    {{ $complete->setPageName('complete')->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced" role="tabpanel">
@@ -332,7 +299,7 @@ table.dataTable tbody > tr.selected td p {
                                     
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $invoiced->setPageName('invoiced')->links('pagination::bootstrap-5') }}
+                                    {{ $invoiced->setPageName('invoiced')->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced_paid" role="tabpanel">
@@ -372,7 +339,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $paid->setPageName('paid')->links('pagination::bootstrap-5') }}
+                                    {{ $paid->setPageName('paid')->links() }}
                                 </div>
                             </div>
                         </div>
@@ -391,39 +358,36 @@ table.dataTable tbody > tr.selected td p {
     e.preventDefault();
 
     let url = $(this).attr('href');
+
+    // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
-    let resultContainer = '';
-    let tableSelector = '';
-    let searchInputSelector = '';
+        let resultContainer = '';
+        let tableSelector = '';
 
-    if (activeTab === '#open') {
-        resultContainer = '#open-search';
-        tableSelector = '#datatable-buttons-open';
-        searchInputSelector = '#opens input[name="query"]';
-    } else if (activeTab === '#completed') {
-        resultContainer = '#completed-search';
-        tableSelector = '#datatable-buttons-completed';
-        searchInputSelector = '#completeds input[name="query"]';
-    } else if (activeTab === '#invoiced') {
-        resultContainer = '#invoiced-search';
-        tableSelector = '#datatable-buttons-invoiced';
-        searchInputSelector = '#invoiceds input[name="query"]';
-    } else if (activeTab === '#invoiced_paid') {
-        resultContainer = '#invoiced_paid-search';
-        tableSelector = '#datatable-buttons-invoiced_paid';
-        searchInputSelector = '#invoiced_paids input[name="query"]';
-    } else {
-        return;
-    }
+        if (activeTab === '#open') {
+            resultContainer = '#open-search';
+            tableSelector = '#datatable-buttons-open';
 
-    let currentQuery = $(searchInputSelector).val() || '';
+        } else if (activeTab === '#completed') {
+            resultContainer = '#completed-search';
+            tableSelector = '#datatable-buttons-completed';
 
+        } else if (activeTab === '#invoiced') {
+            resultContainer = '#invoiced-search';
+            tableSelector = '#datatable-buttons-invoiced';
+
+        } else if (activeTab === '#invoiced_paid') {
+            resultContainer = '#invoiced_paid-search';
+            tableSelector = '#datatable-buttons-invoiced_paid';
+
+        } else {
+            return; // Exit if it's not one of the expected tabs
+        }
     $.ajax({
         url: url,
         type: 'GET',
         data: {
-            tab: activeTab,
-            query: currentQuery
+            tab: activeTab 
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
@@ -435,11 +399,12 @@ table.dataTable tbody > tr.selected td p {
             $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'rtip',
-                pageLength: 100,
+				pageLength: 100, 
                 paging: false,
                 buttons: [ 'colvis' ],
             });
 
+            // Optional: update the browser URL
             window.history.pushState("", "", url);
         }
     });
