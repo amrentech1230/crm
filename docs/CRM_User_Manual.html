@@ -3,841 +3,943 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cargo Convoy CRM - User Manual v3.0</title>
+<title>Cargo Convoy CRM - User Manual</title>
 <style>
-@page { size: A4; margin: 18mm; }
+@page { size: A4; margin: 20mm; }
 * { box-sizing: border-box; }
-body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 35px; color: #2c3e50; line-height: 1.7; font-size: 12px; }
-h1 { color: #1a237e; font-size: 24px; border-bottom: 3px solid #1a237e; padding-bottom: 8px; margin-top: 35px; page-break-after: avoid; }
-h2 { color: #283593; font-size: 18px; border-bottom: 2px solid #3949ab; padding-bottom: 6px; margin-top: 28px; }
-h3 { color: #3949ab; font-size: 14px; margin-top: 18px; }
-h4 { color: #5c6bc0; font-size: 12px; margin-top: 14px; }
-p { margin: 8px 0; }
-ul, ol { margin: 6px 0; padding-left: 20px; }
-li { margin: 3px 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; color: #2c3e50; line-height: 1.6; font-size: 13px; }
+h1 { color: #1a237e; font-size: 28px; border-bottom: 3px solid #1a237e; padding-bottom: 10px; margin-top: 40px; }
+h2 { color: #283593; font-size: 22px; border-bottom: 2px solid #3949ab; padding-bottom: 8px; margin-top: 35px; }
+h3 { color: #3949ab; font-size: 17px; margin-top: 25px; }
+h4 { color: #5c6bc0; font-size: 14px; margin-top: 15px; }
 </style>
 </head>
 <body>
 
 <style>
-/* Cover */
-.cover { text-align: center; padding: 50px 0; page-break-after: always; }
-.cover h1 { font-size: 36px; color: #1a237e; border: none; margin-bottom: 8px; }
-.cover .subtitle { font-size: 16px; color: #5c6bc0; margin-bottom: 25px; }
-.cover .company { font-size: 13px; color: #666; margin-top: 40px; }
-.cover .version { font-size: 11px; color: #999; margin-top: 15px; }
-/* TOC */
+.cover { text-align: center; padding: 80px 0; page-break-after: always; }
+.cover h1 { font-size: 42px; color: #1a237e; border: none; margin-bottom: 10px; }
+.cover .subtitle { font-size: 20px; color: #5c6bc0; margin-bottom: 40px; }
+.cover .company { font-size: 16px; color: #666; margin-top: 60px; }
+.cover .version { font-size: 14px; color: #999; margin-top: 20px; }
 .toc { page-break-after: always; }
 .toc ul { list-style: none; padding: 0; }
-.toc li { padding: 6px 0; border-bottom: 1px dotted #ddd; font-size: 13px; }
+.toc li { padding: 8px 0; border-bottom: 1px dotted #ddd; font-size: 14px; }
 .toc li a { text-decoration: none; color: #283593; }
-/* Diagrams */
-.diagram { background: #f8f9ff; border: 2px solid #c5cae9; border-radius: 12px; padding: 18px; margin: 14px 0; text-align: center; page-break-inside: avoid; }
-.diagram .title { font-weight: bold; color: #1a237e; font-size: 13px; margin-bottom: 10px; }
-.flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-.flow-box { background: #3949ab; color: white; padding: 7px 12px; border-radius: 7px; font-size: 10px; font-weight: 600; min-width: 75px; text-align: center; }
+.diagram { background: #f8f9ff; border: 2px solid #c5cae9; border-radius: 12px; padding: 25px; margin: 20px 0; text-align: center; }
+.diagram .title { font-weight: bold; color: #1a237e; font-size: 15px; margin-bottom: 15px; }
+.flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+.flow-box { background: #3949ab; color: white; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; min-width: 90px; text-align: center; }
 .flow-box.green { background: #2e7d32; }
 .flow-box.orange { background: #e65100; }
 .flow-box.purple { background: #6a1b9a; }
 .flow-box.red { background: #c62828; }
 .flow-box.teal { background: #00695c; }
-.flow-box.blue { background: #1565c0; }
-.flow-box.gray { background: #546e7a; }
-.flow-arrow { font-size: 16px; color: #7986cb; font-weight: bold; }
-.flow-down { font-size: 16px; color: #7986cb; font-weight: bold; display: block; text-align: center; margin: 4px 0; }
-/* Boxes */
-.info-box { background: #e3f2fd; border-left: 4px solid #1976d2; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
-.warning-box { background: #fff3e0; border-left: 4px solid #e65100; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
-.success-box { background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 10px 14px; margin: 10px 0; border-radius: 0 8px 8px 0; font-size: 11px; }
-/* Tables */
-.table-styled { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
-.table-styled th { background: #283593; color: white; padding: 7px 9px; text-align: left; }
-.table-styled td { padding: 6px 9px; border-bottom: 1px solid #e0e0e0; }
+.flow-arrow { font-size: 20px; color: #7986cb; font-weight: bold; }
+.code-block { background: #263238; color: #eeffff; padding: 15px 20px; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 11px; overflow-x: auto; margin: 15px 0; white-space: pre-wrap; }
+.info-box { background: #e3f2fd; border-left: 4px solid #1976d2; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+.warning-box { background: #fff3e0; border-left: 4px solid #e65100; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+.table-styled { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
+.table-styled th { background: #283593; color: white; padding: 10px 12px; text-align: left; }
+.table-styled td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; }
 .table-styled tr:nth-child(even) { background: #f5f5f5; }
-/* Badges */
-.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 600; color: white; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; }
 .badge-admin { background: #c62828; }
 .badge-broker { background: #2e7d32; }
 .badge-account { background: #1565c0; }
-/* Architecture boxes */
-.arch-box { border: 2px solid #c5cae9; border-radius: 10px; padding: 10px; margin: 6px; display: inline-block; min-width: 150px; vertical-align: top; }
-.arch-box .label { font-weight: bold; color: #1a237e; font-size: 11px; margin-bottom: 5px; }
-.arch-box ul { margin: 0; padding-left: 12px; font-size: 10px; }
-/* Process steps */
-.process-step { display: flex; align-items: flex-start; margin: 8px 0; }
-.step-num { background: #3949ab; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; margin-right: 9px; flex-shrink: 0; }
-.step-content { flex: 1; font-size: 11px; }
-/* Code */
-.code-block { background: #263238; color: #eeffff; padding: 10px 14px; border-radius: 7px; font-family: monospace; font-size: 10px; overflow-x: auto; margin: 10px 0; white-space: pre-wrap; }
-/* SVG Diagrams */
-.svg-diagram { margin: 14px auto; text-align: center; page-break-inside: avoid; }
-.svg-diagram svg { max-width: 100%; height: auto; }
-/* Vertical Flow */
-.vflow { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0; }
-.vflow .flow-box { min-width: 200px; }
-/* Grid */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 10px 0; }
-.card { border: 1px solid #c5cae9; border-radius: 8px; padding: 12px; background: #fafbff; }
-.card .card-title { font-weight: bold; color: #1a237e; font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #e8eaf6; padding-bottom: 4px; }
-.card ul { margin: 4px 0; padding-left: 14px; font-size: 10px; }
-/* Screenshot placeholder */
-.screenshot { border: 2px dashed #c5cae9; border-radius: 8px; padding: 30px; text-align: center; color: #9fa8da; font-size: 11px; margin: 10px 0; background: #f8f9ff; }
+.section { page-break-inside: avoid; margin-bottom: 30px; }
+.arch-box { border: 2px solid #c5cae9; border-radius: 10px; padding: 15px; margin: 10px; display: inline-block; min-width: 180px; vertical-align: top; }
+.arch-box .label { font-weight: bold; color: #1a237e; font-size: 13px; margin-bottom: 8px; }
+.arch-box ul { margin: 0; padding-left: 15px; font-size: 11px; }
+.process-step { display: flex; align-items: flex-start; margin: 12px 0; }
+.step-num { background: #3949ab; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; margin-right: 12px; flex-shrink: 0; }
+.step-content { flex: 1; }
 </style>
 
-<!-- ==================== COVER PAGE ==================== -->
+<!-- COVER PAGE -->
 <div class="cover">
-<img src="images/logo.png" alt="Cargo Convoy Logo" style="width:150px; height:auto; margin-bottom:20px;">
+<div style="font-size:60px; color:#1a237e; margin-bottom:20px;">&#x1f69a;</div>
 <h1>CARGO CONVOY CRM</h1>
-<div class="subtitle">Complete User Manual & Operations Guide</div>
-<div style="margin:25px auto; width:60%; height:3px; background: linear-gradient(to right, #1a237e, #5c6bc0, #9fa8da);"></div>
-<div style="margin:20px auto; max-width:500px;">
-<svg width="500" height="60" viewBox="0 0 500 60">
-<rect x="0" y="20" width="90" height="30" rx="6" fill="#2e7d32"/><text x="45" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="bold">CUSTOMER</text>
-<polygon points="95,35 105,35 100,28 100,42" fill="#7986cb"/>
-<rect x="110" y="20" width="90" height="30" rx="6" fill="#3949ab"/><text x="155" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="bold">LOAD</text>
-<polygon points="205,35 215,35 210,28 210,42" fill="#7986cb"/>
-<rect x="220" y="20" width="90" height="30" rx="6" fill="#e65100"/><text x="265" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="bold">CARRIER</text>
-<polygon points="315,35 325,35 320,28 320,42" fill="#7986cb"/>
-<rect x="330" y="20" width="90" height="30" rx="6" fill="#6a1b9a"/><text x="375" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="bold">INVOICE</text>
-<polygon points="425,35 435,35 430,28 430,42" fill="#7986cb"/>
-<rect x="440" y="20" width="55" height="30" rx="6" fill="#00695c"/><text x="467" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="bold">PAID</text>
-</svg>
+<div class="subtitle">Comprehensive User Manual & Technical Documentation</div>
+<div style="margin:40px auto; width:80%; height:3px; background: linear-gradient(to right, #1a237e, #5c6bc0, #9fa8da);"></div>
+<div class="company">
+<strong>Cargo Convoy Inc</strong><br>
+7119 Pennsylvania Ave, Upper Darby, PA, USA 19082<br>
+Phone: 267-513-0420 | MC: 01512751 | DOT: 4014885
 </div>
-<div class="company"><strong>Cargo Convoy Inc</strong><br>7119 Pennsylvania Ave, Upper Darby, PA 19082<br>Phone: +1 (267) 513-0604 | MC: 01512751</div>
-<div class="version">Version 3.0 | July 2026 | Laravel 12 | PHP 8.4<br>305 Routes | 15 Controllers | 34 Models | 123 Views</div>
+<div class="version">
+Version 3.1 | Document Generated: August 2026<br>
+Built with Laravel 12 | PHP 8.4
+</div>
 </div>
 
-<!-- ==================== TABLE OF CONTENTS ==================== -->
+<!-- TABLE OF CONTENTS -->
 <div class="toc">
-<h1 style="border:none; text-align:center;">Table of Contents</h1>
-<div class="grid-2">
-<div>
+<h1>Table of Contents</h1>
 <ul>
 <li><a href="#overview">1. System Overview & Architecture</a></li>
-<li><a href="#roles">2. User Roles & Permissions</a></li>
-<li><a href="#auth">3. Authentication & Security</a></li>
-<li><a href="#admin">4. Admin Panel</a></li>
+<li><a href="#roles">2. User Roles & Access Control</a></li>
+<li><a href="#auth">3. Authentication & Login Flow</a></li>
+<li><a href="#admin">4. Admin Panel Module</a></li>
 <li><a href="#broker">5. Broker Module</a></li>
-<li><a href="#loads">6. Load Management (Core)</a></li>
-<li><a href="#credit">7. Credit Limit System</a></li>
-<li><a href="#customer">8. Customer Management</a></li>
-<li><a href="#carrier">9. Carrier Management</a></li>
-</ul>
-</div>
-<div>
-<ul>
-<li><a href="#shipper">10. Shipper & Consignee</a></li>
-<li><a href="#accounting">11. Accounting & Invoicing</a></li>
-<li><a href="#compliance">12. Compliance Module</a></li>
+<li><a href="#loads">6. Load Management (Core Module)</a></li>
+<li><a href="#customer">7. Customer Management</a></li>
+<li><a href="#carrier">8. Carrier Management</a></li>
+<li><a href="#shipper">9. Shipper & Consignee Management</a></li>
+<li><a href="#accounting">10. Accounting & Invoicing</a></li>
+<li><a href="#compliance">11. Compliance Module</a></li>
+<li><a href="#bol">12. Bill of Lading (BOL)</a></li>
 <li><a href="#reporting">13. Reporting & Analytics</a></li>
-<li><a href="#email">14. Email & PDF Merge</a></li>
-<li><a href="#bol">15. Bill of Lading (BOL)</a></li>
-<li><a href="#files">16. Document Management</a></li>
-<li><a href="#database">17. Database Schema</a></li>
-<li><a href="#api">18. API Endpoints Reference</a></li>
+<li><a href="#files">14. Document Management & File Uploads</a></li>
+<li><a href="#email">15. Email System</a></li>
+<li><a href="#database">16. Database Schema</a></li>
+<li><a href="#api">17. API Routes & Endpoints</a></li>
 </ul>
-</div>
-</div>
 </div>
 
-<!-- ==================== SECTION 1: SYSTEM OVERVIEW ==================== -->
+<!-- SECTION 1: SYSTEM OVERVIEW -->
 <div id="overview">
 <h1>1. System Overview & Architecture</h1>
 
 <h3>1.1 What is Cargo Convoy CRM?</h3>
-<p>Cargo Convoy CRM is a comprehensive <strong>freight brokerage management platform</strong> built for Cargo Convoy Inc. It handles the entire lifecycle of freight operations — from customer onboarding and credit management, through load creation and carrier dispatch, to invoicing and payment collection.</p>
+<p>Cargo Convoy CRM is a comprehensive freight brokerage management system designed for <strong>Cargo Convoy Inc</strong>. It manages the complete lifecycle of freight loads from creation to payment, including customer relationships, carrier management, invoicing, compliance checks, and document handling.</p>
 
-<div class="info-box"><strong>Technology Stack:</strong> Laravel 12 (PHP 8.4) | MySQL 8 | Blade Templates | Bootstrap 5 | jQuery | Select2 | DataTables | Dompdf | FPDI | PhpSpreadsheet | ApexCharts</div>
-
-<h3>1.2 System Architecture</h3>
-<div class="svg-diagram">
-<svg width="520" height="280" viewBox="0 0 520 280">
-<!-- Browser layer -->
-<rect x="10" y="10" width="500" height="40" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
-<text x="260" y="35" text-anchor="middle" font-size="12" fill="#1565c0" font-weight="bold">Browser (Bootstrap 5 + jQuery + Select2 + DataTables)</text>
-<!-- Arrow -->
-<line x1="260" y1="50" x2="260" y2="70" stroke="#7986cb" stroke-width="2" marker-end="url(#arrowhead)"/>
-<!-- Laravel layer -->
-<rect x="10" y="70" width="500" height="50" rx="8" fill="#e8eaf6" stroke="#3949ab" stroke-width="2"/>
-<text x="260" y="90" text-anchor="middle" font-size="11" fill="#283593" font-weight="bold">Laravel 12 Application Layer</text>
-<text x="260" y="108" text-anchor="middle" font-size="9" fill="#5c6bc0">Routes &rarr; Middleware &rarr; Controllers &rarr; Services &rarr; Models</text>
-<!-- Three portals -->
-<rect x="20" y="135" width="150" height="55" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.5"/>
-<text x="95" y="155" text-anchor="middle" font-size="10" fill="#c62828" font-weight="bold">Admin Portal</text>
-<text x="95" y="170" text-anchor="middle" font-size="8" fill="#666">Users, Roles, Config</text>
-<text x="95" y="182" text-anchor="middle" font-size="8" fill="#666">Load Oversight, Logs</text>
-
-<rect x="185" y="135" width="150" height="55" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
-<text x="260" y="155" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="bold">Broker Portal</text>
-<text x="260" y="170" text-anchor="middle" font-size="8" fill="#666">Loads, Customers</text>
-<text x="260" y="182" text-anchor="middle" font-size="8" fill="#666">Carriers, BOL, Files</text>
-
-<rect x="350" y="135" width="150" height="55" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
-<text x="425" y="155" text-anchor="middle" font-size="10" fill="#1565c0" font-weight="bold">Accounts Portal</text>
-<text x="425" y="170" text-anchor="middle" font-size="8" fill="#666">Invoicing, Payments</text>
-<text x="425" y="182" text-anchor="middle" font-size="8" fill="#666">Compliance, Reports</text>
-<!-- Arrow to DB -->
-<line x1="260" y1="190" x2="260" y2="210" stroke="#7986cb" stroke-width="2"/>
-<!-- Database -->
-<rect x="120" y="210" width="280" height="50" rx="8" fill="#fce4ec" stroke="#ad1457" stroke-width="2"/>
-<text x="260" y="232" text-anchor="middle" font-size="11" fill="#880e4f" font-weight="bold">MySQL Database</text>
-<text x="260" y="248" text-anchor="middle" font-size="9" fill="#666">loads | customers | externals | users | roles | logs | payments</text>
-<!-- Arrow markers -->
-<defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7986cb"/></marker></defs>
-</svg>
+<div class="info-box">
+<strong>Technology Stack:</strong> Laravel 11 (PHP 8.4) | MySQL Database | Blade Templates | Bootstrap 5 | jQuery | Dompdf for PDF generation | PhpSpreadsheet for Excel exports
 </div>
 
-<h3>1.3 Module Interaction Map</h3>
-<div class="svg-diagram">
-<svg width="480" height="200" viewBox="0 0 480 200">
-<!-- Center: Load -->
-<circle cx="240" cy="100" r="35" fill="#3949ab"/><text x="240" y="104" text-anchor="middle" fill="white" font-size="11" font-weight="bold">LOAD</text>
-<!-- Customer -->
-<circle cx="100" cy="60" r="28" fill="#2e7d32"/><text x="100" y="64" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Customer</text>
-<line x1="128" y1="68" x2="205" y2="92" stroke="#81c784" stroke-width="1.5"/>
-<!-- Carrier -->
-<circle cx="380" cy="60" r="28" fill="#e65100"/><text x="380" y="64" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Carrier</text>
-<line x1="352" y1="68" x2="275" y2="92" stroke="#ffb74d" stroke-width="1.5"/>
-<!-- Shipper -->
-<circle cx="100" cy="150" r="28" fill="#6a1b9a"/><text x="100" y="154" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Shipper</text>
-<line x1="128" y1="142" x2="205" y2="112" stroke="#ce93d8" stroke-width="1.5"/>
-<!-- Consignee -->
-<circle cx="380" cy="150" r="28" fill="#00695c"/><text x="380" y="154" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Consignee</text>
-<line x1="352" y1="142" x2="275" y2="112" stroke="#80cbc4" stroke-width="1.5"/>
-<!-- Invoice -->
-<circle cx="240" cy="185" r="22" fill="#c62828"/><text x="240" y="189" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Invoice</text>
-<line x1="240" y1="135" x2="240" y2="163" stroke="#ef9a9a" stroke-width="1.5"/>
-<!-- User/Broker -->
-<circle cx="240" cy="20" r="18" fill="#546e7a"/><text x="240" y="24" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Broker</text>
-<line x1="240" y1="38" x2="240" y2="65" stroke="#90a4ae" stroke-width="1.5"/>
-</svg>
+<h3>1.2 System Architecture Diagram</h3>
+<div class="diagram">
+<div class="title">Three-Portal Architecture</div>
+<div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+<div class="arch-box">
+<div class="label" style="color:#c62828;">Admin Portal</div>
+<ul>
+<li>User Management</li>
+<li>Departments & Offices</li>
+<li>Roles & Permissions</li>
+<li>Load Oversight</li>
+<li>Master Data Config</li>
+<li>Activity Logs</li>
+</ul>
+</div>
+<div class="arch-box">
+<div class="label" style="color:#2e7d32;">Broker Portal</div>
+<ul>
+<li>Load Create/Edit/Clone</li>
+<li>Customer CRUD</li>
+<li>Carrier CRUD</li>
+<li>Shipper/Consignee</li>
+<li>BOL Generation</li>
+<li>File Uploads</li>
+</ul>
+</div>
+<div class="arch-box">
+<div class="label" style="color:#1565c0;">Accounts Portal</div>
+<ul>
+<li>Invoicing & Payments</li>
+<li>Compliance (MC/CPR)</li>
+<li>Carrier Verification</li>
+<li>Vendor Management</li>
+<li>Reporting & Analytics</li>
+<li>Credit Management</li>
+</ul>
+</div>
 </div>
 </div>
 
-<!-- ==================== SECTION 2: ROLES ==================== -->
+<h3>1.3 Application Flow Overview</h3>
+<div class="diagram">
+<div class="title">High-Level Process Flow</div>
+<div class="flow">
+<div class="flow-box green">Customer Setup</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box">Load Creation</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Carrier Assignment</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Dispatch & Delivery</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Invoice & Payment</div>
+</div>
+</div>
+</div>
+
+<!-- SECTION 2: USER ROLES -->
 <div id="roles">
-<h1>2. User Roles & Permissions</h1>
+<h1>2. User Roles & Access Control</h1>
 
-<h3>2.1 Organization Hierarchy</h3>
-<div class="svg-diagram">
-<svg width="400" height="180" viewBox="0 0 400 180">
-<rect x="140" y="10" width="120" height="30" rx="6" fill="#c62828"/><text x="200" y="30" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Super Admin</text>
-<line x1="160" y1="40" x2="100" y2="65" stroke="#999" stroke-width="1.5"/>
-<line x1="240" y1="40" x2="300" y2="65" stroke="#999" stroke-width="1.5"/>
-<rect x="40" y="65" width="120" height="28" rx="6" fill="#e65100"/><text x="100" y="84" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Manager</text>
-<rect x="240" y="65" width="120" height="28" rx="6" fill="#e65100"/><text x="300" y="84" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Account Manager</text>
-<line x1="100" y1="93" x2="100" y2="115" stroke="#999" stroke-width="1.5"/>
-<rect x="40" y="115" width="120" height="28" rx="6" fill="#6a1b9a"/><text x="100" y="134" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Team Leader</text>
-<line x1="100" y1="143" x2="100" y2="160" stroke="#999" stroke-width="1.5"/>
-<rect x="40" y="160" width="55" height="22" rx="4" fill="#2e7d32"/><text x="67" y="175" text-anchor="middle" fill="white" font-size="8">Agent 1</text>
-<rect x="105" y="160" width="55" height="22" rx="4" fill="#2e7d32"/><text x="132" y="175" text-anchor="middle" fill="white" font-size="8">Agent 2</text>
-<line x1="300" y1="93" x2="300" y2="115" stroke="#999" stroke-width="1.5"/>
-<rect x="240" y="115" width="55" height="22" rx="4" fill="#1565c0"/><text x="267" y="130" text-anchor="middle" fill="white" font-size="7">AR Staff</text>
-<rect x="305" y="115" width="55" height="22" rx="4" fill="#1565c0"/><text x="332" y="130" text-anchor="middle" fill="white" font-size="7">AP Staff</text>
-</svg>
+<h3>2.1 Role Hierarchy</h3>
+<div class="diagram">
+<div class="title">Organizational Hierarchy</div>
+<div class="flow">
+<div class="flow-box red">Super Admin (1,2,3)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Manager (19)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Team Leader (20)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Agent/Broker (21)</div>
+</div>
 </div>
 
 <h3>2.2 Role Access Matrix</h3>
 <table class="table-styled">
-<tr><th>Role Group</th><th>Role IDs</th><th>Portal Access</th><th>Data Visibility</th></tr>
-<tr><td><span class="badge badge-admin">Super Admin</span></td><td>1, 2, 3, 22</td><td>Admin + Broker + Account</td><td>All data system-wide</td></tr>
-<tr><td><span class="badge badge-account">AR Accounting</span></td><td>7, 8, 9, 24</td><td>Account + Broker</td><td>All loads for invoicing</td></tr>
-<tr><td><span class="badge badge-account">AP / Vendor</span></td><td>4, 5, 6</td><td>Account + Broker</td><td>Carrier payments</td></tr>
-<tr><td><span class="badge badge-account">Compliance</span></td><td>10, 11, 12</td><td>Account + Broker</td><td>All carriers for review</td></tr>
-<tr><td><span class="badge badge-account">Reporting</span></td><td>13-18</td><td>Account + Broker</td><td>Read-only reports</td></tr>
-<tr><td><span class="badge badge-broker">Manager</span></td><td>19</td><td>Broker only</td><td>Their TLs + agents data</td></tr>
-<tr><td><span class="badge badge-broker">Team Leader</span></td><td>20</td><td>Broker only</td><td>Their agents' data</td></tr>
-<tr><td><span class="badge badge-broker">Agent/Broker</span></td><td>21</td><td>Broker only</td><td>Own data only</td></tr>
+<tr><th>Role Group</th><th>Role IDs</th><th>Portal Access</th><th>Landing Page</th></tr>
+<tr><td><span class="badge badge-admin">Admin</span></td><td>1, 2, 3, 22</td><td>Admin + Broker + Account</td><td>/admin/admin_home</td></tr>
+<tr><td><span class="badge badge-account">Accounting</span></td><td>7, 8, 9, 24</td><td>Account + Broker</td><td>/account/accounting</td></tr>
+<tr><td><span class="badge badge-account">Vendor/AP</span></td><td>4, 5, 6</td><td>Account + Broker</td><td>/account/vendor-system</td></tr>
+<tr><td><span class="badge badge-account">Compliance</span></td><td>10, 11, 12</td><td>Account + Broker</td><td>/account/compliance</td></tr>
+<tr><td><span class="badge badge-account">Reporting</span></td><td>13-18</td><td>Account + Broker</td><td>/account/reporting</td></tr>
+<tr><td><span class="badge badge-broker">Manager</span></td><td>19</td><td>Broker</td><td>/broker/load</td></tr>
+<tr><td><span class="badge badge-broker">Team Leader</span></td><td>20</td><td>Broker</td><td>/broker/load</td></tr>
+<tr><td><span class="badge badge-broker">Agent/Broker</span></td><td>21</td><td>Broker</td><td>/broker/load</td></tr>
 </table>
 
-<h3>2.3 Permission System</h3>
-<div class="diagram">
-<div class="title">How Permissions Work</div>
-<div class="flow">
-<div class="flow-box gray">Menu Item</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box blue">Permission Entry</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box purple">Role Assignment</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box green">User Sees Menu</div>
+<h3>2.3 Middleware Access Control</h3>
+<div class="code-block">// EnsureUserIsAuthenticated.php - URL Segment Permission
+if (in_array($role_id, $accounts)) {
+    $urls = ['account', 'broker', 'file', 'files', 'remaing'];
+} elseif (in_array($role_id, $broker)) {
+    $urls = ['broker', 'file', 'files', 'remaing'];
+} elseif (in_array($role_id, $admin)) {
+    $urls = ['admin', 'broker', 'account', 'file', 'files', 'remaing'];
+}
+// If user accesses unauthorized URL segment -> 404</div>
+
+<h3>2.4 Data Visibility Rules</h3>
+<div class="info-box">
+<strong>Admins (Roles 1,2,3):</strong> See ALL data across all users<br>
+<strong>Managers (Role 19):</strong> See data of team leaders under them + agents under those TLs<br>
+<strong>Team Leaders (Role 20):</strong> See data of agents under them<br>
+<strong>Agents (Role 21):</strong> See only their own data
 </div>
-</div>
-<p>Each menu item corresponds to a permission record. Roles are granted read/write access per permission. The sidebar menu dynamically shows only items the user's role has access to.</p>
 </div>
 
-<!-- ==================== SECTION 3: AUTH ==================== -->
+<!-- SECTION 3: AUTHENTICATION -->
 <div id="auth">
-<h1>3. Authentication & Security</h1>
+<h1>3. Authentication & Login Flow</h1>
 
-<h3>3.1 Login Flow</h3>
-<div class="svg-diagram">
-<svg width="500" height="150" viewBox="0 0 500 150">
-<rect x="10" y="55" width="80" height="35" rx="6" fill="#546e7a"/><text x="50" y="77" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Login Page</text>
-<polygon points="95,72 105,72 100,66 100,78" fill="#7986cb"/>
-<rect x="110" y="55" width="80" height="35" rx="6" fill="#e65100"/><text x="150" y="72" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Validate</text><text x="150" y="82" text-anchor="middle" fill="white" font-size="7">Credentials</text>
-<polygon points="195,72 205,72 200,66 200,78" fill="#7986cb"/>
-<rect x="210" y="55" width="80" height="35" rx="6" fill="#6a1b9a"/><text x="250" y="72" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Check</text><text x="250" y="82" text-anchor="middle" fill="white" font-size="7">Active Status</text>
-<polygon points="295,72 305,72 300,66 300,78" fill="#7986cb"/>
-<rect x="310" y="55" width="80" height="35" rx="6" fill="#00695c"/><text x="350" y="72" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Single</text><text x="350" y="82" text-anchor="middle" fill="white" font-size="7">Session Check</text>
-<polygon points="395,72 405,72 400,66 400,78" fill="#7986cb"/>
-<rect x="410" y="55" width="80" height="35" rx="6" fill="#2e7d32"/><text x="450" y="72" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Role-Based</text><text x="450" y="82" text-anchor="middle" fill="white" font-size="7">Redirect</text>
-<!-- Error paths -->
-<line x1="150" y1="90" x2="150" y2="120" stroke="#ef5350" stroke-width="1" stroke-dasharray="3"/>
-<text x="150" y="135" text-anchor="middle" font-size="8" fill="#c62828">Invalid Credentials</text>
-<line x1="250" y1="90" x2="250" y2="120" stroke="#ef5350" stroke-width="1" stroke-dasharray="3"/>
-<text x="250" y="135" text-anchor="middle" font-size="8" fill="#c62828">Account Inactive</text>
-<line x1="350" y1="90" x2="350" y2="120" stroke="#ef5350" stroke-width="1" stroke-dasharray="3"/>
-<text x="350" y="135" text-anchor="middle" font-size="8" fill="#c62828">Already Logged In</text>
-</svg>
-</div>
-
-<h3>3.2 Security Features</h3>
-<div class="grid-2">
-<div class="card"><div class="card-title">Session Management</div><ul><li>Single active session per user</li><li>Auto-logout on duplicate login</li><li>Session timeout configurable</li><li>LogoutOtherDevices enforced</li></ul></div>
-<div class="card"><div class="card-title">Access Control</div><ul><li>Role-based URL restriction</li><li>Menu visibility per permission</li><li>Middleware validates every request</li><li>Admin can reset any password</li></ul></div>
-</div>
-
-<h3>3.3 Activity Logging</h3>
-<p>Every significant action is recorded in the <code>logs</code> table with:</p>
-<div class="grid-3">
-<div class="card"><div class="card-title">Who</div><ul><li>User name & ID</li><li>User email</li><li>Role</li></ul></div>
-<div class="card"><div class="card-title">What</div><ul><li>Action description</li><li>Old data (JSON)</li><li>New data (JSON)</li></ul></div>
-<div class="card"><div class="card-title">When/Where</div><ul><li>Timestamp</li><li>IP address</li><li>Full URL</li></ul></div>
+<h3>3.1 Login Process Flowchart</h3>
+<div class="diagram">
+<div class="title">Authentication Flow</div>
+<div class="flow">
+<div class="flow-box">Login Page</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Validate Credentials</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Check Active Status</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Single Session Check</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Role-Based Redirect</div>
 </div>
 </div>
 
-<!-- ==================== SECTION 4: ADMIN ==================== -->
+<h3>3.2 Key Security Features</h3>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>Single Session Enforcement:</strong> Only one active session per user. If user is already logged in from another device, login is blocked (unless session expired > 1 minute).</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Active Status Check:</strong> Only users with status = "active" can login. Inactive accounts are blocked.</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Session Management:</strong> Old sessions are cleared on new login. LogoutOtherDevices is enforced.</div></div>
+<div class="process-step"><div class="step-num">4</div><div class="step-content"><strong>Activity Logging:</strong> Every login/logout is recorded with username, IP, and timestamp.</div></div>
+
+<h3>3.3 Password Management</h3>
+<p>Users can change their password from the Profile section. Admins can reset passwords for any user via the admin panel.</p>
+<div class="code-block">// Password change requires current password verification
+Route::post('broker/change-password', [AdminController::class, 'update_password']);
+Route::post('admin/admin-update-password/{id}', [AdminController::class, 'admin_update_password']);</div>
+</div>
+
+<!-- SECTION 4: ADMIN MODULE -->
 <div id="admin">
-<h1>4. Admin Panel</h1>
+<h1>4. Admin Panel Module</h1>
+
 <h3>4.1 Admin Dashboard</h3>
-<p>Consolidated view of all loads across the system. Admins see data from all agents, offices, and teams with advanced filtering.</p>
+<p>The admin dashboard provides a comprehensive overview of all loads across the system with tabs for different statuses. Admins can filter by Office, Manager, Team Leader, and Agent.</p>
 
-<h3>4.2 User Management Flow</h3>
-<div class="svg-diagram">
-<svg width="480" height="80" viewBox="0 0 480 80">
-<rect x="5" y="25" width="80" height="30" rx="5" fill="#3949ab"/><text x="45" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Create User</text>
-<polygon points="90,40 100,40 95,34 95,46" fill="#7986cb"/>
-<rect x="105" y="25" width="80" height="30" rx="5" fill="#e65100"/><text x="145" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Assign Role</text>
-<polygon points="190,40 200,40 195,34 195,46" fill="#7986cb"/>
-<rect x="205" y="25" width="80" height="30" rx="5" fill="#6a1b9a"/><text x="245" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Set Dept/Office</text>
-<polygon points="290,40 300,40 295,34 295,46" fill="#7986cb"/>
-<rect x="305" y="25" width="80" height="30" rx="5" fill="#00695c"/><text x="345" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Assign Mgr/TL</text>
-<polygon points="390,40 400,40 395,34 395,46" fill="#7986cb"/>
-<rect x="405" y="25" width="70" height="30" rx="5" fill="#2e7d32"/><text x="440" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Activate</text>
-</svg>
+<h3>4.2 User Management</h3>
+<div class="diagram">
+<div class="title">User Management Process</div>
+<div class="flow">
+<div class="flow-box">Add User</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Assign Role/Dept</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Assign Office</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Assign Manager/TL</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Activate</div>
+</div>
 </div>
 
-<h3>4.3 Master Data Configuration</h3>
-<div class="grid-3">
-<div class="card"><div class="card-title">Equipment Types</div><ul><li>Dry Van</li><li>Flatbed</li><li>Reefer</li><li>Step Deck</li><li>Power Only</li></ul></div>
-<div class="card"><div class="card-title">Shipment Types</div><ul><li>FTL (Full Truck)</li><li>LTL (Less Than)</li><li>TONU</li><li>Partial</li><li>Drayage</li></ul></div>
-<div class="card"><div class="card-title">Organization</div><ul><li>Departments</li><li>Offices</li><li>Managers</li><li>Team Leaders</li><li>Countries/States</li></ul></div>
+<table class="table-styled">
+<tr><th>Feature</th><th>Description</th><th>Route</th></tr>
+<tr><td>Create User</td><td>Add new user with role, department, office, manager, TL assignment</td><td>POST admin/create-user</td></tr>
+<tr><td>Update Status</td><td>Activate/Deactivate user accounts</td><td>POST admin/update-status</td></tr>
+<tr><td>Reset Password</td><td>Admin can reset any user's password</td><td>POST admin/admin-update-password/{id}</td></tr>
+<tr><td>View Users</td><td>Separate views for Broker, Account, and Admin users</td><td>GET admin/broker-users</td></tr>
+</table>
+
+<h3>4.3 Organization Structure Management</h3>
+<table class="table-styled">
+<tr><th>Entity</th><th>Operations</th><th>Purpose</th></tr>
+<tr><td>Departments</td><td>CRUD</td><td>Broker (3), Account (2), Admin (1), IT (6,7)</td></tr>
+<tr><td>Offices</td><td>CRUD</td><td>Physical office locations</td></tr>
+<tr><td>Managers</td><td>CRUD</td><td>Link users as managers within offices/departments</td></tr>
+<tr><td>Team Leaders</td><td>CRUD</td><td>Link users as TLs under managers</td></tr>
+</table>
+
+<h3>4.4 Master Data Configuration</h3>
+<table class="table-styled">
+<tr><th>Master Data</th><th>Examples</th></tr>
+<tr><td>Equipment Types</td><td>Dry Van, Flatbed, Reefer, etc.</td></tr>
+<tr><td>Shipment Types</td><td>FTL, LTL, TONU, etc.</td></tr>
+<tr><td>Status Types</td><td>Open, Delivered, Completed, etc.</td></tr>
+<tr><td>Countries & States</td><td>Geographic data for address forms</td></tr>
+<tr><td>IP Configuration</td><td>IP whitelist for security</td></tr>
+</table>
+
+<h3>4.5 All Data View</h3>
+<p>Admins have access to a consolidated "All Data" view with tabs for Customers, Carriers, Shippers, Consignees, and Loads with full search capability.</p>
 </div>
 
-<h3>4.4 Admin Load Edit</h3>
-<p>Admins can edit any load in the system with full rate modification capability. Credit is automatically recalculated when rates change. Status transitions are validated.</p>
-</div>
-
-<!-- ==================== SECTION 5: BROKER ==================== -->
+<!-- SECTION 5: BROKER MODULE -->
 <div id="broker">
 <h1>5. Broker Module</h1>
-<h3>5.1 Broker Workspace Overview</h3>
-<div class="svg-diagram">
-<svg width="500" height="160" viewBox="0 0 500 160">
-<!-- Sidebar -->
-<rect x="10" y="10" width="100" height="140" rx="6" fill="#263238"/>
-<text x="60" y="30" text-anchor="middle" fill="#90a4ae" font-size="8">MENU</text>
-<rect x="18" y="38" width="84" height="14" rx="3" fill="#37474f"/><text x="60" y="49" text-anchor="middle" fill="#b0bec5" font-size="7">Home</text>
-<rect x="18" y="56" width="84" height="14" rx="3" fill="#1b5e20"/><text x="60" y="67" text-anchor="middle" fill="white" font-size="7">Load Creation</text>
-<rect x="18" y="74" width="84" height="14" rx="3" fill="#37474f"/><text x="60" y="85" text-anchor="middle" fill="#b0bec5" font-size="7">Customer</text>
-<rect x="18" y="92" width="84" height="14" rx="3" fill="#37474f"/><text x="60" y="103" text-anchor="middle" fill="#b0bec5" font-size="7">Carrier</text>
-<rect x="18" y="110" width="84" height="14" rx="3" fill="#37474f"/><text x="60" y="121" text-anchor="middle" fill="#b0bec5" font-size="7">Shipper</text>
-<rect x="18" y="128" width="84" height="14" rx="3" fill="#37474f"/><text x="60" y="139" text-anchor="middle" fill="#b0bec5" font-size="7">Consignee</text>
-<!-- Main content -->
-<rect x="120" y="10" width="370" height="30" rx="4" fill="#1a237e"/>
-<text x="305" y="30" text-anchor="middle" fill="white" font-size="9" font-weight="bold">CARGO CONVOY INC - Broker Dashboard</text>
-<!-- Tabs -->
-<rect x="120" y="45" width="50" height="18" rx="3" fill="#3949ab"/><text x="145" y="57" text-anchor="middle" fill="white" font-size="7">All</text>
-<rect x="175" y="45" width="50" height="18" rx="3" fill="#e8eaf6"/><text x="200" y="57" text-anchor="middle" fill="#3949ab" font-size="7">Open</text>
-<rect x="230" y="45" width="60" height="18" rx="3" fill="#e8eaf6"/><text x="260" y="57" text-anchor="middle" fill="#3949ab" font-size="7">Delivered</text>
-<rect x="295" y="45" width="60" height="18" rx="3" fill="#e8eaf6"/><text x="325" y="57" text-anchor="middle" fill="#3949ab" font-size="7">Complete</text>
-<rect x="360" y="45" width="60" height="18" rx="3" fill="#e8eaf6"/><text x="390" y="57" text-anchor="middle" fill="#3949ab" font-size="7">Invoiced</text>
-<rect x="425" y="45" width="50" height="18" rx="3" fill="#e8eaf6"/><text x="450" y="57" text-anchor="middle" fill="#3949ab" font-size="7">Paid</text>
-<!-- Table header -->
-<rect x="120" y="70" width="370" height="16" fill="#e8eaf6"/>
-<text x="140" y="81" font-size="7" fill="#283593" font-weight="bold">Load#</text>
-<text x="185" y="81" font-size="7" fill="#283593" font-weight="bold">Customer</text>
-<text x="255" y="81" font-size="7" fill="#283593" font-weight="bold">Carrier</text>
-<text x="325" y="81" font-size="7" fill="#283593" font-weight="bold">Rate</text>
-<text x="380" y="81" font-size="7" fill="#283593" font-weight="bold">Status</text>
-<text x="440" y="81" font-size="7" fill="#283593" font-weight="bold">Actions</text>
-<!-- Sample rows -->
-<rect x="120" y="87" width="370" height="14" fill="white"/><text x="140" y="97" font-size="7" fill="#333">33621</text><text x="185" y="97" font-size="7" fill="#333">ABC Corp</text><text x="255" y="97" font-size="7" fill="#333">Fast Carrier</text><text x="325" y="97" font-size="7" fill="#333">$2,500</text><rect x="370" y="89" width="35" height="10" rx="3" fill="#2e7d32"/><text x="387" y="97" text-anchor="middle" fill="white" font-size="6">Open</text>
-<rect x="120" y="102" width="370" height="14" fill="#fafafa"/><text x="140" y="112" font-size="7" fill="#333">33620</text><text x="185" y="112" font-size="7" fill="#333">XYZ Inc</text><text x="255" y="112" font-size="7" fill="#333">Quick Haul</text><text x="325" y="112" font-size="7" fill="#333">$1,800</text><rect x="370" y="104" width="45" height="10" rx="3" fill="#e65100"/><text x="392" y="112" text-anchor="middle" fill="white" font-size="6">Delivered</text>
-</svg>
-</div>
 
-<h3>5.2 Module Features</h3>
-<div class="grid-2">
-<div class="card"><div class="card-title">Load Management</div><ul><li>Create new loads with multi-stop</li><li>Edit rates, carrier, status</li><li>Clone loads for repeat shipments</li><li>Real-time credit validation</li><li>Search & filter by all fields</li></ul></div>
-<div class="card"><div class="card-title">Customer & Carrier</div><ul><li>Add/edit customers with approval flow</li><li>Monitor credit limit usage</li><li>Auto-suggest carriers by MC/DOT</li><li>Upload remittance documents</li><li>Cross-reference shipper/consignee</li></ul></div>
+<h3>5.1 Broker Dashboard</h3>
+<p>The Broker portal is the primary workspace for freight brokers/agents. After login, brokers land on the Load Management page where they can manage their loads through different status tabs.</p>
+
+<h3>5.2 Broker Module Features</h3>
+<div style="display:flex; flex-wrap:wrap; gap:15px;">
+<div class="arch-box">
+<div class="label">Load Management</div>
+<ul><li>Create New Load</li><li>Edit Load</li><li>Clone Load</li><li>Change Status</li><li>Search & Filter</li></ul>
+</div>
+<div class="arch-box">
+<div class="label">Customer Management</div>
+<ul><li>Add Customer</li><li>Edit Customer</li><li>Credit Monitoring</li><li>Remittance Upload</li></ul>
+</div>
+<div class="arch-box">
+<div class="label">Carrier Management</div>
+<ul><li>My Carriers</li><li>All Carriers</li><li>Add/Edit Carrier</li><li>MC/DOT Search</li></ul>
+</div>
+<div class="arch-box">
+<div class="label">Shipper/Consignee</div>
+<ul><li>Add Shipper</li><li>Add Consignee</li><li>Cross-reference</li><li>Auto-fill in Loads</li></ul>
 </div>
 </div>
 
-<!-- ==================== SECTION 6: LOAD MANAGEMENT ==================== -->
+<h3>5.3 Navigation Structure</h3>
+<div class="code-block">Broker Portal URLs:
+/broker/load              - Load listing (main page)
+/broker/load-create       - Create new load
+/broker/edit-load/{id}    - Edit existing load
+/broker/clone/load/{id}   - Clone existing load
+/broker/customer          - Customer management
+/broker/carrier           - Carrier management
+/broker/shipper           - Shipper management
+/broker/Consignee         - Consignee management
+/broker/profile           - User profile settings</div>
+</div>
+
+<!-- SECTION 6: LOAD MANAGEMENT -->
 <div id="loads">
 <h1>6. Load Management (Core Module)</h1>
 
-<h3>6.1 Load Lifecycle</h3>
-<div class="svg-diagram">
-<svg width="520" height="120" viewBox="0 0 520 120">
-<!-- Main flow -->
-<rect x="5" y="40" width="75" height="35" rx="6" fill="#2e7d32"/><text x="42" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">OPEN</text><text x="42" y="67" text-anchor="middle" fill="#c8e6c9" font-size="7">Created</text>
-<polygon points="85,57 97,57 91,51 91,63" fill="#7986cb"/>
-<rect x="100" y="40" width="85" height="35" rx="6" fill="#3949ab"/><text x="142" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">DELIVERED</text><text x="142" y="67" text-anchor="middle" fill="#c5cae9" font-size="7">In Transit</text>
-<polygon points="190,57 202,57 196,51 196,63" fill="#7986cb"/>
-<rect x="205" y="40" width="85" height="35" rx="6" fill="#e65100"/><text x="247" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">COMPLETED</text><text x="247" y="67" text-anchor="middle" fill="#ffcc80" font-size="7">Docs Ready</text>
-<polygon points="295,57 307,57 301,51 301,63" fill="#7986cb"/>
-<rect x="310" y="40" width="85" height="35" rx="6" fill="#6a1b9a"/><text x="352" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">INVOICED</text><text x="352" y="67" text-anchor="middle" fill="#e1bee7" font-size="7">Sent to Client</text>
-<polygon points="400,57 412,57 406,51 406,63" fill="#7986cb"/>
-<rect x="415" y="40" width="95" height="35" rx="6" fill="#00695c"/><text x="462" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">PAID RECORD</text><text x="462" y="67" text-anchor="middle" fill="#b2dfdb" font-size="7">Payment Received</text>
-<!-- Cancel path -->
-<rect x="205" y="90" width="110" height="22" rx="4" fill="#c62828"/><text x="260" y="105" text-anchor="middle" fill="white" font-size="8" font-weight="bold">CANCELLED (any stage)</text>
-<line x1="42" y1="75" x2="42" y2="95" stroke="#ef5350" stroke-width="1" stroke-dasharray="3"/>
-<line x1="42" y1="95" x2="205" y2="100" stroke="#ef5350" stroke-width="1" stroke-dasharray="3"/>
-</svg>
-</div>
-
-<h3>6.2 Load Creation — Step by Step</h3>
-<div class="svg-diagram">
-<svg width="500" height="240" viewBox="0 0 500 240">
-<!-- Steps as numbered boxes -->
-<rect x="10" y="10" width="230" height="28" rx="5" fill="#e8f5e9" stroke="#2e7d32"/><circle cx="28" cy="24" r="10" fill="#2e7d32"/><text x="28" y="28" text-anchor="middle" fill="white" font-size="9" font-weight="bold">1</text><text x="140" y="28" text-anchor="middle" font-size="9" fill="#1b5e20">Select Customer (Bill To)</text>
-<rect x="10" y="45" width="230" height="28" rx="5" fill="#e8eaf6" stroke="#3949ab"/><circle cx="28" cy="59" r="10" fill="#3949ab"/><text x="28" y="63" text-anchor="middle" fill="white" font-size="9" font-weight="bold">2</text><text x="140" y="63" text-anchor="middle" font-size="9" fill="#283593">Set Load Type (OTR / Drayage)</text>
-<rect x="10" y="80" width="230" height="28" rx="5" fill="#f3e5f5" stroke="#6a1b9a"/><circle cx="28" cy="94" r="10" fill="#6a1b9a"/><text x="28" y="98" text-anchor="middle" fill="white" font-size="9" font-weight="bold">3</text><text x="140" y="98" text-anchor="middle" font-size="9" fill="#4a148c">Add Shipper(s) — up to 15 stops</text>
-<rect x="10" y="115" width="230" height="28" rx="5" fill="#e0f2f1" stroke="#00695c"/><circle cx="28" cy="129" r="10" fill="#00695c"/><text x="28" y="133" text-anchor="middle" fill="white" font-size="9" font-weight="bold">4</text><text x="140" y="133" text-anchor="middle" font-size="9" fill="#004d40">Add Consignee(s) — delivery info</text>
-<rect x="10" y="150" width="230" height="28" rx="5" fill="#fff3e0" stroke="#e65100"/><circle cx="28" cy="164" r="10" fill="#e65100"/><text x="28" y="168" text-anchor="middle" fill="white" font-size="9" font-weight="bold">5</text><text x="140" y="168" text-anchor="middle" font-size="9" fill="#bf360c">Assign Carrier (MC/DOT search)</text>
-<rect x="10" y="185" width="230" height="28" rx="5" fill="#fce4ec" stroke="#c62828"/><circle cx="28" cy="199" r="10" fill="#c62828"/><text x="28" y="203" text-anchor="middle" fill="white" font-size="9" font-weight="bold">6</text><text x="140" y="203" text-anchor="middle" font-size="9" fill="#b71c1c">Set Rates (Customer + Carrier)</text>
-<!-- Right side: validation -->
-<rect x="270" y="60" width="220" height="120" rx="8" fill="#fff8e1" stroke="#f9a825" stroke-width="2"/>
-<text x="380" y="82" text-anchor="middle" font-size="10" fill="#f57f17" font-weight="bold">Credit Validation</text>
-<text x="380" y="100" text-anchor="middle" font-size="8" fill="#666">Customer Rate + FSC + Charges</text>
-<text x="380" y="115" text-anchor="middle" font-size="8" fill="#666">= Final Rate</text>
-<text x="380" y="135" text-anchor="middle" font-size="8" fill="#666">If Final Rate > Available Credit:</text>
-<rect x="305" y="145" width="150" height="20" rx="4" fill="#c62828"/><text x="380" y="159" text-anchor="middle" fill="white" font-size="8" font-weight="bold">BLOCKED - Error Shown</text>
-</svg>
-</div>
-
-<h3>6.3 Rate Calculation Formula</h3>
+<h3>6.1 Load Lifecycle Flowchart</h3>
 <div class="diagram">
-<div class="title">How Rates Are Calculated</div>
-<div class="grid-2" style="text-align:left; font-size:11px;">
-<div class="card">
-<div class="card-title" style="color:#2e7d32;">Customer Side (Revenue)</div>
-<p><strong>Base Rate</strong> (load_shipper_rate)<br>+ <strong>FSC</strong> (Base Rate x FSC%)<br>+ <strong>Other Charges</strong> (invoice/non-invoice)<br>= <strong style="font-size:13px;">Customer Final Rate</strong></p>
-</div>
-<div class="card">
-<div class="card-title" style="color:#c62828;">Carrier Side (Cost)</div>
-<p><strong>Carrier Fee</strong> (load_carrier_fee)<br>+ <strong>Billing FSC</strong> (Fee x FSC%)<br>+ <strong>Other Charges</strong><br>= <strong style="font-size:13px;">Carrier Final Fee</strong></p>
-</div>
-</div>
-<div class="success-box" style="text-align:center;"><strong>Profit Margin = Customer Final Rate - Carrier Final Fee</strong></div>
-</div>
-
-<h3>6.4 Load Clone Feature</h3>
-<p>Quickly duplicate a load for repeat shipments. Copies all shipper, consignee, customer, and carrier data. Resets rates to 0, status to "Open", and assigns a new load number.</p>
-
-<h3>6.5 Load Tabs & Filtering</h3>
-<table class="table-styled">
-<tr><th>Tab</th><th>Filter</th><th>Description</th><th>Who Uses</th></tr>
-<tr><td>All Loads</td><td>None</td><td>All loads paginated (50/page)</td><td>Broker, Admin</td></tr>
-<tr><td>Open</td><td>load_status = 'Open'</td><td>Active awaiting dispatch</td><td>Broker</td></tr>
-<tr><td>Delivered</td><td>load_status = 'Delivered'</td><td>Confirmed delivered</td><td>Broker, Accounts</td></tr>
-<tr><td>Complete</td><td>load_status = 'Completed'</td><td>Ready for invoicing</td><td>Accounts</td></tr>
-<tr><td>Invoiced</td><td>invoice_status = 'Paid'</td><td>Invoice sent to customer</td><td>Accounts</td></tr>
-<tr><td>Paid</td><td>invoice_status = 'Paid Record'</td><td>Payment received</td><td>Accounts</td></tr>
-</table>
-</div>
-
-<!-- ==================== SECTION 7: CREDIT ==================== -->
-<div id="credit">
-<h1>7. Credit Limit System</h1>
-
-<h3>7.1 Credit Lifecycle</h3>
-<div class="svg-diagram">
-<svg width="500" height="160" viewBox="0 0 500 160">
-<rect x="10" y="60" width="90" height="40" rx="6" fill="#2e7d32"/><text x="55" y="78" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Credit</text><text x="55" y="90" text-anchor="middle" fill="white" font-size="8">Assigned</text>
-<polygon points="105,80 117,80 111,74 111,86" fill="#7986cb"/>
-<rect x="120" y="60" width="90" height="40" rx="6" fill="#3949ab"/><text x="165" y="78" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Load</text><text x="165" y="90" text-anchor="middle" fill="white" font-size="8">Created</text>
-<polygon points="215,80 227,80 221,74 221,86" fill="#7986cb"/>
-<rect x="230" y="60" width="90" height="40" rx="6" fill="#e65100"/><text x="275" y="78" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Credit</text><text x="275" y="90" text-anchor="middle" fill="white" font-size="8">Deducted</text>
-<polygon points="325,80 337,80 331,74 331,86" fill="#7986cb"/>
-<rect x="340" y="60" width="90" height="40" rx="6" fill="#6a1b9a"/><text x="385" y="78" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Payment</text><text x="385" y="90" text-anchor="middle" fill="white" font-size="8">Received</text>
-<polygon points="435,80 447,80 441,74 441,86" fill="#7986cb"/>
-<rect x="450" y="60" width="50" height="40" rx="6" fill="#00695c"/><text x="475" y="84" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Credit</text>
-<!-- Labels -->
-<text x="55" y="25" text-anchor="middle" font-size="8" fill="#2e7d32">$10,000</text>
-<text x="55" y="35" text-anchor="middle" font-size="7" fill="#666">Full Limit</text>
-<text x="275" y="25" text-anchor="middle" font-size="8" fill="#e65100">-$3,000</text>
-<text x="275" y="35" text-anchor="middle" font-size="7" fill="#666">Load Amount</text>
-<text x="385" y="25" text-anchor="middle" font-size="8" fill="#6a1b9a">+$3,000</text>
-<text x="385" y="35" text-anchor="middle" font-size="7" fill="#666">Restored</text>
-<text x="475" y="25" text-anchor="middle" font-size="8" fill="#00695c">$10,000</text>
-<text x="475" y="35" text-anchor="middle" font-size="7" fill="#666">Back to Full</text>
-<!-- Balance bar -->
-<rect x="10" y="115" width="480" height="20" rx="4" fill="#e8f5e9" stroke="#2e7d32"/>
-<rect x="10" y="115" width="336" height="20" rx="4" fill="#66bb6a"/>
-<text x="250" y="129" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Remaining Credit: $7,000 / $10,000</text>
-<rect x="346" y="115" width="144" height="20" rx="0 4 4 0" fill="#ef5350"/>
-<text x="418" y="129" text-anchor="middle" fill="white" font-size="8">Used: $3,000</text>
-</svg>
-</div>
-
-<h3>7.2 Credit Fields Explained</h3>
-<table class="table-styled">
-<tr><th>Field</th><th>Type</th><th>Purpose</th><th>Who Sets It</th></tr>
-<tr><td>adv_customer_credit_limit</td><td>float</td><td>Total assigned credit limit</td><td>Accounts team (via credit logs)</td></tr>
-<tr><td>remaining_credit</td><td>float</td><td>Available balance (auto-calculated)</td><td>System only (never manual)</td></tr>
-<tr><td>remaining_credit_amount</td><td>float</td><td>Synced copy for reporting</td><td>System only</td></tr>
-<tr><td>invoice_credit_limit</td><td>float</td><td>Separate limit for invoice charges</td><td>Accounts team</td></tr>
-<tr><td>credit_limit_log</td><td>JSON</td><td>Audit trail of all limit changes</td><td>Auto-recorded</td></tr>
-<tr><td>remaining_credit_logs</td><td>JSON</td><td>Audit trail of balance changes</td><td>Auto-recorded</td></tr>
-</table>
-
-<h3>7.3 Server-Side Validation (Security)</h3>
-<div class="diagram">
-<div class="title">Atomic Credit Check with Row Locking</div>
+<div class="title">Load Status Workflow</div>
 <div class="flow">
-<div class="flow-box blue">Lock Customer Row</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box green">Check Balance</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box orange">Deduct Amount</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box teal">Save & Release</div>
+<div class="flow-box green">OPEN</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box">DELIVERED</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">COMPLETED</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">INVOICED (Paid)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">PAID RECORD</div>
 </div>
+<div style="margin-top:10px; font-size:11px; color:#666;">
+<em>Special Status: CANCELLED (can be set at any stage) | TONU (Truck Order Not Used)</em>
 </div>
-<div class="code-block">// CreditService.php — All credit operations use this pattern:
-DB::transaction(function() {
-    $customer = Customer::whereKey($id)->lockForUpdate()->first();
-    $available = calculateAvailableCredit($customer);
-    
-    if ($loadAmount > $available) {
-        throw new CreditExceededException("Available: $available, Requested: $loadAmount");
-    }
-    
-    $customer->remaining_credit = $available - $loadAmount;
-    $customer->remaining_credit_amount = $customer->remaining_credit;
-    $customer->save();
-});</div>
-<div class="warning-box"><strong>Race Condition Protection:</strong> The <code>lockForUpdate()</code> prevents two simultaneous requests from reading the same balance. If two brokers create loads at the same time, one will wait for the other to finish — preventing double-spending.</div>
 </div>
 
-<!-- ==================== SECTION 8-10: CUSTOMER, CARRIER, SHIPPER ==================== -->
+<h3>6.2 Load Creation Process</h3>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>Select Customer (Bill To):</strong> Choose an approved customer. System validates credit limit before allowing creation.</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Set Load Type:</strong> OTR (Over The Road) or DRAYAGE. Type determines rate field editability.</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Add Shipper(s):</strong> Multiple shippers supported. Select from saved shippers or enter new. Includes location, appointment date/time, commodity details.</div></div>
+<div class="process-step"><div class="step-num">4</div><div class="step-content"><strong>Add Consignee(s):</strong> Multiple consignees with delivery appointments. Delivery date must be after pickup date.</div></div>
+<div class="process-step"><div class="step-num">5</div><div class="step-content"><strong>Assign Carrier:</strong> Search by name, MC#, or DOT#. Auto-fills carrier details. System validates carrier exists in database.</div></div>
+<div class="process-step"><div class="step-num">6</div><div class="step-content"><strong>Set Rates:</strong> Customer rate + FSC + other charges = Final Rate. Carrier fee must not exceed customer final rate.</div></div>
+<div class="process-step"><div class="step-num">7</div><div class="step-content"><strong>Credit Validation:</strong> System checks if new load amount would exceed customer's assigned credit limit.</div></div>
+
+<h3>6.3 Credit Limit Validation</h3>
+<div class="code-block">// Credit limit check during load creation
+$assignedCreditLimit = $customer->adv_customer_credit_limit;
+$totalLoadCreationAmount = Load::where('customer_id', $customerId)
+    ->where('load_status', '!=', 'Cancelled')
+    ->sum('shipper_load_final_rate');
+$newTotal = $totalLoadCreationAmount + $loadAmount;
+
+if ($newTotal > $assignedCreditLimit) {
+    return error("Cannot create load. Available credit exceeded.");
+}</div>
+
+<h3>6.4 Load Tabs & Filtering</h3>
+<table class="table-styled">
+<tr><th>Tab</th><th>Filter Criteria</th><th>Description</th></tr>
+<tr><td>All Loads</td><td>No filter</td><td>Shows all loads (paginated 50/page)</td></tr>
+<tr><td>Open</td><td>load_status = 'Open'</td><td>Active loads awaiting dispatch</td></tr>
+<tr><td>Delivered</td><td>load_status = 'Delivered'</td><td>Loads confirmed delivered</td></tr>
+<tr><td>Complete</td><td>load_status = 'Completed' AND no invoice</td><td>Ready for invoicing</td></tr>
+<tr><td>Invoiced</td><td>invoice_status = 'Paid'</td><td>Invoice generated/sent</td></tr>
+<tr><td>Paid</td><td>invoice_status = 'Paid Record'</td><td>Payment received</td></tr>
+</table>
+
+<h3>6.5 Load Clone Feature</h3>
+<p>Brokers can clone an existing load to quickly create similar shipments. The clone copies all shipper/consignee info, customer, carrier, and other details but resets rates to 0 and status to "Open".</p>
+
+<h3>6.6 Rate Calculation Logic</h3>
+<div class="diagram">
+<div class="title">Rate Calculation Formula</div>
+<div style="text-align:left; padding:10px;">
+<strong>Customer Side:</strong><br>
+Customer Rate + (FSC% x Customer Rate) + Other Charges = <strong>Shipper Final Rate</strong><br><br>
+<strong>Carrier Side:</strong><br>
+Carrier Fee + (Billing FSC% x Carrier Fee) + Other Charges = <strong>Final Carrier Fee</strong><br><br>
+<strong>Profit Margin:</strong> Shipper Final Rate - Final Carrier Fee = <strong>Margin</strong>
+</div>
+</div>
+</div>
+
+<!-- SECTION 7: CUSTOMER MANAGEMENT -->
 <div id="customer">
-<h1>8. Customer Management</h1>
-<h3>8.1 Customer Approval Workflow</h3>
-<div class="svg-diagram">
-<svg width="480" height="110" viewBox="0 0 480 110">
-<rect x="10" y="35" width="100" height="40" rx="6" fill="#546e7a"/><text x="60" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Broker Creates</text><text x="60" y="67" text-anchor="middle" fill="#b0bec5" font-size="7">Customer Form</text>
-<polygon points="115,55 127,55 121,49 121,61" fill="#7986cb"/>
-<rect x="130" y="35" width="100" height="40" rx="6" fill="#e65100"/><text x="180" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Not Approved</text><text x="180" y="67" text-anchor="middle" fill="#ffcc80" font-size="7">Pending Review</text>
-<polygon points="235,55 247,55 241,49 241,61" fill="#7986cb"/>
-<rect x="250" y="35" width="100" height="40" rx="6" fill="#6a1b9a"/><text x="300" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Admin/Acct</text><text x="300" y="67" text-anchor="middle" fill="#e1bee7" font-size="7">Reviews & Sets Limit</text>
-<polygon points="355,55 367,55 361,49 361,61" fill="#7986cb"/>
-<rect x="370" y="35" width="100" height="40" rx="6" fill="#2e7d32"/><text x="420" y="55" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Approved</text><text x="420" y="67" text-anchor="middle" fill="#c8e6c9" font-size="7">Ready for Loads</text>
-<!-- Note -->
-<text x="240" y="100" text-anchor="middle" font-size="9" fill="#c62828" font-weight="bold">Only APPROVED customers can be selected when creating loads</text>
-</svg>
-</div>
+<h1>7. Customer Management</h1>
 
-<h3>8.2 Customer Information</h3>
-<div class="grid-2">
-<div class="card"><div class="card-title">Basic Details</div><ul><li>Customer Name</li><li>MC/FF Type & Number</li><li>Corporation Type</li><li>Status (Approved/Not Approved)</li><li>Hold/Unhold Status</li></ul></div>
-<div class="card"><div class="card-title">Financial</div><ul><li>Credit Limit (Assigned)</li><li>Remaining Credit (Computed)</li><li>Payment Terms</li><li>Factoring Company</li><li>Invoice Through setting</li></ul></div>
-<div class="card"><div class="card-title">Contact Info</div><ul><li>Primary & Secondary Contact</li><li>Email, Phone, Fax</li><li>Billing Contact</li><li>Billing Email & Phone</li></ul></div>
-<div class="card"><div class="card-title">Address</div><ul><li>Main Address (Street/City/State/ZIP)</li><li>Billing Address (separate)</li><li>Country & State dropdowns</li></ul></div>
-</div>
-</div>
-
-<div id="carrier">
-<h1>9. Carrier Management</h1>
-<h3>9.1 Carrier Verification Flow</h3>
-<div class="svg-diagram">
-<svg width="480" height="80" viewBox="0 0 480 80">
-<rect x="10" y="25" width="90" height="30" rx="5" fill="#546e7a"/><text x="55" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Carrier Added</text>
-<polygon points="105,40 115,40 110,34 110,46" fill="#7986cb"/>
-<rect x="120" y="25" width="90" height="30" rx="5" fill="#e65100"/><text x="165" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">MC Pending</text>
-<polygon points="215,40 225,40 220,34 220,46" fill="#7986cb"/>
-<rect x="230" y="25" width="90" height="30" rx="5" fill="#6a1b9a"/><text x="275" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Compliance Check</text>
-<polygon points="325,40 335,40 330,34 330,46" fill="#7986cb"/>
-<rect x="340" y="25" width="90" height="30" rx="5" fill="#2e7d32"/><text x="385" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">MC Approved</text>
-</svg>
-</div>
-<h3>9.2 Carrier Data & Auto-Suggest</h3>
-<p>When typing carrier name, MC#, or DOT# in the load form, the system provides <strong>live AJAX suggestions</strong>. Only MC-approved and unblocked carriers appear. Selecting auto-fills all fields.</p>
-<table class="table-styled">
-<tr><th>Field</th><th>Validation</th></tr>
-<tr><td>MC Number</td><td>Must be unique across all carriers</td></tr>
-<tr><td>DOT Number</td><td>Must be unique across all carriers</td></tr>
-<tr><td>Carrier Block</td><td>Blocked carriers cannot be assigned to loads</td></tr>
-<tr><td>MC Check Status</td><td>Only "Approved" carriers show in suggestions</td></tr>
-</table>
-</div>
-
-<div id="shipper">
-<h1>10. Shipper & Consignee</h1>
-<h3>10.1 Multi-Stop Support</h3>
+<h3>7.1 Customer Lifecycle</h3>
 <div class="diagram">
-<div class="title">Load with Multiple Stops</div>
+<div class="title">Customer Approval Workflow</div>
 <div class="flow">
-<div class="flow-box green">Shipper 1</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box green">Shipper 2</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box orange">Consignee 1</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box orange">Consignee 2</div><div class="flow-arrow">&#8594;</div>
-<div class="flow-box orange">Consignee 3</div>
+<div class="flow-box">Broker Creates Customer</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Status: Not Approved</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Admin/Account Reviews</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Status: Approved</div>
 </div>
-<p style="font-size:10px; color:#666; margin-top:6px;">Up to 15 shipper stops and 15 consignee stops per load. Delivery date validated against pickup date.</p>
-</div>
-<h3>10.2 Cross-Reference Feature</h3>
-<p>When creating a Shipper, you can check "Also add as Consignee" (and vice versa). This saves time for locations that serve both roles.</p>
 </div>
 
-<!-- ==================== SECTION 11: ACCOUNTING ==================== -->
-<div id="accounting">
-<h1>11. Accounting & Invoicing</h1>
-
-<h3>11.1 AR Accounting Pipeline</h3>
-<div class="svg-diagram">
-<svg width="520" height="140" viewBox="0 0 520 140">
-<!-- Pipeline -->
-<rect x="5" y="40" width="95" height="45" rx="6" fill="#2e7d32"/><text x="52" y="60" text-anchor="middle" fill="white" font-size="9" font-weight="bold">OPEN</text><text x="52" y="73" text-anchor="middle" fill="#c8e6c9" font-size="7">Broker manages</text>
-<polygon points="105,62 115,62 110,56 110,68" fill="#7986cb"/>
-<rect x="118" y="40" width="95" height="45" rx="6" fill="#3949ab"/><text x="165" y="60" text-anchor="middle" fill="white" font-size="9" font-weight="bold">DELIVERED</text><text x="165" y="73" text-anchor="middle" fill="#c5cae9" font-size="7">Awaiting docs</text>
-<polygon points="218,62 228,62 223,56 223,68" fill="#7986cb"/>
-<rect x="231" y="40" width="95" height="45" rx="6" fill="#e65100"/><text x="278" y="60" text-anchor="middle" fill="white" font-size="9" font-weight="bold">COMPLETED</text><text x="278" y="73" text-anchor="middle" fill="#ffcc80" font-size="7">Ready to invoice</text>
-<polygon points="331,62 341,62 336,56 336,68" fill="#7986cb"/>
-<rect x="344" y="40" width="80" height="45" rx="6" fill="#6a1b9a"/><text x="384" y="60" text-anchor="middle" fill="white" font-size="9" font-weight="bold">INVOICED</text><text x="384" y="73" text-anchor="middle" fill="#e1bee7" font-size="7">Email sent</text>
-<polygon points="429,62 439,62 434,56 434,68" fill="#7986cb"/>
-<rect x="442" y="40" width="70" height="45" rx="6" fill="#00695c"/><text x="477" y="60" text-anchor="middle" fill="white" font-size="9" font-weight="bold">PAID</text><text x="477" y="73" text-anchor="middle" fill="#b2dfdb" font-size="7">$$$ received</text>
-<!-- Actions below -->
-<text x="278" y="105" text-anchor="middle" font-size="8" fill="#283593" font-weight="bold">Account Team Actions at Each Stage:</text>
-<text x="165" y="120" text-anchor="middle" font-size="7" fill="#666">Upload docs</text>
-<text x="278" y="120" text-anchor="middle" font-size="7" fill="#666">Generate invoice</text>
-<text x="384" y="120" text-anchor="middle" font-size="7" fill="#666">Email invoice</text>
-<text x="477" y="120" text-anchor="middle" font-size="7" fill="#666">Record payment</text>
-</svg>
+<div class="warning-box">
+<strong>Important:</strong> Only approved customers can be selected when creating loads. The system enforces this validation at both form and controller level.
 </div>
 
-<h3>11.2 Invoice Email Process</h3>
-<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>Select Documents:</strong> Choose which load documents to attach (Rate Con, POD, Invoice, DO)</div></div>
-<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Set Recipients:</strong> Enter TO emails (comma-separated) + optional CC</div></div>
-<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Auto PDF Merge:</strong> System automatically merges all selected documents into one PDF</div></div>
-<div class="process-step"><div class="step-num">4</div><div class="step-content"><strong>Custom Subject:</strong> Edit subject line or use default (Load # + Invoice # + Ref #)</div></div>
-<div class="process-step"><div class="step-num">5</div><div class="step-content"><strong>Send:</strong> Email sent via SMTP from ar@cargoconvoy.co with merged attachment</div></div>
-
-<h3>11.3 Carrier Payment Management</h3>
-<div class="grid-2">
-<div class="card"><div class="card-title">Payment Options</div><ul><li><strong>Quick Pay:</strong> Mark for expedited payment</li><li><strong>Payment Method:</strong> ACH / Check / Zelle</li><li><strong>Ready to Pay:</strong> Flag when approved</li><li><strong>Due Date:</strong> Set carrier payment deadline</li><li><strong>Mark as Paid:</strong> Record completion</li></ul></div>
-<div class="card"><div class="card-title">Carrier Documents</div><ul><li>Upload carrier invoices</li><li>W9, Insurance, Authority Letter</li><li>Bank verification documents</li><li>Rate confirmation signed copies</li></ul></div>
-</div>
-
-<h3>11.4 AR Aging & Close</h3>
-<p>The aging report tracks days since invoice was sent. Account team can:</p>
-<ul>
-<li>View aging days per load</li>
-<li>Track excess/remaining amounts after partial payments</li>
-<li>Close aging records when payments are reconciled</li>
-<li>Filter by office, agent, and date range</li>
-</ul>
-
-<h3>11.5 All Load Status AR View</h3>
-<p>A comprehensive dashboard showing <strong>all loads across all statuses</strong> for the AR team with advanced filtering and bulk actions. Includes new aging close functionality.</p>
-</div>
-
-<!-- ==================== SECTION 12-16 ==================== -->
-<div id="compliance">
-<h1>12. Compliance Module</h1>
-<h3>12.1 MC Verification Process</h3>
-<div class="svg-diagram">
-<svg width="500" height="90" viewBox="0 0 500 90">
-<rect x="10" y="25" width="110" height="40" rx="6" fill="#546e7a"/><text x="65" y="45" text-anchor="middle" fill="white" font-size="9" font-weight="bold">New Carrier</text><text x="65" y="57" text-anchor="middle" fill="#b0bec5" font-size="7">Added by Broker</text>
-<polygon points="125,45 137,45 131,39 131,51" fill="#7986cb"/>
-<rect x="140" y="25" width="110" height="40" rx="6" fill="#e65100"/><text x="195" y="45" text-anchor="middle" fill="white" font-size="9" font-weight="bold">MC Check</text><text x="195" y="57" text-anchor="middle" fill="#ffcc80" font-size="7">Pending Review</text>
-<polygon points="255,45 267,45 261,39 261,51" fill="#7986cb"/>
-<rect x="270" y="25" width="110" height="40" rx="6" fill="#6a1b9a"/><text x="325" y="45" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Compliance</text><text x="325" y="57" text-anchor="middle" fill="#e1bee7" font-size="7">Team Reviews</text>
-<polygon points="385,45 397,45 391,39 391,51" fill="#7986cb"/>
-<rect x="400" y="25" width="90" height="40" rx="6" fill="#2e7d32"/><text x="445" y="45" text-anchor="middle" fill="white" font-size="9" font-weight="bold">Approved</text><text x="445" y="57" text-anchor="middle" fill="#c8e6c9" font-size="7">Ready for Loads</text>
-</svg>
-</div>
-<h3>12.2 CPR Status Table</h3>
+<h3>7.2 Customer Data Fields</h3>
 <table class="table-styled">
-<tr><th>Status</th><th>Meaning</th><th>Action</th></tr>
-<tr><td style="color:#e65100; font-weight:bold;">Not Approved</td><td>Default — not yet reviewed</td><td>Compliance reviews carrier docs</td></tr>
-<tr><td style="color:#2e7d32; font-weight:bold;">Verified</td><td>Carrier approved for this load</td><td>Load can proceed</td></tr>
-<tr><td style="color:#c62828; font-weight:bold;">Not Verified</td><td>Carrier rejected</td><td>Needs carrier replacement</td></tr>
+<tr><th>Section</th><th>Fields</th></tr>
+<tr><td>Basic Info</td><td>Name, MC/FF Type & Number, Corporation Type, Status</td></tr>
+<tr><td>Address</td><td>Street, Country, State, City, ZIP</td></tr>
+<tr><td>Billing Address</td><td>Separate billing address fields</td></tr>
+<tr><td>Contacts</td><td>Primary contact, telephone, email, secondary contact, billing email</td></tr>
+<tr><td>Advanced</td><td>Currency, Credit Limit, Payment Terms, Factoring Company, Website</td></tr>
+<tr><td>Documents</td><td>File uploads (multiple), Remittance files</td></tr>
 </table>
-<h3>12.3 Carrier Block/Unblock</h3>
-<p>Compliance team can <strong>block</strong> carriers who fail checks. Blocked carriers are excluded from auto-suggest and cannot be assigned to new loads.</p>
+
+<h3>7.3 Credit Limit System</h3>
+<div class="code-block">// Credit Summary Calculation (helpers.php)
+function calculate_customer_credit_summary($customer, $assignedCreditLimit, $loadCreateAmount, $receivingAmount) {
+    $usedAmount      = max(0, $loadCreateAmount - $receivingAmount);
+    $remainingCredit = max(0, $assignedCreditLimit - $loadCreateAmount);
+    return ['assigned_credit_limit', 'used_amount', 'remaining_credit'];
+}</div>
+
+<h3>7.4 Customer Approval Form</h3>
+<p>Brokers can submit a Customer Approval Form which goes through the admin/account team for review. Once approved, the credit limit is assigned and the customer becomes available for load creation.</p>
+
+<h3>7.5 Remittance Management</h3>
+<p>Both Brokers and Account teams can upload remittance files (PDFs, images) against customers. Files are tagged with timestamps and notes, and can be filtered by date range.</p>
 </div>
 
-<div id="reporting">
-<h1>13. Reporting & Analytics</h1>
-<h3>13.1 Report Types</h3>
-<div class="svg-diagram">
-<svg width="480" height="90" viewBox="0 0 480 90">
-<rect x="10" y="10" width="100" height="30" rx="5" fill="#3949ab"/><text x="60" y="29" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Carrier Report</text>
-<rect x="120" y="10" width="100" height="30" rx="5" fill="#2e7d32"/><text x="170" y="29" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Customer Report</text>
-<rect x="230" y="10" width="110" height="30" rx="5" fill="#e65100"/><text x="285" y="29" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Dispatcher Report</text>
-<rect x="350" y="10" width="120" height="30" rx="5" fill="#6a1b9a"/><text x="410" y="29" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Sales Rep Report</text>
-<rect x="10" y="50" width="100" height="30" rx="5" fill="#c62828"/><text x="60" y="69" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Aging Report</text>
-<rect x="120" y="50" width="100" height="30" rx="5" fill="#00695c"/><text x="170" y="69" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Credit/Limit</text>
-<rect x="230" y="50" width="110" height="30" rx="5" fill="#546e7a"/><text x="285" y="69" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Load Report</text>
-<rect x="350" y="50" width="120" height="30" rx="5" fill="#1565c0"/><text x="410" y="69" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Completed Log</text>
-</svg>
+<!-- SECTION 8: CARRIER MANAGEMENT -->
+<div id="carrier">
+<h1>8. Carrier Management</h1>
+
+<h3>8.1 Carrier Data Structure</h3>
+<div class="diagram">
+<div class="title">Carrier (External) Entity</div>
+<div style="text-align:left; padding:10px; font-size:12px;">
+<strong>Identification:</strong> Carrier Name, MC/FF Number, DOT Number<br>
+<strong>Address:</strong> Country, State, City, ZIP<br>
+<strong>Contact:</strong> Contact Name, Email, Telephone, Extension, Fax<br>
+<strong>Business:</strong> Payment Terms, Factoring Company, Load Type, Corporation<br>
+<strong>Status:</strong> Active/Blacklisted/Blocked<br>
+<strong>Documents:</strong> File uploads (W9, Insurance, Authority Letter)
 </div>
-<h3>13.2 Sales Dashboard</h3>
-<p>Interactive ApexCharts showing daily revenue trends. Filters: date range, office, agent. Displays: Customer Revenue (green), Carrier Cost (red), Margin (blue).</p>
-<h3>13.3 Export Options</h3>
-<p>All reports support <strong>Excel export</strong> via PhpSpreadsheet. Select any report → click "Excel" button → downloads .xlsx file with full data.</p>
 </div>
 
-<div id="email">
-<h1>14. Email & PDF Merge</h1>
-<h3>14.1 Email Flow</h3>
-<div class="svg-diagram">
-<svg width="480" height="80" viewBox="0 0 480 80">
-<rect x="10" y="25" width="100" height="30" rx="5" fill="#3949ab"/><text x="60" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Select Documents</text>
-<polygon points="115,40 125,40 120,34 120,46" fill="#7986cb"/>
-<rect x="130" y="25" width="100" height="30" rx="5" fill="#e65100"/><text x="180" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Set Recipients</text>
-<polygon points="235,40 245,40 240,34 240,46" fill="#7986cb"/>
-<rect x="250" y="25" width="100" height="30" rx="5" fill="#6a1b9a"/><text x="300" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Merge to PDF</text>
-<polygon points="355,40 365,40 360,34 360,46" fill="#7986cb"/>
-<rect x="370" y="25" width="100" height="30" rx="5" fill="#2e7d32"/><text x="420" y="44" text-anchor="middle" fill="white" font-size="8" font-weight="bold">Send Email</text>
-</svg>
-</div>
-<div class="info-box"><strong>PDF Merge:</strong> Uses FPDI library to merge multiple PDFs + Dompdf to convert images to PDF. All selected docs become one single attachment.</div>
+<h3>8.2 Carrier Views</h3>
+<table class="table-styled">
+<tr><th>View</th><th>Description</th><th>Access</th></tr>
+<tr><td>My Carriers</td><td>Carriers added by the logged-in broker</td><td>Agent's own</td></tr>
+<tr><td>All Carriers</td><td>All carriers in the system</td><td>Searchable by all</td></tr>
+</table>
+
+<h3>8.3 Carrier Validation</h3>
+<div class="info-box">
+<strong>Unique MC#:</strong> System enforces unique MC numbers. Duplicate MC# is rejected.<br>
+<strong>Unique DOT#:</strong> DOT numbers must also be unique across all carriers.<br>
+<strong>Load Assignment:</strong> When assigning a carrier to a load, the system verifies the carrier exists in the database.
 </div>
 
+<h3>8.4 Carrier Auto-Suggest in Load Form</h3>
+<p>When typing carrier name, MC#, or DOT# in the load form, the system provides live suggestions via AJAX. Selecting a suggestion auto-fills all carrier fields.</p>
+<div class="code-block">// Carrier suggestion endpoint
+Route::post('broker/fetch-carrier-suggestions', [LoadController::class, 'fetchCarrierSuggestions']);
+// Returns: id, carrier_name, mcNumber, dotNumber, phone</div>
+</div>
+
+<!-- SECTION 9: SHIPPER & CONSIGNEE -->
+<div id="shipper">
+<h1>9. Shipper & Consignee Management</h1>
+
+<h3>9.1 Shipper/Consignee Cross-Reference</h3>
+<div class="diagram">
+<div class="title">Shipper-Consignee Relationship</div>
+<div class="flow">
+<div class="flow-box green">Create Shipper</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Option: "Also add as Consignee"</div>
+</div>
+<div class="flow" style="margin-top:10px;">
+<div class="flow-box teal">Create Consignee</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Option: "Also add as Shipper"</div>
+</div>
+</div>
+
+<h3>9.2 Data Fields</h3>
+<table class="table-styled">
+<tr><th>Field</th><th>Shipper</th><th>Consignee</th></tr>
+<tr><td>Name</td><td>shipper_name</td><td>consignee_name</td></tr>
+<tr><td>Address</td><td>Full address (country/state/city/zip)</td><td>Full address</td></tr>
+<tr><td>Contact</td><td>Name, email, phone, ext, fax</td><td>Name, email, phone, ext, fax</td></tr>
+<tr><td>Operations</td><td>Hours, appointments, intersections</td><td>Hours, appointments, intersections</td></tr>
+<tr><td>Notes</td><td>Shipping notes, internal notes</td><td>Shipping notes, internal notes</td></tr>
+</table>
+
+<h3>9.3 Usage in Load Creation</h3>
+<p>When creating or editing a load, brokers can select from their saved shippers and consignees. The system auto-fills the address fields. Multiple shipper/consignee stops are supported (up to 15).</p>
+<div class="code-block">// Auto-fill shipper details in load form
+Route::get('broker/fetch-shipper-details', [LoadController::class, 'fetchShipperDetails']);
+Route::get('broker/fetch-consignee-details', [LoadController::class, 'fetchConsigneeDetails']);</div>
+</div>
+
+<!-- SECTION 10: ACCOUNTING & INVOICING -->
+<div id="accounting">
+<h1>10. Accounting & Invoicing</h1>
+
+<h3>10.1 Accounting Dashboard Tabs</h3>
+<div class="diagram">
+<div class="title">Accounting Workflow</div>
+<div class="flow">
+<div class="flow-box green">Open Loads</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box">Completed (Ready to Invoice)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Invoiced</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Paid (Payment Received)</div>
+</div>
+</div>
+
+<h3>10.2 Invoice Generation</h3>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>Mark as Invoiced:</strong> Account team changes invoice_status to 'Paid' (meaning invoiced to customer)</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Generate Invoice PDF:</strong> System generates invoice with load details, customer info, rates</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Email Invoice:</strong> Send invoice via email with attachments (merged PDF of all documents)</div></div>
+<div class="process-step"><div class="step-num">4</div><div class="step-content"><strong>Record Payment:</strong> Update receiving_amount when payment is received</div></div>
+<div class="process-step"><div class="step-num">5</div><div class="step-content"><strong>Mark as Paid Record:</strong> Final status when fully paid</div></div>
+
+<h3>10.3 Multi-Load Invoicing</h3>
+<p>The system supports generating a single invoice for multiple loads (PI - Proforma Invoice). Account team enters comma-separated load numbers to generate a combined invoice.</p>
+<div class="code-block">// Multi-load invoice generation
+Route::Post('account/loads-pi', [AccountController::class, 'loadspi']);
+Route::Post('account/loads-multipal-invoice', [AccountController::class, 'loadsMultipalInvoice']);</div>
+
+<h3>10.4 Carrier Payment Management</h3>
+<table class="table-styled">
+<tr><th>Feature</th><th>Description</th></tr>
+<tr><td>Quick Pay</td><td>Mark carrier for expedited payment</td></tr>
+<tr><td>Payment Method</td><td>Set payment method (ACH, Check, Zelle)</td></tr>
+<tr><td>Ready to Pay</td><td>Flag load as ready for carrier payment</td></tr>
+<tr><td>Carrier Due Date</td><td>Set carrier payment due date</td></tr>
+<tr><td>Mark as Paid</td><td>Record carrier payment completion</td></tr>
+<tr><td>Upload Documents</td><td>Attach carrier invoices and receipts</td></tr>
+</table>
+
+<h3>10.5 Vendor Management System</h3>
+<p>The Vendor System provides a consolidated view of all loads with carrier payment status, internal notes, and quick actions for the accounts payable team.</p>
+
+<h3>10.6 AR Aging Close (New)</h3>
+<div class="info-box"><strong>New Feature:</strong> Account team can now close aging records directly from the Paid tab when payments are fully reconciled.</div>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>View Aging:</strong> See aging days (days since invoice) for each paid load</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Review Payment:</strong> Check excess/remaining amounts after partial payments</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Close Aging:</strong> Click "Close" to mark the aging record as reconciled</div></div>
+<p>Route: <code>POST /account/update-ar-aging-close</code></p>
+
+<h3>10.7 All Load Status AR View (New)</h3>
+<p>A comprehensive dashboard showing <strong>all loads across all statuses</strong> for the AR team. Includes:</p>
+<table class="table-styled">
+<tr><th>Feature</th><th>Description</th></tr>
+<tr><td>All Status Tabs</td><td>View Open, Delivered, Completed, Invoiced, Paid all in one page</td></tr>
+<tr><td>Advanced Filters</td><td>Filter by office, agent, date range, customer</td></tr>
+<tr><td>Excess/Remaining</td><td>Track overpayment and underpayment per load</td></tr>
+<tr><td>Bulk Actions</td><td>Process multiple loads at once</td></tr>
+</table>
+<p>Route: <code>GET /account/all-status-loads</code></p>
+
+<h3>10.8 Custom Invoice Subject (New)</h3>
+<p>Account team can now customize the email subject line when sending invoices. The default format is:</p>
+<div class="code-block">Invoice For Load #{load_no} (#{invoice_no}) REF #{reference_no}</div>
+<p>Users can edit this before sending, or leave it as the default.</p>
+
+<h3>10.9 Credit Limit Log Export (New)</h3>
+<p>Export the complete credit limit change history for all customers as an Excel spreadsheet. Useful for auditing credit changes over time.</p>
+<p>Route: <code>GET /account/customers/export-credit-limit-log</code></p>
+</div>
+
+<!-- SECTION 11: COMPLIANCE -->
+<div id="compliance">
+<h1>11. Compliance Module</h1>
+
+<h3>11.1 Compliance Overview</h3>
+<p>The compliance module ensures all carriers meet regulatory requirements before loads can be dispatched. It covers MC (Motor Carrier) checks and CPR (Carrier Performance Review) checks.</p>
+
+<h3>11.2 MC Check Process</h3>
+<div class="diagram">
+<div class="title">MC Verification Flow</div>
+<div class="flow">
+<div class="flow-box">New Carrier Added</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">MC Check: Pending</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Compliance Reviews</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">MC Check: Verified</div>
+</div>
+</div>
+
+<h3>11.3 CPR (Carrier Performance Review) Check</h3>
+<p>Each load can have a CPR status that indicates whether the carrier assignment has been reviewed and approved by compliance.</p>
+<table class="table-styled">
+<tr><th>Status</th><th>Meaning</th></tr>
+<tr><td>Not Approved</td><td>Default - carrier assignment not yet reviewed</td></tr>
+<tr><td>Verified</td><td>Carrier approved for this load</td></tr>
+<tr><td>Not Verified</td><td>Carrier rejected - needs replacement</td></tr>
+</table>
+
+<h3>11.4 Carrier Verification</h3>
+<p>Detailed carrier verification includes factoring company verification, bank document uploads, and insurance validation.</p>
+<div class="code-block">Route::get('account/carrier-verification', [AccountController::class, 'carrier_verification']);
+Route::post('account/carrier-verification/save', [AccountController::class, 'carrier_verification_save']);</div>
+
+<h3>11.5 Carrier Block/Unblock</h3>
+<p>Compliance team can block carriers who fail compliance checks. Blocked carriers cannot be assigned to new loads.</p>
+</div>
+
+<!-- SECTION 12: BILL OF LADING -->
 <div id="bol">
-<h1>15. Bill of Lading (BOL)</h1>
-<h3>15.1 BOL Workflow</h3>
-<div class="diagram"><div class="title">BOL Generation Process</div>
-<div class="flow"><div class="flow-box">View Load</div><div class="flow-arrow">&#8594;</div><div class="flow-box orange">Open BOL Modal</div><div class="flow-arrow">&#8594;</div><div class="flow-box purple">Edit Fields</div><div class="flow-arrow">&#8594;</div><div class="flow-box teal">Save via AJAX</div><div class="flow-arrow">&#8594;</div><div class="flow-box green">Download PDF</div></div></div>
-<h3>15.2 BOL Sections</h3>
+<h1>12. Bill of Lading (BOL)</h1>
+
+<h3>12.1 BOL Feature Overview</h3>
+<p>The Bill of Lading module allows brokers to generate, edit, and download BOL documents as PDFs. Edited data is saved and persists for future downloads.</p>
+
+<h3>12.2 BOL Workflow</h3>
+<div class="diagram">
+<div class="title">BOL Edit & Download Flow</div>
+<div class="flow">
+<div class="flow-box">Open BOL Modal</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">Click Edit</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Modify Fields</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Save for PDF (AJAX)</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Download PDF</div>
+</div>
+</div>
+
+<h3>12.3 BOL Document Sections</h3>
 <table class="table-styled">
 <tr><th>Section</th><th>Content</th></tr>
-<tr><td>Header</td><td>Company logo, name, address, phone, MC#</td></tr>
-<tr><td>Load Info</td><td>Load#, BOL#, Ship Date, Delivery Date</td></tr>
-<tr><td>Shipper/Consignee</td><td>Names and full addresses</td></tr>
-<tr><td>Freight Table</td><td>Pieces, Description, Weight, Type, NMFC, Class</td></tr>
-<tr><td>Notes & COD</td><td>Special instructions, COD amount, declared value</td></tr>
-<tr><td>Signatures</td><td>Shipper, Carrier, Consignee signature lines with dates</td></tr>
+<tr><td>Header</td><td>Company logo, name, address, phone</td></tr>
+<tr><td>Load Info</td><td>Load Number, BOL Number, Ship Date, Delivery Date</td></tr>
+<tr><td>Shipper</td><td>Shipper name(s) and address(es)</td></tr>
+<tr><td>Consignee</td><td>Consignee name(s) and address(es)</td></tr>
+<tr><td>3rd Party Billing</td><td>Third-party billing information</td></tr>
+<tr><td>Transportation Co.</td><td>MC#, Carrier Name</td></tr>
+<tr><td>Freight Table</td><td>Pieces, Description, Weight, Type, NMFC, HM, Class</td></tr>
+<tr><td>Notes & COD</td><td>Notes, COD Amount, COD Fee, Declared Value</td></tr>
+<tr><td>Signatures</td><td>Shipper, Carrier, Consignee signatures with dates</td></tr>
 </table>
+
+<h3>12.4 Technical Implementation</h3>
+<div class="code-block">// Save BOL edit data (AJAX POST)
+Route::post('/broker/load/{id}/bol/save', [LoadController::class, 'saveBolEditData']);
+
+// Download BOL PDF (GET - reads from saved bol_edit_data)
+Route::get('/broker/load/{id}/bol/pdf', [LoadController::class, 'generateBolPdf']);
+
+// PDF generated using Dompdf library with 'letter' paper size</div>
 </div>
 
+<!-- SECTION 13: REPORTING -->
+<div id="reporting">
+<h1>13. Reporting & Analytics</h1>
+
+<h3>13.1 Report Types</h3>
+<div class="diagram">
+<div class="title">Available Reports</div>
+<div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+<div class="flow-box">Carrier Report</div>
+<div class="flow-box green">Customer Report</div>
+<div class="flow-box orange">Dispatcher Report</div>
+<div class="flow-box purple">Load Report</div>
+<div class="flow-box teal">Sales Rep Report</div>
+<div class="flow-box red">Aging Report</div>
+<div class="flow-box">Credit/Limit Report</div>
+<div class="flow-box green">Load Completed Log</div>
+</div>
+</div>
+
+<h3>13.2 Report Details</h3>
+<table class="table-styled">
+<tr><th>Report</th><th>Key Metrics</th><th>Export</th></tr>
+<tr><td>Carrier Report</td><td>Total revenue per carrier, load count, open/delivered/completed breakdown</td><td>Excel</td></tr>
+<tr><td>Customer Report</td><td>Revenue per customer, margin, credit limit usage</td><td>Excel</td></tr>
+<tr><td>Customer Detail</td><td>Full customer listing with all details</td><td>Excel</td></tr>
+<tr><td>Dispatcher Report</td><td>Revenue per agent, carrier fees, margins, load counts</td><td>Excel</td></tr>
+<tr><td>Load Report</td><td>Individual load details with user info</td><td>Excel</td></tr>
+<tr><td>Sales Rep Report</td><td>Shipper rates vs carrier fees per agent</td><td>Excel</td></tr>
+<tr><td>Aging Report</td><td>Invoice aging (days since invoice date)</td><td>Excel</td></tr>
+<tr><td>Credit/Limit Report</td><td>Customer credit limits and remaining credit</td><td>Excel</td></tr>
+</table>
+
+<h3>13.3 Sales Dashboard Chart</h3>
+<p>The reporting module includes an interactive chart showing daily revenue trends with filters for:</p>
+<ul>
+<li><strong>Date Range:</strong> Custom start and end dates (default: last 7 days)</li>
+<li><strong>Office:</strong> Filter by office location</li>
+<li><strong>Agent:</strong> Filter by specific agent</li>
+</ul>
+<p>Chart displays: Shipper Rates (revenue), Carrier Fees (cost), and Margin (profit) by date.</p>
+
+<h3>13.4 Export Functionality</h3>
+<p>All reports support Excel export using PhpSpreadsheet library. PDF exports are available for specific reports using Dompdf.</p>
+<div class="code-block">// Example: Excel export routes
+Route::get('account/CarrierReportingExcel', [AccountController::class, 'CarrierReportingExcel']);
+Route::get('account/customerReportingExcell', [AccountController::class, 'customerReportingExcell']);
+Route::get('account/dispatcherReportingExcell', [AccountController::class, 'dispatcherReportingExcell']);
+Route::get('account/agingReportingExcel', [AccountController::class, 'agingReportingExcel']);</div>
+</div>
+
+<!-- SECTION 14: DOCUMENT MANAGEMENT -->
 <div id="files">
-<h1>16. Document Management</h1>
-<h3>16.1 Document Types Per Load</h3>
-<div class="grid-3">
-<div class="card"><div class="card-title">Customer Docs</div><ul><li>Rate Confirmation</li><li>Shipper Rate Approval</li><li>Delivery Order (DO)</li></ul></div>
-<div class="card"><div class="card-title">Carrier Docs</div><ul><li>Carrier Invoice</li><li>POD (Proof of Delivery)</li><li>W9 / Insurance</li></ul></div>
-<div class="card"><div class="card-title">Optional</div><ul><li>Additional supporting docs</li><li>Multiple file upload</li><li>PDF + JPG + PNG accepted</li></ul></div>
+<h1>14. Document Management & File Uploads</h1>
+
+<h3>14.1 Load Document Types</h3>
+<table class="table-styled">
+<tr><th>Document Type</th><th>Field Name</th><th>Purpose</th></tr>
+<tr><td>Carrier Rate Confirmation</td><td>carrer_rate_cnfrm_doc</td><td>Signed rate agreement with carrier</td></tr>
+<tr><td>Proof of Delivery (POD)</td><td>pod_doc</td><td>Delivery confirmation document</td></tr>
+<tr><td>Shipper Rate Approval</td><td>shipper_rate_approval_doc</td><td>Customer rate approval</td></tr>
+<tr><td>Carrier Invoice</td><td>carrier_invoice_doc</td><td>Carrier's invoice for payment</td></tr>
+<tr><td>Delivery Order (DO)</td><td>do</td><td>Original delivery order document</td></tr>
+<tr><td>Optional Documents</td><td>optional_docs</td><td>Any additional supporting documents</td></tr>
+</table>
+
+<h3>14.2 File Operations</h3>
+<div class="diagram">
+<div class="title">Document Management Flow</div>
+<div class="flow">
+<div class="flow-box">Upload Files</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box orange">View/Preview</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box purple">Merge PDFs</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box teal">Move to Private</div>
+<div class="flow-arrow">&#8594;</div>
+<div class="flow-box green">Email Attachments</div>
 </div>
-<h3>16.2 File Storage Structure</h3>
+</div>
+
+<h3>14.3 PDF Merge Feature</h3>
+<p>Multiple uploaded documents (PDFs and images) can be merged into a single PDF per load. This merged file is used for emailing invoices with all supporting documents.</p>
+<div class="code-block">// Merge files endpoint
+Route::post('files/merge-files', [FilesUploadController::class, 'mergeFiles']);
+// Uses TCPDF + FPDI for PDF merging
+// Images (jpg, png, gif) are converted to PDF before merging</div>
+
+<h3>14.4 File Storage Structure</h3>
 <div class="code-block">public/uploads/
-├── Load-files/{load_number}-{customer_id}/     Customer load documents
-├── delivery-order/{load_id}/                    Private delivery orders
-├── carrier/                                      Carrier verification docs
-├── customers/{customer_name}/                   Customer files
-├── remittances/                                  Remittance uploads
-└── mergedfiles/                                  Auto-merged PDFs for email</div>
+  |-- Load-files/{load_number}-{customer_id}/    (Public load documents)
+  |-- delivery-order/{load_id}/                   (Private delivery orders)
+  |-- carrier/                                     (Carrier documents)
+  |-- customers/{customer_name}/                  (Customer files)
+  |-- remittances/                                 (Remittance files)
+  |-- mergedfiles/                                 (Merged PDFs)</div>
 </div>
 
-<!-- ==================== SECTION 17-18: DB & API ==================== -->
+<!-- SECTION 15: EMAIL SYSTEM -->
+<div id="email">
+<h1>15. Email System</h1>
+
+<h3>15.1 Invoice Email</h3>
+<p>The system sends invoice emails to customers with all relevant documents attached. Multiple recipients (TO and CC) are supported.</p>
+
+<h3>15.2 Email Process</h3>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>Select Documents:</strong> Choose which load documents to attach (Rate Con, POD, Invoice, etc.)</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Set Recipients:</strong> Enter email addresses (comma-separated for multiple). Optional CC field.</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Auto-Merge:</strong> If multiple files selected, system merges them into one PDF attachment.</div></div>
+<div class="process-step"><div class="step-num">4</div><div class="step-content"><strong>Send:</strong> Email sent via SMTP with professional template including load#, invoice#, ref#.</div></div>
+
+<h3>15.3 Email Template</h3>
+<div class="code-block">Subject: Invoice For Load #{load_no} (#{invoice_no}) REF #{reference_no}
+From: ar@cargoconvoy.co (Cargoconvoy)
+Reply-To: ar@cargoconvoy.co
+
+Body:
+"Greetings!
+Kindly find the attached invoice for load #{load_no} ({invoice_no}) Ref #{ref_no}
+
+Thanks & Regards
+{Username}
+Accounts Receivable
+Cargo Convoy Inc
+Mailing Address: 7119, Pennsylvania Ave, Upper Darby, PA - 19082
+MC - 01512751 | DOT - 4014885"</div>
+
+<h3>15.4 Security</h3>
+<div class="info-box">
+<strong>Attachment Security:</strong> Only files from authorized directories (uploads/delivery-order and uploads/) can be attached. The system validates file paths to prevent arbitrary file access.
+</div>
+</div>
+
+<!-- SECTION 16: DATABASE SCHEMA -->
 <div id="database">
-<h1>17. Database Schema</h1>
-<h3>17.1 Entity Relationship Diagram</h3>
-<div class="svg-diagram">
-<svg width="500" height="250" viewBox="0 0 500 250">
-<!-- Users -->
-<rect x="200" y="5" width="100" height="35" rx="5" fill="#283593"/><text x="250" y="27" text-anchor="middle" fill="white" font-size="9" font-weight="bold">users</text>
-<!-- Loads -->
-<rect x="200" y="100" width="100" height="35" rx="5" fill="#1b5e20"/><text x="250" y="122" text-anchor="middle" fill="white" font-size="9" font-weight="bold">loads</text>
-<!-- Customers -->
-<rect x="30" y="100" width="100" height="35" rx="5" fill="#e65100"/><text x="80" y="122" text-anchor="middle" fill="white" font-size="9" font-weight="bold">customers</text>
-<!-- Externals/Carriers -->
-<rect x="370" y="100" width="100" height="35" rx="5" fill="#6a1b9a"/><text x="420" y="122" text-anchor="middle" fill="white" font-size="9" font-weight="bold">externals</text>
-<!-- Roles -->
-<rect x="50" y="5" width="80" height="30" rx="5" fill="#c62828"/><text x="90" y="24" text-anchor="middle" fill="white" font-size="8" font-weight="bold">roles</text>
-<!-- Permissions -->
-<rect x="370" y="5" width="100" height="30" rx="5" fill="#00695c"/><text x="420" y="24" text-anchor="middle" fill="white" font-size="8" font-weight="bold">permissions</text>
-<!-- Shippers -->
-<rect x="30" y="190" width="90" height="30" rx="5" fill="#546e7a"/><text x="75" y="209" text-anchor="middle" fill="white" font-size="8" font-weight="bold">shippers</text>
-<!-- Consignees -->
-<rect x="380" y="190" width="90" height="30" rx="5" fill="#546e7a"/><text x="425" y="209" text-anchor="middle" fill="white" font-size="8" font-weight="bold">consignees</text>
-<!-- Logs -->
-<rect x="200" y="190" width="100" height="30" rx="5" fill="#37474f"/><text x="250" y="209" text-anchor="middle" fill="white" font-size="8" font-weight="bold">logs</text>
-<!-- Invoices -->
-<rect x="200" y="230" width="100" height="20" rx="4" fill="#ad1457"/><text x="250" y="244" text-anchor="middle" fill="white" font-size="7" font-weight="bold">invoice_emails</text>
-<!-- Lines -->
-<line x1="250" y1="40" x2="250" y2="100" stroke="#999" stroke-width="1.5"/>
-<line x1="130" y1="117" x2="200" y2="117" stroke="#999" stroke-width="1.5"/>
-<line x1="300" y1="117" x2="370" y2="117" stroke="#999" stroke-width="1.5"/>
-<line x1="90" y1="35" x2="200" y2="22" stroke="#999" stroke-width="1" stroke-dasharray="3"/>
-<line x1="250" y1="135" x2="250" y2="190" stroke="#999" stroke-width="1"/>
-<line x1="75" y1="190" x2="200" y2="135" stroke="#999" stroke-width="1" stroke-dasharray="3"/>
-<line x1="425" y1="190" x2="300" y2="135" stroke="#999" stroke-width="1" stroke-dasharray="3"/>
-<!-- Labels -->
-<text x="165" y="107" font-size="7" fill="#666">belongs_to</text>
-<text x="310" y="107" font-size="7" fill="#666">assigned_to</text>
-<text x="252" y="75" font-size="7" fill="#666">created_by</text>
-</svg>
-</div>
+<h1>16. Database Schema</h1>
 
-<h3>17.2 Key Tables</h3>
+<h3>16.1 Core Tables</h3>
 <table class="table-styled">
-<tr><th>Table</th><th>Records</th><th>Purpose</th></tr>
-<tr><td>users</td><td>All system users</td><td>Authentication, roles, department assignment</td></tr>
-<tr><td>loads</td><td>Freight loads</td><td>Core business entity — everything revolves around loads</td></tr>
-<tr><td>customers</td><td>Customer companies</td><td>Bill-to entities with credit limits</td></tr>
-<tr><td>externals</td><td>Carriers</td><td>Transport companies assigned to haul loads</td></tr>
-<tr><td>shippers / consignees</td><td>Locations</td><td>Pickup and delivery locations</td></tr>
-<tr><td>roles / permissions</td><td>Access control</td><td>Role-based menu and feature access</td></tr>
-<tr><td>logs</td><td>Audit trail</td><td>Every create/update/delete logged with old/new data</td></tr>
+<tr><th>Table</th><th>Purpose</th><th>Key Relationships</th></tr>
+<tr><td>users</td><td>All system users</td><td>belongs_to: role, department, office, manager, team_leader</td></tr>
+<tr><td>loads</td><td>Core freight loads</td><td>belongs_to: user, customer, carrier(external)</td></tr>
+<tr><td>customers</td><td>Customer entities</td><td>belongs_to: user; has_many: loads</td></tr>
+<tr><td>externals</td><td>Carriers</td><td>belongs_to: user; has_many: loads</td></tr>
+<tr><td>shippers</td><td>Shipper locations</td><td>belongs_to: user</td></tr>
+<tr><td>consignees</td><td>Consignee locations</td><td>belongs_to: user</td></tr>
+<tr><td>roles</td><td>User roles</td><td>has_many: role_has_permissions</td></tr>
+<tr><td>permissions</td><td>System permissions</td><td>belongs_to: department</td></tr>
+<tr><td>role_has_permissions</td><td>Role-permission mapping</td><td>belongs_to: role, permission</td></tr>
+<tr><td>departments</td><td>Organization departments</td><td>has_many: users</td></tr>
+<tr><td>offices</td><td>Office locations</td><td>has_many: users</td></tr>
+<tr><td>mangers</td><td>Manager assignments</td><td>belongs_to: user, office, department</td></tr>
+<tr><td>team_leaders</td><td>Team leader assignments</td><td>belongs_to: manager</td></tr>
+<tr><td>logs</td><td>Activity audit trail</td><td>records all CRUD operations</td></tr>
+<tr><td>carrier_verification</td><td>Carrier compliance data</td><td>belongs_to: load</td></tr>
+<tr><td>load_payments</td><td>Payment records</td><td>belongs_to: load</td></tr>
+</table>
+
+<h3>16.2 Loads Table - Key Columns</h3>
+<table class="table-styled">
+<tr><th>Column Group</th><th>Fields</th></tr>
+<tr><td>Identity</td><td>id, load_number, user_id, customer_id, carrier_id</td></tr>
+<tr><td>Status</td><td>load_status, invoice_status, cpr_check</td></tr>
+<tr><td>Customer Rates</td><td>load_shipper_rate, load_fsc_rate, shipper_load_final_rate</td></tr>
+<tr><td>Carrier Rates</td><td>load_carrier_fee, load_billing_fsc_rate, load_final_carrier_fee</td></tr>
+<tr><td>Shipper (JSON)</td><td>load_shipperr, load_shipper_location, load_shipper_appointment</td></tr>
+<tr><td>Consignee (JSON)</td><td>load_consignee, load_consignee_location, load_consignee_appointment</td></tr>
+<tr><td>Invoice</td><td>invoice_number, invoice_date, invoice_status, receiving_amount</td></tr>
+<tr><td>Documents</td><td>public_file, load_delivery_do_file, carrierDoc</td></tr>
+<tr><td>BOL</td><td>bol_edit_data (JSON - saved BOL edits)</td></tr>
 </table>
 </div>
 
+<!-- SECTION 17: API ROUTES -->
 <div id="api">
-<h1>18. API Endpoints Reference</h1>
-<h3>18.1 Key Broker Endpoints</h3>
+<h1>17. API Routes & Endpoints</h1>
+
+<h3>17.1 Admin Routes</h3>
 <table class="table-styled">
 <tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/broker/load-create</td><td>Create new load (with credit check)</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/broker/load</td><td>Load listing with tabs</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/broker/load/update/{id}</td><td>Update load (rate change + credit delta)</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/broker/clone/load/{id}</td><td>Clone a load</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/broker/load/{id}/bol/pdf</td><td>Download BOL as PDF</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/broker/customer/create</td><td>Create customer</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/broker/create/carrier</td><td>Create carrier</td></tr>
+<tr><td>GET</td><td>/admin/admin_home</td><td>Admin dashboard with all loads</td></tr>
+<tr><td>GET</td><td>/admin/broker-users</td><td>List broker users</td></tr>
+<tr><td>POST</td><td>/admin/create-user</td><td>Create new user</td></tr>
+<tr><td>POST</td><td>/admin/update-status</td><td>Activate/deactivate user</td></tr>
+<tr><td>GET</td><td>/admin/department</td><td>Department management</td></tr>
+<tr><td>GET</td><td>/admin/office</td><td>Office management</td></tr>
+<tr><td>GET</td><td>/admin/manager</td><td>Manager management</td></tr>
+<tr><td>GET</td><td>/admin/team_leader</td><td>Team leader management</td></tr>
+<tr><td>GET</td><td>/admin/roles</td><td>Roles & permissions</td></tr>
+<tr><td>GET</td><td>/admin/all_data</td><td>Consolidated data view</td></tr>
+<tr><td>GET</td><td>/admin/activity_logs</td><td>System activity logs</td></tr>
 </table>
-<h3>18.2 Key Account Endpoints</h3>
+
+<h3>17.2 Broker Routes</h3>
 <table class="table-styled">
 <tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/account/accounting</td><td>AR accounting dashboard</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/account/send-mail</td><td>Send invoice email (with PDF merge)</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/account/update-invoice-status/{id}</td><td>Mark as invoiced</td></tr>
-<tr><td><span class="badge" style="background:#2e7d32;">POST</span></td><td>/account/update-ar-aging-close</td><td>Close aging record</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/account/reporting</td><td>Reports & analytics</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/account/credit</td><td>Credit management view</td></tr>
-<tr><td><span class="badge" style="background:#1565c0;">GET</span></td><td>/account/compliance</td><td>MC/CPR compliance</td></tr>
-<tr><td><span class="badge" style="background:#e65100;">PUT</span></td><td>/account/update-customer/{id}</td><td>Update customer (credit recalculated)</td></tr>
+<tr><td>GET</td><td>/broker/load</td><td>Load listing with tabs</td></tr>
+<tr><td>POST</td><td>/broker/load-create</td><td>Create new load</td></tr>
+<tr><td>GET</td><td>/broker/edit-load/{id}</td><td>Edit load form</td></tr>
+<tr><td>POST</td><td>/broker/load/update/{id}</td><td>Update load</td></tr>
+<tr><td>GET</td><td>/broker/clone/load/{id}</td><td>Clone load</td></tr>
+<tr><td>GET</td><td>/broker/load/{id}/bol/pdf</td><td>Download BOL PDF</td></tr>
+<tr><td>POST</td><td>/broker/load/{id}/bol/save</td><td>Save BOL edit data</td></tr>
+<tr><td>GET</td><td>/broker/customer</td><td>Customer list</td></tr>
+<tr><td>POST</td><td>/broker/customer/create</td><td>Create customer</td></tr>
+<tr><td>GET</td><td>/broker/carrier</td><td>Carrier list</td></tr>
+<tr><td>POST</td><td>/broker/create/carrier</td><td>Create carrier</td></tr>
+<tr><td>GET</td><td>/broker/shipper</td><td>Shipper list</td></tr>
+<tr><td>GET</td><td>/broker/Consignee</td><td>Consignee list</td></tr>
 </table>
+
+<h3>17.3 Account Routes</h3>
+<table class="table-styled">
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td>GET</td><td>/account/accounting</td><td>Accounting dashboard</td></tr>
+<tr><td>GET</td><td>/account/compliance</td><td>Compliance dashboard</td></tr>
+<tr><td>GET</td><td>/account/reporting</td><td>Reports & analytics</td></tr>
+<tr><td>GET</td><td>/account/vendor-system</td><td>Vendor management</td></tr>
+<tr><td>GET</td><td>/account/carrier-verification</td><td>Carrier verification</td></tr>
+<tr><td>POST</td><td>/account/mc-chcek</td><td>MC check update</td></tr>
+<tr><td>POST</td><td>/account/cpr-check</td><td>CPR check update</td></tr>
+<tr><td>POST</td><td>/account/update-invoice-status/{id}</td><td>Mark as invoiced</td></tr>
+<tr><td>POST</td><td>/account/send-mail</td><td>Send invoice email</td></tr>
+<tr><td>GET</td><td>/account/credit</td><td>Credit management</td></tr>
+<tr><td>POST</td><td>/account/update-ar-aging-close</td><td>Close AR aging record</td></tr>
+<tr><td>GET</td><td>/account/all-status-loads</td><td>All Load Status AR view</td></tr>
+<tr><td>GET</td><td>/account/customers/export-credit-limit-log</td><td>Export credit limit log to Excel</td></tr>
+</table>
+
+<h3>17.4 Activity Logging</h3>
+<div class="code-block">// Every significant action is logged via helpers.php
+addToLog($customer_id, $load_id, $subject, $old_data, $new_data);
+
+// Log record contains:
+// - user_name, user_id, user_email
+// - IP address, full URL
+// - old_json (before state), new_json (after state)
+// - message (human-readable description)</div>
 </div>
 
-<!-- ==================== FOOTER ==================== -->
-<div style="margin-top:50px; padding-top:15px; border-top:3px solid #c5cae9; text-align:center; color:#666; font-size:10px; page-break-before: avoid;">
-<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1a237e"/><text x="20" y="25" text-anchor="middle" fill="white" font-size="8" font-weight="bold">CCI</text></svg>
-<p><strong>Cargo Convoy CRM - User Manual v3.0</strong><br>
-Confidential - Internal Use Only | July 2026<br>
-Generated from codebase branch: devSumit<br>
-&copy; 2026 Cargo Convoy Inc. All Rights Reserved.</p>
+<!-- FOOTER -->
+<div style="margin-top:60px; padding-top:20px; border-top:2px solid #c5cae9; text-align:center; color:#666; font-size:11px;">
+<p><strong>Cargo Convoy CRM - User Manual</strong><br>
+Version 3.1 | August 2026 | Confidential - Internal Use Only<br>
+Generated from codebase branch: devN | Routes: 303 | Views: 124</p>
 </div>
 
 </body>
