@@ -290,6 +290,7 @@ Route::post('account/load/update-remaining-amount', [AccountController::class, '
 		Route::get('account/allaccountmangerloadsExcel/{id}', [AccountController::class, 'allaccountmangerloadsloadsExcel'])->name('allaccountmangerloadsloadsExcel');
 		
 		Route::get('account/CreditReportingExcel', [AccountController::class, 'CreditReportingExcel'])->name('CreditReportingExcel');
+		Route::get('account/customers/export-credit-limit-log', [AccountController::class, 'exportCreditLimitLog'])->name('customers.exportCreditLimitLog');
 		Route::get('account/customerReportingExcell', [AccountController::class, 'customerReportingExcell'])->name('customerReportingExcell');
 		Route::get('account/customerDetailsReportingExcell', [AccountController::class, 'customerDetailsReportingExcell'])->name('customerDetailsReportingExcell');
 		Route::get('account/dispatcherReportingExcell', [AccountController::class, 'dispatcherReportingExcell'])->name('dispatcherReportingExcell');
