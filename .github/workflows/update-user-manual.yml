@@ -1,0 +1,98 @@
+name: Auto-Update User Manual
+
+# Triggers when code is pushed to devSumit branch
+on:
+  push:
+    branches: [devSumit]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-manual:
+    name: Regenerate User Manual
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout devSumit branch
+        uses: actions/checkout@v4
+        with:
+          ref: devSumit
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Puppeteer for PDF generation
+        run: npm install puppeteer
+
+      - name: Generate User Manual HTML from code
+        run: |
+          echo "==> Scanning codebase to update manual metadata..."
+          
+          # Count modules and routes
+          ROUTE_COUNT=$(grep -c "Route::" routes/web.php || echo "0")
+          CONTROLLER_COUNT=$(ls app/Http/Controllers/*.php | wc -l)
+          MODEL_COUNT=$(ls app/Models/*.php 2>/dev/null | wc -l || echo "0")
+          MIGRATION_COUNT=$(ls database/migrations/*.php | wc -l)
+          VIEW_COUNT=$(find resources/views -name "*.blade.php" | wc -l)
+          LAST_COMMIT=$(git log -1 --format="%h - %s (%ci)")
+          
+          # Update the manual's metadata section
+          sed -i "s|Generated from codebase branch:.*|Generated from codebase branch: devSumit<br>Last updated: $(date '+%Y-%m-%d %H:%M UTC')<br>Commit: ${LAST_COMMIT}<br>Routes: ${ROUTE_COUNT} | Controllers: ${CONTROLLER_COUNT} | Models: ${MODEL_COUNT} | Migrations: ${MIGRATION_COUNT} | Views: ${VIEW_COUNT}</p>|" docs/CRM_User_Manual.html
+          
+          echo "==> Manual HTML updated with latest stats"
+
+      - name: Generate PDF from HTML
+        run: |
+          node -e "
+          const puppeteer = require('puppeteer');
+          const fs = require('fs');
+          const path = require('path');
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
+            
+            const htmlPath = path.resolve('docs/CRM_User_Manual.html');
+            await page.goto('file://' + htmlPath, { waitUntil: 'networkidle0' });
+            
+            await page.pdf({
+              path: 'docs/CRM_User_Manual.pdf',
+              format: 'A4',
+              printBackground: true,
+              margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+              displayHeaderFooter: true,
+              headerTemplate: '<span></span>',
+              footerTemplate: '<div style=\"font-size:9px; width:100%; text-align:center; color:#999;\">Cargo Convoy CRM - User Manual | Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></div>'
+            });
+            
+            await browser.close();
+            console.log('==> PDF generated: docs/CRM_User_Manual.pdf');
+          })();
+          "
+
+      - name: Commit and push updated manual
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add docs/CRM_User_Manual.html docs/CRM_User_Manual.pdf
+          
+          if git diff --staged --quiet; then
+            echo "No changes to manual"
+          else
+            git commit -m "docs: Auto-update user manual [skip ci]"
+            git push origin devSumit
+          fi
+          
+          # Also update the sumit-user-manual branch
+          git checkout sumit-user-manual 2>/dev/null || git checkout -b sumit-user-manual
+          git merge devSumit --no-edit -X theirs || true
+          git push origin sumit-user-manual --force
