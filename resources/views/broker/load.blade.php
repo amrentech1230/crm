@@ -1573,7 +1573,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 var invoiceCharges = getInvoiceChargesTotal();
                 if (invoiceLimit <= 0) {
                     $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                        .text('No invoice credit limit available for TONU load.').removeClass('d-none');
+                        .text('You do not have invoicing limit. Cannot create TONU load.').removeClass('d-none');
                     $submitButton.prop('disabled', true).addClass('disabled');
                     zeroRateFields();
                     $form.data('credit-valid', false);
@@ -1581,7 +1581,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 }
                 if (invoiceCharges > invoiceLimit) {
                     $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                        .text('Invoice charges (' + formatCreditAmount(invoiceCharges) + ') exceed invoice credit limit (' + formatCreditAmount(invoiceLimit) + ').')
+                        .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
                         .removeClass('d-none');
                     $submitButton.prop('disabled', true).addClass('disabled');
                     $('#shipper_load_final_rate').val(0);
@@ -1627,9 +1627,19 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             }
 
             // Check invoice credit limit (invoice-checked charges only)
+            if (invoiceCharges > 0 && invoiceLimit <= 0) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('You do not have invoicing limit. Cannot add invoice charges.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
             if (invoiceCharges > 0 && invoiceCharges > invoiceLimit) {
                 $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                    .text('Invoice charges (' + formatCreditAmount(invoiceCharges) + ') exceed invoice credit limit (' + formatCreditAmount(invoiceLimit) + ').')
+                    .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
                     .removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled');
                 $('#shipper_load_final_rate').val(0);
