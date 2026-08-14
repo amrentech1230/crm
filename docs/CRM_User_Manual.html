@@ -68,8 +68,8 @@ h4 { color: #5c6bc0; font-size: 14px; margin-top: 15px; }
 Phone: 267-513-0420 | MC: 01512751 | DOT: 4014885
 </div>
 <div class="version">
-Version 2.0 | Document Generated: July 2026<br>
-Built with Laravel 11 | PHP 8.4
+Version 3.1 | Document Generated: August 2026<br>
+Built with Laravel 12 | PHP 8.4
 </div>
 </div>
 
@@ -580,6 +580,33 @@ Route::Post('account/loads-multipal-invoice', [AccountController::class, 'loadsM
 
 <h3>10.5 Vendor Management System</h3>
 <p>The Vendor System provides a consolidated view of all loads with carrier payment status, internal notes, and quick actions for the accounts payable team.</p>
+
+<h3>10.6 AR Aging Close (New)</h3>
+<div class="info-box"><strong>New Feature:</strong> Account team can now close aging records directly from the Paid tab when payments are fully reconciled.</div>
+<div class="process-step"><div class="step-num">1</div><div class="step-content"><strong>View Aging:</strong> See aging days (days since invoice) for each paid load</div></div>
+<div class="process-step"><div class="step-num">2</div><div class="step-content"><strong>Review Payment:</strong> Check excess/remaining amounts after partial payments</div></div>
+<div class="process-step"><div class="step-num">3</div><div class="step-content"><strong>Close Aging:</strong> Click "Close" to mark the aging record as reconciled</div></div>
+<p>Route: <code>POST /account/update-ar-aging-close</code></p>
+
+<h3>10.7 All Load Status AR View (New)</h3>
+<p>A comprehensive dashboard showing <strong>all loads across all statuses</strong> for the AR team. Includes:</p>
+<table class="table-styled">
+<tr><th>Feature</th><th>Description</th></tr>
+<tr><td>All Status Tabs</td><td>View Open, Delivered, Completed, Invoiced, Paid all in one page</td></tr>
+<tr><td>Advanced Filters</td><td>Filter by office, agent, date range, customer</td></tr>
+<tr><td>Excess/Remaining</td><td>Track overpayment and underpayment per load</td></tr>
+<tr><td>Bulk Actions</td><td>Process multiple loads at once</td></tr>
+</table>
+<p>Route: <code>GET /account/all-status-loads</code></p>
+
+<h3>10.8 Custom Invoice Subject (New)</h3>
+<p>Account team can now customize the email subject line when sending invoices. The default format is:</p>
+<div class="code-block">Invoice For Load #{load_no} (#{invoice_no}) REF #{reference_no}</div>
+<p>Users can edit this before sending, or leave it as the default.</p>
+
+<h3>10.9 Credit Limit Log Export (New)</h3>
+<p>Export the complete credit limit change history for all customers as an Excel spreadsheet. Useful for auditing credit changes over time.</p>
+<p>Route: <code>GET /account/customers/export-credit-limit-log</code></p>
 </div>
 
 <!-- SECTION 11: COMPLIANCE -->
@@ -892,6 +919,9 @@ MC - 01512751 | DOT - 4014885"</div>
 <tr><td>POST</td><td>/account/update-invoice-status/{id}</td><td>Mark as invoiced</td></tr>
 <tr><td>POST</td><td>/account/send-mail</td><td>Send invoice email</td></tr>
 <tr><td>GET</td><td>/account/credit</td><td>Credit management</td></tr>
+<tr><td>POST</td><td>/account/update-ar-aging-close</td><td>Close AR aging record</td></tr>
+<tr><td>GET</td><td>/account/all-status-loads</td><td>All Load Status AR view</td></tr>
+<tr><td>GET</td><td>/account/customers/export-credit-limit-log</td><td>Export credit limit log to Excel</td></tr>
 </table>
 
 <h3>17.4 Activity Logging</h3>
@@ -908,8 +938,8 @@ addToLog($customer_id, $load_id, $subject, $old_data, $new_data);
 <!-- FOOTER -->
 <div style="margin-top:60px; padding-top:20px; border-top:2px solid #c5cae9; text-align:center; color:#666; font-size:11px;">
 <p><strong>Cargo Convoy CRM - User Manual</strong><br>
-Version 2.0 | July 2026 | Confidential - Internal Use Only<br>
-Generated from codebase branch: devN</p>
+Version 3.1 | August 2026 | Confidential - Internal Use Only<br>
+Generated from codebase branch: devN | Routes: 303 | Views: 124</p>
 </div>
 
 </body>
