@@ -1,51 +1,4 @@
-<style>
-	.dashboard-page {
-		background: linear-gradient(135deg, #f4f7ff 0%, #fff 48%, #f0fbf8 100%);
-		min-height: 100vh;
-		padding: 1.5rem;
-	}
-	.dashboard-page .page-title-box {
-		background: linear-gradient(120deg, #4338ca, #0f766e);
-		border-radius: 18px;
-		padding: 1.25rem 1.5rem;
-		margin-bottom: 1.5rem;
-		box-shadow: 0 12px 28px rgba(67, 56, 202, .18);
-	}
-	.dashboard-page .page-title-box h4,
-	.dashboard-page .page-title-box .breadcrumb-item,
-	.dashboard-page .page-title-box .breadcrumb-item a { color: #fff !important; }
-	.dashboard-page .card {
-		border: 0;
-		border-radius: 18px;
-		box-shadow: 0 8px 24px rgba(30, 41, 59, .08);
-		overflow: hidden;
-		transition: transform .2s ease, box-shadow .2s ease;
-	}
-	.dashboard-page .card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(30, 41, 59, .14); }
-	.dashboard-page .row:first-of-type > div:nth-child(4n+1) .card { border-top: 4px solid #6366f1; }
-	.dashboard-page .row:first-of-type > div:nth-child(4n+2) .card { border-top: 4px solid #10b981; }
-	.dashboard-page .row:first-of-type > div:nth-child(4n+3) .card { border-top: 4px solid #f59e0b; }
-	.dashboard-page .row:first-of-type > div:nth-child(4n) .card { border-top: 4px solid #ec4899; }
-	.dashboard-page .avatar-title { box-shadow: 0 6px 14px rgba(0,0,0,.08); }
-	.dashboard-page .card-body { padding: 1.35rem; }
-	.dashboard-page .chart-container { padding: 1.5rem; }
-	.dashboard-page .chart-container h2 { color: #1e293b; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
-	.dashboard-page form { flex-wrap: wrap; align-items: flex-end; width: 100%; }
-	.dashboard-page form > div { flex: 1 1 145px; }
-	.dashboard-page form .d-flex.gap-3 { flex: 2 1 260px; }
-	.dashboard-page form .d-flex.align-items-end { flex: 0 1 auto; }
-	.dashboard-page label { color: #475569; font-size: .78rem; font-weight: 700; margin-bottom: .35rem; }
-	.dashboard-page .form-control { border: 1px solid #dbe3ef; border-radius: 9px; min-height: 40px; }
-	.dashboard-page .form-control:focus { border-color: #6366f1; box-shadow: 0 0 0 .2rem rgba(99,102,241,.15); }
-	.dashboard-page .btn { border: 0; border-radius: 9px; font-weight: 600; }
-	.dashboard-page .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
-	.dashboard-page .btn-success { background: linear-gradient(135deg, #059669, #14b8a6); }
-	.dashboard-page .accordion-item { border: 1px solid #edf2f7; margin-bottom: .5rem; border-radius: 10px !important; overflow: hidden; }
-	.dashboard-page .accordion-button { color: #334155; background: #f8fafc; }
-	.dashboard-page .accordion-button:not(.collapsed) { color: #4338ca; background: #eef2ff; box-shadow: none; }
-	@media (max-width: 768px) { .dashboard-page { padding: .75rem; } .dashboard-page form .d-flex.align-items-end { width: 100%; } .dashboard-page form .d-flex.align-items-end .btn { flex: 1; } }
-</style>
-<div class="container-fluid dashboard-page">
+<div class="container-fluid">
 	<!-- start page title -->
 	<div class="row">
 		<div class="col-12">
@@ -56,7 +9,7 @@
 				<div class="page-title-right">
 					<ol class="breadcrumb m-0">
 						<li class="breadcrumb-item"><a
-								href="javascript: void(0);">CCI</a></li>
+								href="javascript: void(0);">Upcube</a></li>
 						<li class="breadcrumb-item active">Dashboard</li>
 					</ol>
 				</div>
@@ -67,92 +20,6 @@
 
 	<div class="row">
 		<div class="col-xl-3 col-md-6">
-			<div class="card">
-				<div class="card-body">
-					<div class="d-flex">
-						<div class="flex-grow-1">
-							<p class="text-truncate font-size-14 mb-2">Total Revenue</p>
-							<h4 class="mb-2">${{ $revenue }}</h4>
-							
-						</div>
-						<div class="avatar-sm">
-							<span class="avatar-title bg-light text-primary rounded-3">
-								<i class="mdi mdi-currency-usd font-size-24"></i>
-							</span>
-						</div>
-					</div>
-				</div>
-				<!-- end cardbody -->
-			</div>
-			<!-- end card -->
-		</div>
-		<!-- end col -->
-		<div class="col-xl-3 col-md-6">
-			<div class="card">
-				<div class="card-body">
-					<div class="d-flex">
-						<div class="flex-grow-1">
-							<p class="text-truncate font-size-14 mb-2">Total Margin</p>
-							<h4 class="mb-2">${{ $finalTotal }}</h4>
-							
-						</div>
-						<div class="avatar-sm">
-							<span class="avatar-title bg-light text-success rounded-3">
-								<i class="mdi mdi-currency-usd font-size-24"></i>
-							</span>
-						</div>
-					</div>
-				</div>
-				<!-- end cardbody -->
-			</div>
-			<!-- end card -->
-		</div>
-		<!-- end col -->
-		<div class="col-xl-3 col-md-6">
-			<div class="card">
-				<div class="card-body">
-					<div class="d-flex">
-						<div class="flex-grow-1">
-							<p class="text-truncate font-size-14 mb-2">Yesterday Loads
-							</p>
-							<h4 class="mb-2">{{ $loadCount }}</h4>
-							
-						</div>
-						<div class="avatar-sm">
-							<span class="avatar-title bg-light text-primary rounded-3">
-								<i class="ri-shopping-cart-2-line font-size-24"></i>
-							</span>
-						</div>
-					</div>
-				</div>
-				<!-- end cardbody -->
-			</div>
-			<!-- end card -->
-		</div>
-		<!-- end col -->
-		<div class="col-xl-3 col-md-6">
-			<div class="card">
-				<div class="card-body">
-					<div class="d-flex">
-						<div class="flex-grow-1">
-							<p class="text-truncate font-size-14 mb-2">Total Customer
-								Added
-							</p>
-							<h4 class="mb-2">{{ $newCoustmerAdded }}</h4>
-							
-						</div>
-						<div class="avatar-sm">
-							<span class="avatar-title bg-light text-success rounded-3">
-								<i class="ri-user-3-line font-size-24"></i>
-							</span>
-						</div>
-					</div>
-				</div>
-				<!-- end cardbody -->
-			</div>
-			<!-- end card -->
-		</div>
-				<div class="col-xl-3 col-md-6">
 			<div class="card">
 				<div class="card-body">
 					<div class="d-flex">
@@ -249,25 +116,14 @@
 			<div class="card">
 				<div class="card-body">
 					<div class="d-flex">
-					<form class="d-flex gap-3" method="GET" action="{{ url()->current() }}">
+					<form class="d-flex gap-3">
 					  <div>
-						<label for="periodSelect">Period</label>
-						<select name="period" id="periodSelect" class="form-control">
-							<option value="weekly" {{ request('period', 'weekly') == 'weekly' ? 'selected' : '' }}>Weekly</option>
-							<option value="monthly" {{ request('period') == 'monthly' ? 'selected' : '' }}>Monthly</option>
-							<option value="yearly" {{ request('period') == 'yearly' ? 'selected' : '' }}>Yearly</option>
-							<option value="custom" {{ request('period') == 'custom' ? 'selected' : '' }}>Date Range</option>
-						</select>
+						<label>Start Date</label>
+					    <input type="date" name="startdate" class="form-control" placeholder="start-date" value="{{ $_GET['startdate'] ?? '' }}">
 					  </div>
-					  <div id="customDateRange" class="d-flex gap-3 {{ request('period') == 'custom' ? '' : 'd-none' }}">
-						<div>
-							<label for="startdate">From</label>
-							<input type="date" id="startdate" name="startdate" class="form-control" value="{{ request('startdate') }}">
-						</div>
-						<div>
-							<label for="enddate">To</label>
-							<input type="date" id="enddate" name="enddate" class="form-control" value="{{ request('enddate') }}">
-						</div>
+					  <div>
+						<label>End Date</label>
+						 <input type="date" name="enddate" class="form-control" placeholder="end-date" value="{{ $_GET['enddate'] ?? '' }}">
 					  </div>
 					  <div>
 						<label>Office</label>
@@ -294,16 +150,10 @@
 							
 						</select>
 					  </div>
-					  <div class="d-flex align-items-end gap-2">
-					  <button type="submit" class="btn btn-primary waves-effect waves-light mt-4" name="submit" value="filter">Filter</button>
-					  <button type="submit" class="btn btn-success waves-effect waves-light mt-4" name="export" value="excel">Download Excel</button>
+					  <div>
+					  <input type="submit" class="btn btn-primary waves-effect waves-light mt-4" name="submit" value="Filter">
 					  </div>
 					</form>
-					<script>
-						document.getElementById('periodSelect').addEventListener('change', function () {
-							document.getElementById('customDateRange').classList.toggle('d-none', this.value !== 'custom');
-						});
-					</script>
 					</div>
 				</div>
 				<!-- end cardbody -->

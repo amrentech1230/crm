@@ -118,10 +118,7 @@
                                             <th>Invoice Date</th>
                                             <th>Paper work Received Date</th>
                                             <th>Payment Receiving Date</th>
-                                            <th>Account Receiving Status</th>
                                             <th>Customer Payment Received Amount</th>
-                                            <th>Remaining Amount</th>
-                                            <th>Excess Amount</th>
                                             <th>Customer Payment Mark Date</th>
                                             <th>Customer Rate</th>
                                             <th>Carrier Rate</th>
@@ -132,6 +129,7 @@
                                             <th>Customer Short Pay</th>
                                             <th>Macro Status</th>
                                             <th>Macro Number</th>
+                                            <th>Aging</th>
 
                                         </tr>
                                     </thead>
@@ -150,8 +148,8 @@
 										<a href="{{route('CreditReportingExcel')}}">
 											<button class="btn btn-primary waves-effect waves-light mb-3 exlbtn" >All Limit Excel</button>
 										</a>
-                                        <a href="{{ route('customers.exportCreditLimitLog') }}" class="btn btn-success">
-                                            <i class="fa fa-download"></i> Download Credit Limit Log
+                                         <a href="{{ route('customers.exportCreditLimitLog') }}">
+                                            <button class="btn btn-primary waves-effect waves-light mb-3 exlbtn" > Download Credit Limit Log</button>
                                         </a>
 									</span>
                                     <thead>

@@ -110,13 +110,6 @@ table.dataTable tbody > tr.selected td p {
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#delivered" role="tab"
-                                    aria-selected="true">
-                                    <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
-                                    <span class="d-none d-sm-block">Delivered</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
                                 <a class="nav-link" data-bs-toggle="tab" href="#completed" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
@@ -191,25 +184,6 @@ table.dataTable tbody > tr.selected td p {
                                     {{ $open->setPageName('open')->links() }}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="delivered" role="tabpanel">
-                                <table id="datatable-buttons-delivered" class="table table-striped table-bordered dt-responsive nowrap accounts-table"
-                                    style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                                    <thead>
-                                        <tr>
-                                            
-                                            <th>Load #</th>
-                                           
-                                        </tr>
-                                    </thead>
-
-                                    <tbody id="delivered-search">
-                                        @include('accounts.partials.accounting_delivered')
-                                    </tbody>
-                                </table>
-                                <div class="custom-pagination pagination-container">
-                                    {{ $delivered->setPageName('delivered')->links() }}
-                                </div>
-                            </div>
                             <div class="tab-pane" id="completed" role="tabpanel">
                                 <table id="datatable-buttons-completed" class="table table-striped table-bordered dt-responsive nowrap accounts-table"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -246,7 +220,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination" id="completed-search">
-                                    {{ $complete->setPageName('completed')->links() }}
+                                    {{ $complete->setPageName('complete')->links() }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced" role="tabpanel">
@@ -394,10 +368,6 @@ table.dataTable tbody > tr.selected td p {
             resultContainer = '#open-search';
             tableSelector = '#datatable-buttons-open';
 
-        } else if (activeTab === '#delivered') {
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-
         } else if (activeTab === '#completed') {
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
@@ -468,13 +438,6 @@ $(document).ready(function () {
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
-        }   else if (target === '#delivered') {
-            $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'delivered');
-            inputSelector = '#delivered input[name="query"]';
-            ajaxUrl = '/account/accounting_delivered_search';
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-
         } else if (target === '#invoiced') {
             $('form.app-search-load .position-relative-load, form.app-search .position-relative').attr('id', 'invoiceds');
             inputSelector = '#invoiceds input[name="query"]';
@@ -492,7 +455,6 @@ $(document).ready(function () {
         } else {
             return; // Exit if it's not one of the expected tabs
         }
-
 
         $(inputSelector).on('keyup', function () {
             let query = $(this).val().trim();
@@ -518,6 +480,7 @@ $(document).ready(function () {
                         }
 
                         $(resultContainer).html(response);
+
                         $(tableSelector).DataTable({
                             responsive: true,
                             dom: 'Bfrtip',
@@ -539,7 +502,6 @@ $(document).ready(function () {
 
         initializedTabs[target] = true;
     }
-
 	
 
     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
@@ -566,7 +528,6 @@ $(document).ready(function() {
         '#completed': { selector: '#datatable-buttons-completed', initialized: false },
         '#invoiced': { selector: '#datatable-buttons-invoiced', initialized: false },
         '#invoiced_paid': { selector: '#datatable-buttons-invoiced_paid', initialized: false },
-        '#delivered': { selector: '#datatable-buttons-delivered', initialized: false }
     };
 
     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
@@ -612,21 +573,14 @@ $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
             resultContainer = '#open-search';
             tableSelector = '#datatable-buttons-open'; 
 
-        } else if (target === '#delivered') {
-            $('form.app-search .position-relative').attr('id', 'delivered');
-            inputSelector = '#delivered input[name="query"]';
-            ajaxUrl = '/account/accounting_delivered_search';
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-
-        }else if (target === '#completed') {
+        } else if (target === '#completed') {
             $('form.app-search .position-relative').attr('id', 'completeds');
             inputSelector = '#completeds input[name="query"]';
             ajaxUrl = '/account/accounting_completed_search';
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
-        }  else if (target === '#invoiced') {
+        } else if (target === '#invoiced') {
             $('form.app-search .position-relative').attr('id', 'invoiceds');
             inputSelector = '#invoiceds input[name="query"]';
             ajaxUrl = '/account/accounting_invoiced_search';
@@ -691,17 +645,12 @@ $('input[name="loadquery"]').on('keyup', function () {
             resultContainer = '#open-search';
             tableSelector = '#datatable-buttons-open'; 
 
-        } else if (target === '#delivered') {
-            ajaxUrl = '/account/load_search_by_load';
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-
         } else if (target === '#completed') {
             ajaxUrl = '/account/load_search_by_load';
             resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
 
-        }  else if (target === '#invoiced') {
+        } else if (target === '#invoiced') {
             ajaxUrl = '/account/load_search_by_load';
             resultContainer = '#invoiced-search';
             tableSelector = '#datatable-buttons-invoiced';
@@ -731,29 +680,13 @@ $('input[name="loadquery"]').on('keyup', function () {
 
             $(resultContainer).html(response);
 
-            // Initialize DataTable on the table inside the result container.
-            // Some AJAX responses may inject the table without the exact expected selector,
-            // so prefer finding the first table in the container and initialize it.
-            var $table = $(tableSelector);
-            if ($table.length === 0) {
-                $table = $(resultContainer).find('table').first();
-            }
-
-            if ($.fn.DataTable.isDataTable($table)) {
-                $table.DataTable().destroy();
-            }
-
-            $table.DataTable({
+            $(tableSelector).DataTable({
                 responsive: true,
                 dom: 'Bfrtip',
                 order: [[0, 'desc']],
                 pageLength: 100,
-                searching: false,
-                buttons: ['colvis'],
-                // ensure columns are adjusted after draw
-                initComplete: function () {
-                    this.api().columns.adjust().responsive.recalc();
-                }
+				searching: false, 
+                buttons: [ 'colvis' ],
             });
 
             $('.loader-container').addClass('hide');
@@ -766,5 +699,41 @@ $('input[name="loadquery"]').on('keyup', function () {
 });
 
 </script>
+<!-- <script>
+document.addEventListener("DOMContentLoaded", function () {
+    let invoicedTable = $('#datatable-buttons-invoiced').DataTable({
+        responsive: true,
+        dom: 'Bfrtip',
+        buttons: ['copy', 'excel', 'pdf', 'colvis'],
+        pageLength: 100,
+    });
 
+    const form = document.getElementById("loadSearchForm");
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        let formData = new FormData(form);
+
+        fetch("{{ route('loads.search.invoice') }}", {
+            method: "POST",
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Clear DataTable and replace rows
+            invoicedTable.clear();
+
+            // Convert response to rows
+            let tempDom = $('<tbody>').html(html);
+            invoicedTable.rows.add(tempDom.find('tr')).draw();
+        })
+        .catch(err => console.error(err));
+    });
+});
+
+</script> -->
 @endsection

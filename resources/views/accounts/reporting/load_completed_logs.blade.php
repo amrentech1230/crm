@@ -157,31 +157,12 @@ try {
 
                                     <td class="dynamic-data">{{ $log->paper_work_date ? \Carbon\Carbon::parse($log->paper_work_date)->format('m/d/Y') : '' }}</td>
                                     <td class="dynamic-data">{{ $log->payment_receiving_date ? \Carbon\Carbon::parse($log->payment_receiving_date)->format('m/d/Y') : '' }}</td>
-                                    @php
-                                        $shipperRate = floatval($log->shipper_load_final_rate ?? 0);
-                                        $receivingAmount = floatval($log->receiving_amount ?? 0);
-                                        $paymentStatus = 'Pending';
-                                        $remainingAmount = 0.0;
-                                        $excessAmount = 0.0;
-
-                                        if ($shipperRate > 0 && $receivingAmount > 0) {
-                                            $difference = $receivingAmount - $shipperRate;
-                                            $remainingAmount = max($shipperRate - $receivingAmount, 0.0);
-                                            $excessAmount = max($difference, 0.0);
-                                            $paymentStatus = abs($difference) < 0.005 ? 'Full Payment' : ($difference > 0 ? 'Excess Payment' : 'Short Payment');
-                                        } elseif ($shipperRate > 0) {
-                                            $remainingAmount = $shipperRate;
-                                            $paymentStatus = 'Pending';
-                                        }
-                                    @endphp
-                                    <td class="dynamic-data">{{ $paymentStatus }}</td>
+                                    
                                     <td class="dynamic-data">
                                         @if($log->invoice_status == "Paid Record") 
                                             {{ $log->receiving_amount }} 
                                         @endif
                                     </td>
-                                    <td class="dynamic-data">{{ number_format($remainingAmount, 2) }}</td>
-                                    <td class="dynamic-data">{{ number_format($excessAmount, 2) }}</td>
                                     <td class="dynamic-data">{{ $log->invoice_status_date ? \Carbon\Carbon::parse($log->invoice_status_date)->format('m/d/Y') : '' }}</td>
                                     @php
                                         
@@ -200,5 +181,20 @@ try {
                                     <td class="dynamic-data">{{ $log->load_advance_rec_amount }}</td>
                                     <td class="dynamic-data">{{ $log->macro }}</td>
                                     <td class="dynamic-data">{{ $log->no_of_macro }}</td>
+                                    <td class="dynamic-data">
+@php
+    $invoiceDate = \Carbon\Carbon::parse($log->invoice_date)->addHours(24);
+    $now = \Carbon\Carbon::now();
+
+    $agingDays = 0;
+
+    if ($now->greaterThan($invoiceDate)) {
+        $hours = $invoiceDate->diffInHours($now);
+        $agingDays = ceil($hours / 24);
+    }
+@endphp
+
+{{ $agingDays }} Days
+</td>
                                 </tr>
                                 @endforeach

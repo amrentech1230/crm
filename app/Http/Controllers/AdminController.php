@@ -472,7 +472,8 @@ class AdminController extends Controller
 		$customer = Customer::where('status', 'Approved')->get();
 		$equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
-        return view('admin.create_load', compact('customer','equipmentType','shipmentType'));
+         $users = User::where('role_id', 21)->get();
+        return view('admin.create_load', compact('customer','equipmentType','shipmentType','users'));
     } 
 
     public function createuser(Request $request)
@@ -1954,6 +1955,7 @@ public function update_password(Request $request)
     public function loadUpdate(Request $request, $id)
     {
 
+// dd($request->all());
         $load = Load::findOrFail($id);
 
          if(empty($request->input('shipper_load_final_rate'))){
@@ -2439,6 +2441,17 @@ public function update_password(Request $request)
 		$load->pre_advance = $request->input('pre_advance') ?? '';
         $load->paper_work_date = !empty($request->paper_work_date) ? $request->paper_work_date : null;
         $load->payment_receiving_date = $request->filled('payment_receiving_date') ? $request->payment_receiving_date : null;
+        $load->invoice_status_date = $request->filled('invoice_status_date') ? $request->invoice_status_date : null;
+        // $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on') ?? '';
+        $status = $request->input('carrier_mark_as_paid', 'Not Paid');
+
+        $load->carrier_mark_as_paid = $status;
+
+        if ($status === 'Paid') {
+            $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on') ?? ''; // or now()->format('d-m-Y') if TEXT column
+        } else {
+            $load->load_carrier_due_date_on = null;
+        }
         $currentDateTime = Carbon::now();  // Get the current timestamp
         if ($request->input('load_status') === 'Delivered') {
             // When the load status is 'Delivered', add the actual delivery date

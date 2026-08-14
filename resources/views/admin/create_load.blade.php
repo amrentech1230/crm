@@ -114,16 +114,24 @@
                                         </select>
                                     </div>
                                 </div>
-
-
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Dispatcher <code>*</code></label>
                                         
-                                        <input class="form-control" name="load_dispatcher" required readonly
-                                            style="width: 100%;" value="{{Auth::user()->name}}">
+                                            <!-- Show select normally -->
+                                            <select class="form-control mySelect2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
+                                                <option value="">Select a Broker</option>
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}" >
+                                                        {{ $user->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <input type="hidden" id="dispatcher_user_id" name="dispatcher_user_id" value="{{ $user->user_id }}">
+
                                     </div>
                                 </div>
+
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Status</label>
@@ -208,6 +216,17 @@
                                             @foreach($equipmentType as $equipment)
                                             <option value="{{$equipment->id}}">{{$equipment->name}}</option>
                                             @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                                                <div class="col-md-2 mb-2">
+                                    <div class="form-group">
+                                        <label>CMT Agent</label>
+                                        <select class="form-control" name="cmt_agent" required readonly
+                                            style="width: 100%;">
+                                            <option value="None">None</option>
+                                            <option value="Rachel">Rachel</option>
+                                            <option value="Amelia">Amelia</option>
                                         </select>
                                     </div>
                                 </div>

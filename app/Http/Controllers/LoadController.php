@@ -472,7 +472,7 @@ if (!empty($term)) {
         $newLoad->load_carrier = $originalLoad->load_carrier ?? '';
         $newLoad->load_bill_to = $originalLoad->load_bill_to ?? '';
         $newLoad->load_status = 'Open';
-        $newLoad->load_workorder = $originalLoad->load_workorder ?? '';
+        $newLoad->load_workorder = '';
         $newLoad->load_payment_type = $originalLoad->load_payment_type ?? '';
         $newLoad->load_type = $originalLoad->load_type ?? '';
         $newLoad->load_pds = $originalLoad->load_pds ?? '';
@@ -529,7 +529,7 @@ if (!empty($term)) {
         $newLoad->cpr_check = 'Not Approved';
         $newLoad->carrier_dot = $originalLoad->carrier_dot ??  '';
         $newLoad->carrier_id = $originalLoad->carrier_id ?? '';
-        $newLoad->customer_refrence_number = $originalLoad->customer_refrence_number ?? '';
+        $newLoad->customer_refrence_number = '';
         $newLoad->save();
         $insertedId = $newLoad->id;
         $newLoad->load_number = $insertedId;

@@ -1,5 +1,6 @@
 @extends('layout.compact.app')
 @section('content')
+
 <style>
     ul#navTabs,
     ul#navTabs1 {
@@ -115,23 +116,24 @@
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
                                         <div class="input-group">
-                                            <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to"   @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly  @endif>
-                                                <option value="">Select Customer</option>
+                                            @if(!empty($post->customer_id))
+                                                <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                    <option value="">Select Customer</option>
                                                     @foreach($allcustomer as $cust)
-													   @if($post->user->id == $cust->user_id)
-                                                        <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
+                                                        @if($post->user->id == $cust->user_id)
+                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
                                                                 @if($post->load_bill_to == $cust->customer_name) selected @endif>
-                                                            {{ $cust->customer_name }}
-                                                        </option> 
-														@endif
+                                                                {{ $cust->customer_name }}
+                                                            </option>
+                                                        @endif
                                                     @endforeach
-                                            </select>
+                                                </select>
+                                            @else
+                                                <input type="text" class="form-control" name="load_bill_to" value="{{ $post->load_bill_to }}" readonly>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
-
-
-
                                <input type="hidden" id="customer_id" name="customer_id" value="">
 
 
@@ -280,6 +282,15 @@
                                         </select>
                                     </div>
                                 </div>
+                                @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-2 mb-2">
+                                    <div class="form-group">
+                                        <label>Carrier Paid Date</label>
+                                        <input type="date" class="form-control" name="load_carrier_due_date_on" id="load_carrier_due_date_on" value="{{ !empty($post->load_carrier_due_date_on) ? \Carbon\Carbon::parse($post->load_carrier_due_date_on)->format('Y-m-d') : '' }}">
+                                    </div>
+                                </div>
+                                @endif
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Equipment Type
@@ -333,14 +344,22 @@
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Customer Payment Terms</label>
-                                     
-<input type="text" 
-       class="form-control" 
-       name="invoicing_payment_terms"  
-       id="invoicing_payment_terms" 
-       value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                        <input type="text" 
+                                            class="form-control" 
+                                            name="invoicing_payment_terms"  
+                                            id="invoicing_payment_terms" 
+                                            value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                                                            </div>
+                                </div>
+                                    @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-3 mb-2">
+                                    <div class="form-group">
+                                        <label>Customer Paid Date</label>
+                                        <input type="date" class="form-control" name="invoice_status_date" id="invoice_status_date" value="{{ !empty($post->invoice_status_date) ? \Carbon\Carbon::parse($post->invoice_status_date)->format('Y-m-d') : '' }}">
                                     </div>
                                 </div>
+                                @endif
 								
 
                             </div>
@@ -363,7 +382,7 @@
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
+                                        <input type="text" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
                                             autocomplete="off" id="load_shipper_rate" required style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
                                         
                                     </div>
@@ -738,10 +757,19 @@
                                     </div>
                                 </div>
 
-                                                                <div class="col-md-2 mb-2">
+                                <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Carrier Payment Status</label>
-                                        <input type="text" class="form-control" readonly name="carrier_mark_as_paid" id="carrier_mark_as_paid" value="{{ $post->carrier_mark_as_paid ?? 'Not Paid' }}">
+                                            <select class="form-control" name="carrier_mark_as_paid">
+                                                <option value="">Select Carrier Payment Status</option>
+                                                <option value="Not Paid" {{ $post->carrier_mark_as_paid == 'Not Paid' ? 'selected' : '' }}>
+                                                    Not Paid
+                                                </option>
+                                                <option value="Paid" {{ $post->carrier_mark_as_paid == 'Paid' ? 'selected' : '' }}>
+                                                    Paid
+                                                </option>
+                                            </select>
+                                     
                                     </div>
                                 </div>
                             </div>
@@ -2379,18 +2407,20 @@ $(document).on('click', '#customerInfoBtn', function() {
 });
 
 $(document).ready(function() {
-    var $select = $('#load_bill_to');
+    var $target = $('#load_bill_to');
     var $hidden = $('#customer_id');
 
-    // Set hidden input on page load to match selected option
-    var initialId = $select.find(':selected').data('id');
-    $hidden.val(initialId || '');
+    if ($target.is('select')) {
+        var initialId = $target.find(':selected').data('id');
+        $hidden.val(initialId || '');
 
-    // Update hidden input whenever customer changes
-    $select.on('change', function() {
-        var selectedId = $(this).find(':selected').data('id');
-        $hidden.val(selectedId || '');
-    });
+        $target.on('change', function() {
+            var selectedId = $(this).find(':selected').data('id');
+            $hidden.val(selectedId || '');
+        });
+    } else {
+        $hidden.val($hidden.val() || '');
+    }
 });
 
 

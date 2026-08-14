@@ -146,7 +146,7 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Status</label>
-                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status ?? '' }}"
+                                        <input class="form-control" name="load_status" id="load_status" value="{{ $post->load_status }}" value="{{ $post->load_status }}"
                                             readonly style="width: 100%;">
                                     </div>
                                 </div>
@@ -232,7 +232,6 @@
                             </div>
                         </div>
 
-                        <!-- Customer section -->
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 16px; text-align: left; font-weight: 700; margin-left: 0; font-family: 'Poppins';">
@@ -244,8 +243,15 @@
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
-                                            autocomplete="off" id="load_shipper_rate" required style="width: 100%;">
+                                        <input type="number"
+    class="form-control number value"
+    name="load_shipper_rate"
+    value="{{ $post->load_shipper_rate }}"
+    autocomplete="off"
+    id="load_shipper_rate"
+    required
+    {{ $post->cpr_check == 'Verified' ? 'readonly' : '' }}
+    style="width: 100%;">
                                         
                                     </div>
                                 </div>
@@ -362,7 +368,7 @@
 
 
                                                         <!-- Container for new rows -->
-                                                        <div id="chargeRowsContainer" data-row-index="{{ count($shipperCharges) }}"></div>
+                                                        <div id="chargeRowsContainer"></div>
                                                     </div>
                                                 </div>
                                                 <div class="text-center mb-2 mt-2">
@@ -451,7 +457,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                         <label>Carrier Rate
                                             <code>*</code></label>
                                         <input type="text" class="form-control" id="load_carrier_fee"
-                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required>
+                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required @if($post->cpr_check == 'Verified') readonly @endif>
                                         <span id="error_load_carrier_fee" style="color: red;font-size: 9px !important; display: none;">Only numbers
                                             and decimals allowed</span>
                                     </div>
@@ -460,7 +466,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <div class="form-group">
                                         <label>FSC Rate %</label>
                                         <input type="number" name="load_billing_fsc_rate" id="load_billing_fsc_rate"
-                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required>
+                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required @if($post->cpr_check == 'Verified') readonly @endif>
                                     </div>
                                 </div>
                                 @php
@@ -1291,7 +1297,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>Load Number</th>
                                     <td>
-                                        <input class="editable-field border-0 w-100" data-bol-field="load_number"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1300,7 +1306,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>BOL Number</th>
                                     <td>
-                                        <input class="editable-field border-0 w-100" data-bol-field="bol_number"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1308,11 +1314,11 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Ship Date</th>
-                                    <td>
                                         @php
-                                            $shipper_appointment = json_decode($post->load_shipper_appointment,true);
-                                            $shipDateFormatted = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
+                                            $shipper_appointment =
+                                            json_decode($post->load_shipper_appointment,true);
                                         @endphp
+                                    <td>
                                         <input class="editable-field border-0 w-100"
                                             value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
                                             readonly style="font-weight: 900; color: #555;">
@@ -1321,23 +1327,30 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
                                 <tr>
                                     <th>Delivery Date</th>
-                                    @php
-                                        $consignee_appointment = json_decode($post->load_consignee_appointment,true);
-                                        $deliveryDateFormatted = '-';
-                                        if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
-                                            try {
-                                                $deliveryDateFormatted = \Carbon\Carbon::parse(
-                                                    $consignee_appointment[0]['appointment']
-                                                )->format('m-d-Y');
-                                            } catch (\Exception $e) {
-                                                $deliveryDateFormatted = '-';
-                                            }
-                                        }
-                                    @endphp
                                     <td>
-                                        <input class="editable-field border-0 w-100" data-bol-field="delivery_date"
-                                            value="{{ $deliveryDateFormatted }}" style="font-weight: 900; color: #555;"
-                                            readonly>
+                                    @php
+                                            $consignee_appointment =
+                                            json_decode($post->load_consignee_appointment,true);
+                                    @endphp
+@php
+$formattedDate = '-';
+
+if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
+
+    try {
+        $formattedDate = \Carbon\Carbon::parse(
+            $consignee_appointment[0]['appointment']
+        )->format('m-d-Y');
+
+    } catch (\Exception $e) {
+        $formattedDate = '-';
+    }
+}
+@endphp
+
+<input class="editable-field border-0 w-100"
+    value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
+    readonly>
                                     </td>
                                 </tr>
                             </table>
@@ -1372,8 +1385,9 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
     }
 @endphp
 
-<textarea class="form-control editable-field border-0" data-bol-field="shipper_text"
-    rows="6" readonly>{{ trim($shipperText) }}</textarea>
+<textarea class="form-control editable-field border-0"
+    rows="6"
+    readonly>{{ trim($shipperText) }}</textarea>
                             </div>
                         </div>
 
@@ -1400,7 +1414,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
     }
 @endphp
                                 <textarea class="form-control editable-field border-0"
-                                    rows="6" data-bol-field="consignee_text"
+                                    rows="5"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
                         </div>
@@ -1414,8 +1428,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">3rd Party Billing</h6>
 
-                                <textarea class="form-control editable-field border-0" data-bol-field="third_party_billing_text"
-                                    rows="6"
+                                <textarea class="form-control editable-field border-0"
+                                    rows="5"
                                     readonly></textarea>
                             </div>
                         </div>
@@ -1423,8 +1437,9 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                         <div class="col-md-6">
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">Transportation Company</h6>
-                                <textarea class="form-control editable-field border-0" data-bol-field="transportation_company_text"
-                                rows="6"
+
+                                <textarea class="form-control editable-field border-0"
+                                rows="5"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
@@ -1563,22 +1578,22 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
         <td style="width:70%; vertical-align:top;">
 
             <h6 class="fw-bold mb-2">Notes:</h6>
-            <textarea class="form-control editable-field border-0" data-bol-field="notes_text"
+
+            <textarea class="form-control editable-field border-0"
                 rows="7"
                 readonly>{{ $post->notes ?? '' }}</textarea>
 
         </td>
 
         <!-- Right Side -->
-        <td style="width:30%; padding:0; vertical-align:top;">
+        <td style="width:30%; padding:0;">
 
             <table class="table table-bordered mb-0 h-100">
 
                 <tr>
                     <td>
                         <strong>C.O.D. Amount:</strong> <input type="text"
-                class="form-control editable-field border-0" data-bol-field="cod_amount"
-                value="$0.00"
+                class="form-control editable-field border-0" value="$0.00"
                 readonly>
                     </td>
                 </tr>
@@ -1586,8 +1601,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <tr>
                     <td>
                         <strong>C.O.D. Fee:</strong> <input type="text"
-                class="form-control editable-field border-0" data-bol-field="cod_fee"
-                value="Collect"
+                class="form-control editable-field border-0" value="Collect"
                 readonly>
                     </td>
                 </tr>
@@ -1595,8 +1609,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 <tr>
                     <td>
                         <strong>Declared Value:</strong> <input type="text"
-                class="form-control editable-field border-0" data-bol-field="declared_value"
-                value=" $0.00"
+                class="form-control editable-field border-0" value=" $0.00"
                 readonly>
                     </td>
                 </tr>
@@ -1643,49 +1656,20 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
     <tr>
 
         <td>
-            <input type="text" class="form-control editable-field border-0" readonly>
+            <input type="text"
+                class="form-control editable-field border-0"
+                readonly>
         </td>
 
         <td>
-            <input type="text" class="form-control editable-field border-0" readonly>
+            <input type="text"
+                class="form-control editable-field border-0"
+                readonly>
         </td>
 
         <td>
-            <input type="text" class="form-control editable-field border-0" readonly>
-        </td>
-
-    </tr>
-
-    <!-- Row 3 -->
-    <tr>
-
-        <th>
-            <strong>Per</strong>
-        </th>
-
-        <th>
-            <strong>Per</strong>
-        </th>
-
-        <th>
-            <strong>Time</strong>
-        </th>
-
-    </tr>
-
-    <!-- Row 4 -->
-    <tr>
-
-        <td>
-            <input type="text" class="form-control editable-field border-0" readonly>
-        </td>
-
-        <td>
-            <input type="text" class="form-control editable-field border-0" readonly>
-        </td>
-
-        <td>
-            <input type="text" class="form-control editable-field border-0"
+            <input type="text"
+                class="form-control editable-field border-0"
                 readonly>
         </td>
 
@@ -1744,21 +1728,30 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
 <tr>
     <td>
-        <input type="text" class="form-control editable-field border-0" readonly>
+        <input type="text"
+            class="form-control editable-field border-0"
+            readonly>
     </td>
         <td>
-        <input type="text" class="form-control editable-field border-0" readonly>
+        <input type="text"
+            class="form-control editable-field border-0"
+            readonly>
     </td>
         <td>
-        <input type="text" class="form-control editable-field border-0" readonly>
+        <input type="text"
+            class="form-control editable-field border-0"
+            readonly>
     </td>
         <td>
-        <input type="text" class="form-control editable-field border-0"
+        <input type="text"
+            class="form-control editable-field border-0"
             readonly>
     </td>
 </tr>
 
 </table>
+
+
                 </div>
 
             </div>
@@ -1778,7 +1771,6 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
 <script>
 
 function initChargeRowValidation() {
@@ -2089,7 +2081,7 @@ $(document).ready(function () {
                 var finalrate = final_total_rate - checkedtotal;
                 
                  $.ajax({
-                        url: "{{ route('edit.check.remaing.limit') }}",
+                        url: '{{ route('edit.check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
@@ -2128,7 +2120,7 @@ $(document).ready(function () {
     </script>
 
 <script>
-let rowIndex = parseInt($('#chargeRowsContainer').data('row-index') || 0, 10); // Start index after existing rows
+let rowIndex = {{ count($shipperCharges) }}; // Start index after existing rows
 
 $(document).ready(function () {
     $('#addChargeBtn').click(function () {
@@ -2197,10 +2189,10 @@ $(document).ready(function () {
     function RestrictionOTR() {
        
         if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
+            // $('#load_shipper_rate').removeAttr('readonly');
+            // $('#load_fsc_rate').removeAttr('readonly');
+            // $('#load_carrier_fee').removeAttr('readonly');
+            // $('#load_billing_fsc_rate').removeAttr('readonly');
         }
     }
 
@@ -2230,10 +2222,10 @@ $(document).ready(function () {
     const shippmentloadTypeVal = $shippmentloadType.val();
 
     if (loadTypeVal === "OTR") {
-        $('#load_shipper_rate').removeAttr('readonly');
-        $('#load_fsc_rate').removeAttr('readonly');
-        $('#load_carrier_fee').removeAttr('readonly');
-        $('#load_billing_fsc_rate').removeAttr('readonly');
+        // $('#load_shipper_rate').removeAttr('readonly');
+        // $('#load_fsc_rate').removeAttr('readonly');
+        // $('#load_carrier_fee').removeAttr('readonly');
+        // $('#load_billing_fsc_rate').removeAttr('readonly');
 
     } else if (shippmentloadTypeVal === "TONU") {
         // Allow editing shipper rate for TONU
@@ -2246,10 +2238,10 @@ $(document).ready(function () {
                 .css('pointer-events', 'none')
                 .css('background-color', '#e9ecef');
 
-            $('#load_shipper_rate').attr('readonly', true);
-            $('#load_fsc_rate').attr('readonly', true);
-            $('#load_carrier_fee').attr('readonly', true);
-            $('#load_billing_fsc_rate').attr('readonly', true);
+            // $('#load_shipper_rate').attr('readonly', true);
+            // $('#load_fsc_rate').attr('readonly', true);
+            // $('#load_carrier_fee').attr('readonly', true);
+            // $('#load_billing_fsc_rate').attr('readonly', true);
         }
     }
 }
@@ -2413,7 +2405,7 @@ $(document).ready(function () {
     // Function to fetch carrier suggestions based on any input (name, MC number, DOT number)
     function fetchCarrierSuggestions(field, inputValue) {
         $.ajax({
-            url: "{{ route('fetch.carrier.suggestions') }}",
+            url: '{{ route('fetch.carrier.suggestions') }}',
             method: 'POST',
             data: {
                 field: field,          // Specify the field (name, MC, DOT)
@@ -2443,7 +2435,7 @@ $(document).ready(function () {
     // Function to fetch full carrier details once a carrier is selected
     function fetchCarrierDetails(carrierId) {
         $.ajax({
-            url: "{{ route('fetch.carrier.details') }}",
+            url: '{{ route('fetch.carrier.details') }}',
             method: 'POST',
             data: {
                 carrierId: carrierId, 

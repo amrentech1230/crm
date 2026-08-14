@@ -1,5 +1,6 @@
-@foreach($paid as $i => $record)
-        
+
+        @foreach($paid as $i => $record)
+        @if($record->invoice_status == 'Paid Record')
         <tr>
             
             <td class="dynamic-data" id="load_number3">
@@ -31,14 +32,10 @@
                     @endif
                 </td>
                 <td class="dynamic-data">
-                    @php
-                        $arAgingClose = strtolower(trim((string)($record->ar_aging_close ?? '')));
-                    @endphp
                     <select class="form-control ar-aging-close" data-id="{{ $record->id }}">
                         <option value="">Select</option>
-                        <option value="Bank Charges Adjusted" {{ $record === strtolower(trim('Bank Charges Adjusted')) ? 'selected' : '' }}>Bank Charges Adjusted </option>
-                        <option value="Short Pay deducted from Carrier" {{ $record === strtolower(trim('Short Pay deducted from Carrier')) ? 'selected' : '' }}>Short Pay deducted from Carrier </option>
-                        <option value="Short pay deducted from Broker" {{ $record === strtolower(trim('Short pay deducted from Broker')) ? 'selected' : '' }}>Short pay deducted from Broker</option>
+                        <option value="Bank Charges Adjusted" {{ $record->ar_aging_close == 'Bank Charges Adjusted' ? 'selected' : '' }}>Bank Charges Adjusted </option>
+                        <option value="Short Pay Adjusted Internally " {{ $record->ar_aging_close == 'Short Pay Adjusted Internally' ? 'selected' : '' }}>Short Pay Adjusted Internally </option>
                     </select>
                 </td>
                         <td class="dynamic-data">{{ $record->load_workorder }}</td>
@@ -86,12 +83,14 @@
             </label>
         </div>
     @elseif($difference < 0)
-        <span style="background-color:#d4edda; color:#28a745; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
-            Excess: ${{ number_format(abs($difference), 2) }}
+        {{-- Excess Payment --}}
+        <span style="color: green; font-weight: 600;">
+            +{{ number_format(abs($difference), 2) }}
         </span>
     @else
-        <span style="background-color:#d4edda; color:#28a745; padding:3px 10px; border-radius:4px; font-weight:600; display:inline-block;">
-            $0.00
+        {{-- Exact Payment --}}
+        <span style="color: green; font-weight: 600;">
+            0.00
         </span>
     @endif
 </td>
@@ -136,16 +135,41 @@
                 <span class="tooltip-text">{{ $consignee_loaction[0]['location'] ?? '' }}</span>
             </td> 
             
-          
-            <td class="dynamic-data">
+            <!-- @php
+            $shipperLoadFinalRate = floatval($record->shipper_load_final_rate);
+            $receivingAmount = floatval($record->remaining_amount);
+            $remaining = max($shipperLoadFinalRate - $receivingAmount, 0);
+            @endphp
+            <td class="dynamic-data">{{ $record->shipper_load_final_rate }}</td>
+			<td class="dynamic-data">{{ $record->invoice_internal_value }}</td> -->
+			<!-- <td class="dynamic-data">{{ $record->load_advance_rec_amount }}</td> -->
+
+
+
+            <!-- @php
+                $receivingAmount = floatval($record->receiving_amount);
+                $shipperRate = floatval($shipperLoadFinalRate);
+                $advpayment = $receivingAmount - $shipperRate;
+
+                if ($advpayment > 0) {
+                    echo $advpayment;
+                } else {
+                    $advpayment = 0;
+                }
+            @endphp -->
+            <!-- <td class="dynamic-data">{{ $advpayment}}</td> -->
+
+            
+            <!-- @if($record->invoice_status == 'Paid Record')
+                <td class="dynamic-data"> Paid</td>
+            @endif -->
+                            <td class="dynamic-data">
                   
                        <textarea name="invoice_internal_value" onkeyup="RemainingAmount(this)" row="10" col="5" style="width: 450px !important;height: 50px;"   data-invoice-id="{{ $record->id }}" class="invoice_internal_value" placeholder="Enter additional notes...">{{ $record->invoice_internal_value }}</textarea>
 
-            </td>
-
-
+                </td>
         </tr>
-		
+	@endif	
 @endforeach
 
  
@@ -203,7 +227,7 @@
             data: {
                 payment_receiving_date: formatted,
                 receiving_amount: shipper,
-                status: 'Paid'
+                status: 'Paid Record'
             },
             success: function(res) {
                 $('.loader-container').addClass('hide');
@@ -294,7 +318,7 @@
         }
     </script>
 
-    <script>
+        <script>
         $(document).on('change', '.ar-aging-close', function () {
 
     let id = $(this).data('id');

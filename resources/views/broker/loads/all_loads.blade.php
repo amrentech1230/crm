@@ -199,13 +199,10 @@
 
 @php
     $finalRate = (float) ($loads->load_shipper_rate ?? 0);
-    $fscRate = (float) ($loads->load_fsc_rate ?? 0);
-
-    // Calculate FSC amount
-    $fscAmount = ($finalRate * $fscRate) / 100;
 
     $otherCharges = json_decode($loads->shipper_load_other_charge, true);
 
+    // Ensure it's always an array
     if (!is_array($otherCharges)) {
         $otherCharges = [];
     }
@@ -214,14 +211,22 @@
 @endphp
 
 <td class="dynamic-data">
+    @php
+        $baseRate = (float) $finalRate;
+        $fscPercentage = (float) ($loads->load_fsc_rate ?? 0);
+        $fscAmount = ($baseRate * $fscPercentage) / 100;
+
+        $totalOtherCharges = 0;
+    @endphp
+
     <div>
         <strong>Customer Base Rate:</strong>
-        ${{ number_format($finalRate, 2) }}
+        ${{ number_format($baseRate, 2) }}
     </div>
 
-    @if($fscRate > 0)
+    @if($fscPercentage > 0)
         <div>
-            FSC ({{ $fscRate }}%) :
+            F.S.C ({{ $fscPercentage }}%):
             <strong>${{ number_format($fscAmount, 2) }}</strong>
         </div>
     @endif
@@ -241,13 +246,15 @@
     <hr style="margin:5px 0;">
 
     <div>
-        <strong>Total:</strong>
-        ${{ number_format($finalRate + $fscAmount + $totalOtherCharges, 2) }}
+        <strong>Final Customer Rate:</strong>
+        ${{ number_format($baseRate + $fscAmount + $totalOtherCharges, 2) }}
     </div>
 </td>
 
 @php
     $carrierFee = (float) ($loads->load_carrier_fee ?? 0);
+    $carrierFscPercentage = (float) ($loads->load_billing_fsc_rate ?? 0);
+    $carrierFscAmount = ($carrierFee * $carrierFscPercentage) / 100;
 
     $carrierCharges = json_decode($loads->carrier_load_other_charge, true);
 
@@ -260,8 +267,16 @@
 
 <td class="dynamic-data">
     <div>
-        <strong>Carrier Base Rate:</strong> ${{ number_format($carrierFee, 2) }}
+        <strong>Carrier Base Rate:</strong>
+        ${{ number_format($carrierFee, 2) }}
     </div>
+
+    @if($carrierFscPercentage > 0)
+        <div style="font-size:12px;color:#555;">
+            F.S.C ({{ $carrierFscPercentage }}%) :
+            <strong>${{ number_format($carrierFscAmount, 2) }}</strong>
+        </div>
+    @endif
 
     @foreach($carrierCharges as $charge)
         @php
@@ -275,12 +290,11 @@
         </div>
     @endforeach
 
-    @if($totalOtherCharges > 0)
-        <hr style="margin:4px 0;">
-        <div>
-            <strong>Total: ${{ number_format($carrierFee + $totalOtherCharges, 2) }}</strong>
-        </div>
-    @endif
+    <hr style="margin:4px 0;">
+
+    <div>
+        <strong>Total: ${{ number_format($carrierFee + $carrierFscAmount + $totalOtherCharges, 2) }}</strong>
+    </div>
 </td>
 
     @php
@@ -326,7 +340,7 @@
         // Calculate the difference in days based on the invoice status
         if ($loads->invoice_status == 'Paid') {
         // Calculate days since the invoice was paid
-        $differenceInDays = $invoiceDate->diffInDays($currentDate);
+        $differenceInDays = round($invoiceDate->diffInDays($currentDate));
         } elseif ($loads->invoice_status == 'Paid Record') {
         // If the invoice status is 'Paid Record', aging is complete
         $differenceInDays = 'Paid';
@@ -357,6 +371,13 @@
     @else
     <td class="dynamic-data">{{ $loads->cpr_check }}</td>
     @endif
+        <td class="dynamic-data">
+        @if($loads->carrier_mark_as_paid == 'Paid')
+            <span style="color:green">Paid</span>
+        @else
+            <span style="color:red"> Not Paid</span>
+        @endif
+    </td>
 
     @if($loads->load_status)
     <td class="dynamic-data" colspan="2">
@@ -364,13 +385,9 @@
                     <a href="{{route('clone.load', $loads->load_number)}}" target="_blank">
                         <i class="fas fa-clone dynamic-data" style="margin:0 10px; font-size: 20px;"></i> Clone
                     </a>
-                    @if($loads->load_final_carrier_fee == 0 || $loads->load_final_carrier_fee == null || $loads->cpr_check == 'Not Approved' || $loads->cpr_check == 'Not Verified' || $loads->cpr_check == 'Not Received')
+                    @if($loads->load_final_carrier_fee == 0 || $loads->load_final_carrier_fee == null)
                     <a href="javascript:void(0);" style="color: #0c7ce6; cursor:not-allowed" title="Your Carrier Rate is 0">
                         <i class="fas fa-file-pdf dynamic-data" style="margin:0 10px; font-size: 20px;"></i> Carrier RC
-                    </a>
-                    @elseif($loads->cpr_check == 'Verified')
-                    <a href="{{route('rc.download.pdf', $loads->load_number)}}" target="_blank">
-                        <i class="fas fa-file-pdf dynamic-data" style="margin:0 10px; font-size: 20px;"></i>Carrier RC
                     </a>
                     @else
                     <a href="{{route('rc.download.pdf', $loads->load_number)}}" target="_blank">

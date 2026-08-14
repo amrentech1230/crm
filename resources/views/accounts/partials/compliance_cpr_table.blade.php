@@ -104,7 +104,7 @@
         <td >
             <select name="no_of_macro" onchange="no_of_macro(this)" class="form-control" id="no_of_macro-{{ $delivered->id }}">
                 <option value="">Select No Of Macro</option>
-                @for ($i = 1; $i <= 10; $i++)
+                @for ($i = 0; $i <= 10; $i++)
                     <option value="{{ $i }}" data-load-id="{{ $delivered->id }}" {{ $delivered->no_of_macro == $i ? 'selected' : '' }}>{{ $i }}</option>
                 @endfor
             </select>

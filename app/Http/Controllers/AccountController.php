@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Customer;
-use App\Models\Manger;
 use App\Models\Consignee;
 use App\Models\Shipper;
 use App\Models\External;
@@ -15,6 +14,7 @@ use App\Models\User;
 use App\Models\Office;
 use App\Models\Factoring;
 use App\Models\TeamLeader;
+use App\Models\Manger;
 use App\Models\CarrierVerification;
 use App\Models\CustomerApprovalForm;
 use App\Models\Cmt;
@@ -33,7 +33,6 @@ use Illuminate\Pagination\Paginator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-
 
 class AccountController extends Controller
 {
@@ -99,7 +98,7 @@ class AccountController extends Controller
 							->setPageName('invoiced');
 						
 						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
-					}elseif($request->input('target') == '#invoiced_paid'){
+					}else if($request->input('target') == '#invoiced_paid'){
 						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
 							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
@@ -112,31 +111,18 @@ class AccountController extends Controller
 							->setPageName('paid');
 						
 						return view('accounts.partials.accounting_paid', compact('paid'))->render();
-					}else if($request->input('target') == '#delivered'){
-                        $delivered = Load::where('load_status', 'Delivered')
-                            ->with(['user', 'customer', 'carrier', 'user.officedata'])
-                            ->where(function($query) use ($searchTerms) {
-                                foreach ($searchTerms as $term) {
-                                    $query->orWhere('load_number', 'like', "%{$term}%");
-                                }
-                            })
-                            ->orderBy("loads.id", "desc")
-                            ->paginate(100)
-                            ->setPageName('delivered');
-                        
-                        return view('accounts.partials.accounting_delivered', compact('delivered'))->render();
-                    }
+					}
                 
 			}
             }
                
         } 
-        return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid', 'delivered'));
+        return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
     }
 
     public function accounting(Request $request)
     {
-        $tabs = ['open','delivered', 'complete', 'invoiced', 'paid'];
+        $tabs = ['open', 'complete', 'invoiced', 'paid'];
 
         foreach ($tabs as $tab) {
             if ($request->has($tab)) {
@@ -180,17 +166,6 @@ class AccountController extends Controller
 
         $complete = $completeQuery->paginate(50)->setPageName('complete');
 
-        // Delivered tab query
-        $deliveredQuery = Load::where('load_status', 'Delivered')
-            ->with(['user', 'customer', 'carrier', 'user.officedata'])
-            ->orderBy("loads.id", "desc");
-
-        if (!empty($numbersArray)) {
-            $deliveredQuery->whereIn('load_number', $numbersArray);
-        }
-
-        $delivered = $deliveredQuery->paginate(50)->setPageName('delivered');
-
         // Invoiced tab query
         $invoicedQuery = Load::where('invoice_status', 'Paid')
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
@@ -216,19 +191,17 @@ class AccountController extends Controller
         // Handle AJAX tab switching
         if ($request->ajax()) {
             if ($request->input('tab') == '#open') {
-                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid', 'delivered'))->render();
+                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#completed') {
                 return view('accounts.partials.accounting_complete', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced') {
                 return view('accounts.partials.accounting_invoiced', compact('open', 'complete', 'invoiced', 'paid'))->render();
             } else if ($request->input('tab') == '#invoiced_paid') {
                 return view('accounts.partials.accounting_paid', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#delivered') {
-                return view('accounts.partials.accounting_delivered', compact('open', 'complete', 'invoiced', 'paid'))->render();
-        }
+            }
         }
 
-        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid', 'delivered'));
+        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid'));
     }
 
 	
@@ -900,7 +873,9 @@ public function carrier_search(Request $request)
 
         if ($load) {
 
-            $subject = "Change the carrier MC check status $load->mc_check to $request->mc_check";
+            $subject = 'Changed the carrier MC "' . $load->carrier_mc_ff_input .
+           '" check status from "' . $load->mc_check .
+           '" to "' . $request->mc_check . '"';
             addToLog($customerId ='', $loadId ='', $subject, $oldData ='', $newData ='');
 
             $load->mc_check = $request->mc_check ?? 'Not Approved';
@@ -965,22 +940,26 @@ public function carrier_search(Request $request)
         }
     }
 
-    public function no_of_macro(Request $request){
+public function no_of_macro(Request $request)
+{
+    $request->validate([
+        'load_id' => 'required|exists:loads,id',
+        'no_of_macro' => 'required|integer|between:0,10',
+    ]);
 
-        $load = Load::find($request->load_id);
+    $load = Load::find($request->load_id);
 
-        if ($load) {
+    $subject = "Change the Load no of macro {$load->no_of_macro} to {$request->no_of_macro}";
+    addToLog('', $request->load_id, $subject, '', '');
 
-            $subject = "Change the Load no of macro $load->no_of_macro to $request->no_of_macro";
-            addToLog($customerId ='', $request->load_id, $subject, $oldData ='', $newData ='');
+    $load->no_of_macro = $request->no_of_macro;
+    $load->save();
 
-            $load->no_of_macro = $request->no_of_macro;
-            $load->save();
-            return response()->json(['success' => true, 'message' => 'No Of macro updated successfully.']);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Load not found.'], 404);
-        }
-    }
+    return response()->json([
+        'success' => true,
+        'message' => 'No Of Macro updated successfully.'
+    ]);
+}
 
     public function quick_pay(Request $request){
 
@@ -1265,7 +1244,6 @@ public function accountupdateCustomer(Request $request, $id)
             $recordPaidAmount += $load->shipper_load_final_rate;
         }
     }
-    
 
     // Adjust used and remaining credit based on Record Paid loads
     $usedAmount = $totalFinalRate - $recordPaidAmount;
@@ -1898,147 +1876,45 @@ $searchTerms = array_filter(
         return view('accounts.partials.accounting_complete', compact('complete'))->render();
     }
 
-        public function accounting_delivered_search(Request $request){
+    public function accounting_invoiced_search(Request $request){
 
         $q = $request->input('query');
+        
         if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-			$searchTerms = array_filter(
-				preg_split('/[\s,]+/', $q),
-				fn($term) => !empty(trim($term))
-			);
-
+            
+                    // Split the query by commas to get multiple terms
+        $searchTerms = array_filter(
+            preg_split('/[\s,]+/', $q),
+            fn($term) => !empty(trim($term))
+        );
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $delivered =Load::where('load_status','Delivered')->with(['user','customer','carrier'])->where(function($query) {
-                    $query->where('invoice_status', '')
-                          ->orWhereNull('invoice_status');
-                    })->where(function($query) use ($searchTerms) {
+                $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])
+                    ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
                             $query->orwhere('load_workorder', 'like', "%$term%");
                             $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('loaD_bill_to', 'like', "%$term%");
+                            $query->orwhere('load_bill_to', 'like', "%$term%");
                             $query->orwhere('invoice_number', 'like', "%$term%");
                             $query->orwhere('load_dispatcher', 'like', "%$term%");
-
                         }
                     })
                     ->orderBy('loads.id', 'desc')
                     ->get();
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $delivered = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-              $delivered = Load::where('load_status','Delivered')->with(['user','customer','carrier'])->where(function($query) {
-                    $query->where('invoice_status', '')
-                          ->orWhereNull('invoice_status');
-                })->orderBy("loads.id", "desc")->paginate(100);
-        }
-        
-        return view('accounts.partials.accounting_delivered', compact('delivered'))->render();
-    }
-
-    /**
-     * Parse an accounting search-box value into individual search terms.
-     *
-     * Terms are separated by commas / newlines (NOT spaces) so multi-word
-     * values such as a customer name stay intact. A run of space-separated
-     * numbers like "21021 21022 21023" is exploded into individual terms so a
-     * pasted list of load numbers works.
-     *
-     * @return array<int,string>
-     */
-    private function parseAccountingSearch($q)
-    {
-        $terms = [];
-
-        $parts = preg_split('/[\r\n,]+/', (string) $q);
-
-        foreach ($parts as $part) {
-            $part = trim($part);
-            if ($part === '') {
-                continue;
-            }
-
-            // A run of space-separated numbers => several individual terms
-            $tokens = preg_split('/\s+/', $part);
-            if (count($tokens) > 1
-                && count(array_filter($tokens, fn($t) => is_numeric($t))) === count($tokens)) {
-                foreach ($tokens as $t) {
-                    $terms[] = $t;
-                }
-                continue;
-            }
-
-            // Otherwise keep the value (single id or multi-word name) intact
-            $terms[] = $part;
-        }
-
-        return array_values(array_unique($terms));
-    }
-
-    /**
-     * Apply the accounting search terms to a query.
-     *
-     * A purely numeric term is treated as a load # / invoice # and matched
-     * EXACTLY on those two fields only — this keeps a load-number search precise
-     * (10 load numbers => 10 loads) and prevents collisions where the number
-     * happens to equal another load's work order or customer reference.
-     *
-     * A text term (e.g. work order "OOLU9555049", a customer reference, or a
-     * customer / dispatcher name) is matched with a contains-search on the
-     * alphanumeric / name fields.
-     */
-    private function applyAccountingSearch($query, array $terms)
-    {
-        $query->where(function ($q) use ($terms) {
-            foreach ($terms as $term) {
-                if (is_numeric($term)) {
-                    $q->orWhere('load_number', $term)
-                      ->orWhere('invoice_number', $term);
-                } else {
-                    $q->orWhere('load_workorder', 'like', "%{$term}%")
-                      ->orWhere('customer_refrence_number', 'like', "%{$term}%")
-                      ->orWhere('load_bill_to', 'like', "%{$term}%")
-                      ->orWhere('load_dispatcher', 'like', "%{$term}%");
-                }
-            }
-        });
-
-        return $query;
-    }
-
-    public function accounting_invoiced_search(Request $request){
-
-        $q = $request->input('query');
-
-        if (!empty($q)) {
-
-            $terms = $this->parseAccountingSearch($q);
-
-            if (!empty($terms)) {
-                // Exact match on ids, contains-match on customer/dispatcher name
-                $invoiced = $this->applyAccountingSearch(
-                        Load::where('invoice_status','Paid')->with(['user','customer','carrier']),
-                        $terms
-                    )
-                    ->orderBy('loads.id', 'desc')
-                    ->get();
+                    // print_r($invoiced); die;
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
                 $invoiced = collect();
             }
         } else {
-
+            
             // If query is empty, return a paginated result without any filter
              $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
-
+       
             }
-
+        
         return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
     }
 
@@ -2046,8 +1922,12 @@ $searchTerms = array_filter(
 
         $q = $request->input('query');
         if (!empty($q)) {
+            // Split the query by commas to get multiple terms
+       $searchTerms = array_filter(
+    preg_split('/[\s,]+/', $q),
+    fn($term) => !empty(trim($term))
+);
 
-            $terms = $this->parseAccountingSearch($q);
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
@@ -2435,15 +2315,11 @@ $searchTerms = array_filter(
 
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
-                // $customersData = Customer::all();
-                // $customersData = collect();
-                $customersData = Customer::with('user')->paginate(50);
+                $customersData = collect();
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            // $customersData = Customer::all();
-            // $customersData = Customer::with('user')->paginate(50); // Eager load 'user' to avoid N+1
-            $customersData = Customer::with('user')->paginate(50);
+            $customersData = Customer::all();
             
   
         }
@@ -5308,50 +5184,9 @@ public function customerDetailsReportingExcell()
         );
     }
 
-    protected function getPaymentStatusDetails(Load $load): array
-    {
-        $shipperRate = (float) ($load->shipper_load_final_rate ?? 0);
-        $receivingAmount = (float) ($load->receiving_amount ?? 0);
-        $paymentDate = $load->payment_receiving_date ? Carbon::parse($load->payment_receiving_date)->format('Y-m-d') : '';
-        $markDate = $load->invoice_status_date ? Carbon::parse($load->invoice_status_date)->format('Y-m-d') : '';
-
-        if ($shipperRate <= 0) {
-            $status = 'Pending';
-            $remainingAmount = 0.0;
-            $excessAmount = 0.0;
-        } elseif ($receivingAmount <= 0) {
-            $status = 'Pending';
-            $remainingAmount = $shipperRate;
-            $excessAmount = 0.0;
-        } else {
-            $difference = $receivingAmount - $shipperRate;
-            $remainingAmount = max($shipperRate - $receivingAmount, 0.0);
-            $excessAmount = max($difference, 0.0);
-
-            if (abs($difference) < 0.005) {
-                $status = 'Full Payment';
-            } elseif ($difference > 0) {
-                $status = 'Excess Payment';
-            } else {
-                $status = 'Short Payment';
-            }
-        }
-
-        return [
-            'status' => $status,
-            'remaining_amount' => round($remainingAmount, 2),
-            'excess_amount' => round($excessAmount, 2),
-            'payment_date' => $paymentDate,
-            'mark_date' => $markDate,
-        ];
-    }
-
     public function loadCompleteReportingExcel()
     {
-         ini_set('memory_limit', '-1');
-    set_time_limit(0);
-
-    $data = Load::with('user')->get();
+        $data = Load::with('user')->get();
 
             $maxConsignees = 0;
         foreach ($data as $item) {
@@ -5367,7 +5202,7 @@ public function customerDetailsReportingExcell()
                 $headers[] = "Unloading Location $i";
             }
         
-         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Account Receiving Status','Customer Payment Received Amount','Remaining Amount','Excess Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent' ]);
+         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Currency' ]);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -5412,8 +5247,7 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier ?? '');
             $col++;
-            $shipperLocationValue = is_array($shipper_location) ? ($shipper_location[0]['location'] ?? '') : '';
-            $sheet->setCellValue($col . $row, $shipperLocationValue);
+            $sheet->setCellValue($col . $row, $shipper_location[0]['location'] ?? '');
             $col++;
             if (is_array($consignee_location)) {
                         foreach ($consignee_location as $idx => $loc) {
@@ -5477,18 +5311,11 @@ public function customerDetailsReportingExcell()
 
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->paper_work_date ? \Carbon\Carbon::parse($item->paper_work_date)->format('m/d/Y') : '') : '');
             $col++;
-            $paymentSummary = $this->getPaymentStatusDetails($item);
             $sheet->setCellValue($col . $row, $item->payment_receiving_date ? \Carbon\Carbon::parse($item->payment_receiving_date)->format('m/d/Y') : '');
-            $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['status'] ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->invoice_status == 'Paid Record' ? ($item->receiving_amount ?? '-') : '');
             $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['remaining_amount'] ?? '');
-            $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['excess_amount'] ?? '');
-            $col++;
-            $sheet->setCellValue($col . $row, $paymentSummary['mark_date'] ? \Carbon\Carbon::parse($paymentSummary['mark_date'])->format('m/d/Y') : '');
+            $sheet->setCellValue($col . $row, $item->invoice_status_date ? \Carbon\Carbon::parse($item->invoice_status_date)->format('m/d/Y') : '');
             $col++;
             $sheet->setCellValue($col . $row, $item->load_shipper_rate ?? '');
             $col++;
@@ -5541,13 +5368,9 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->no_of_macro ?? '');
             $col++;
-            $lastAppointment = null;
-            if (is_array($consignee_appointment) && count($consignee_appointment) > 0) {
-                $lastAppointmentItem = end($consignee_appointment);
-                if (is_array($lastAppointmentItem)) {
-                    $lastAppointment = $lastAppointmentItem['appointment'] ?? null;
-                }
-            }
+            $lastAppointment = !empty($consignee_appointment) 
+                ? end($consignee_appointment)['appointment'] 
+                : null;
 
             // Format with Carbon
             $formattedAppointment = $lastAppointment 
@@ -5583,6 +5406,9 @@ $col++;
             $col++;
 
             $sheet->setCellValue($col . $row, $item->cmt_agent ?? '');
+            $col++;
+
+            $sheet->setCellValue($col . $row, $item->load_currency ?? '');
             $col++;
 
             
@@ -6688,7 +6514,6 @@ public function exportCreditLimitLog()
     $writer->save('php://output');
     exit;
 }
-
 public function all_load_status_ar(Request $request){
 $tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
 
@@ -6736,50 +6561,9 @@ $tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_pai
 			}
 				
 		}
-         return view('accounts.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
+         return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
 
 }
-
-public function all_search(Request $request)
-    {
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
-
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $broker_status = Load::with(['user'])
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
-                            $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->paginate(100);
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $broker_status = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-            $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
-        }
-        
-        return view('admin.home.all_load', compact('broker_status'))->render();
-    
-    }
-
 
     public function updateArAgingClose(Request $request)
     {
@@ -6797,5 +6581,4 @@ public function all_search(Request $request)
             'message' => 'Updated successfully.'
         ]);
     }
-
 }

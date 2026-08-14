@@ -24,14 +24,13 @@ class MailController extends Controller
 		$ccArray = array_map('trim', explode(',', $ccemail));
 
         try {
-            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $files) {
+            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $files, $cf) {
                 $htmlBody = 'Greetings!<br><p>Kindly find the attached invoice for load #'.$load_no.'('.$invoice_no.') Ref #'.$refrance_no.'</p><br><p>Thanks & Regards</p><p>'.$username.'</p><p>Accounts Receivable</p><p>Cargo Convoy Inc</p><p>Mailing Address : 7119, Pennsylvania Ave, Upper Darby, PA - 19082</p><p>Physical Address : Rosemont Business Campus - 9919 Conestoga Road Bldg. 3 Suite 215 Bryn Mawr, PA 19010</p><p>MC - 01512751 | DOT - 4014885</p>';
                 
                 $message->to($emailArray)
                         ->from('ar@cargoconvoy.co', 'Cargoconvoy')
                         ->replyTo('ar@cargoconvoy.co')
-                        ->subject('Invoice For Load #'.$load_no.' (#'.$invoice_no.') REF #'.$refrance_no.' | Customer Ref #'.$cf)
-                        
+                        ->subject('Invoice For Load #'.$load_no.' (#'.$invoice_no.') REF #'.$refrance_no.' / '.$cf)
                         ->html($htmlBody); 
 				
 				if (!empty(array_filter($ccArray))) {
