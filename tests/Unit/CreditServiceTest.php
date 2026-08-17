@@ -33,4 +33,10 @@ class CreditServiceTest extends TestCase
         $this->assertFalse($result['allowed']);
         $this->assertSame('Load amount must be greater than zero.', $result['message']);
     }
+
+    public function test_customer_credit_values_are_never_negative(): void
+    {
+        $this->assertSame(0.0, normalize_customer_credit_value(-25.50));
+        $this->assertSame(420.0, normalize_customer_credit_value(420.0));
+    }
 }

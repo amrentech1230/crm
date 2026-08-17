@@ -1105,13 +1105,13 @@ public function editCustomer($id)
     $credits = json_decode($customer->credit_limit_log, true);
 
     if (is_array($credits)) {
-        $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
+        $totalCreditLimit = max(0.0, (float) array_sum(array_column($credits, 'credit_limit')));
     } else {
-        $totalCreditLimit = 0;
+        $totalCreditLimit = 0.0;
     }
 
-    $usedAmount = $totalCreditLimit - $customer->remaining_credit;
-    $remainingCredit = $customer->remaining_credit;
+    $remainingCredit = normalize_customer_credit_value($customer->remaining_credit);
+    $usedAmount = max(0.0, $totalCreditLimit - $remainingCredit);
     
 
     // Calculate totals using aggregates for better performance
@@ -1134,11 +1134,19 @@ public function editCustomer($id)
                             now()->toDateString()
                             ])->sum('shipper_load_final_rate');
 
-    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-    $receiving_amount = Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount');
+    $loadcreateamount = max(0.0, (float) Load::where('customer_id', $customer->id)
+        ->where(function ($query) {
+            $query->where('load_status', '!=', 'Cancelled')
+                  ->orWhereNull('load_status');
+        })
+        ->where('shipper_load_final_rate', '>=', 0)
+        ->sum('shipper_load_final_rate'));
 
-    $after_used_remaing_amount =  $totalCreditLimit - $loadcreateamount;
-    $afterpaymentremaingamount = $after_used_remaing_amount + $receiving_amount;
+    $receiving_amount = max(0.0, (float) Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount'));
+
+    $usedAmount = max(0.0, $loadcreateamount - $receiving_amount);
+    $after_used_remaing_amount = max(0.0, $totalCreditLimit - $loadcreateamount);
+    $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
 
                       
     $dailyInvoiceTotals = Load::select(
@@ -1154,7 +1162,7 @@ public function editCustomer($id)
     // print_r($dailyInvoiceTotals); die;
 
 	
-	$pendingpayment = $loadcreateamount - $receiving_amount;
+	$pendingpayment = max(0.0, $loadcreateamount - $receiving_amount);
 
     $loads = Load::where('customer_id', $customer->id)->where('invoice_status','Paid')->get();
     $loadDatacustomeraging = $loads->sortByDesc(function ($load) {
@@ -1321,26 +1329,26 @@ public function accountupdateCustomer(Request $request, $id)
     $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
  
     // Calculate total credit limit from the updated logs
-    $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
+    $totalCreditLimit = max(0.0, (float) array_sum(array_column($updatedremaingCreditLogs, 'credit_limit')));
 
     // Calculate remaining credit
    // $usedAmount = $customer->used_amount ?? 0;
-    $remainingCredit = $totalCreditLimit - $usedAmount;
+    $remainingCredit = max(0.0, $totalCreditLimit - max(0.0, $usedAmount));
   
     // Update customer details
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
     //$customer->adv_customer_credit_limit = $totalCreditLimit; // Save total credit limit in adv_customer_credit_limit
-    $customer->remaining_credit = $request->input('remaining_credit'); // Save remaining credit in remaining_credit
-    $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
+    $customer->remaining_credit = normalize_customer_credit_value($request->input('remaining_credit'));
+    $customer->invoice_credit_limit = normalize_customer_credit_value($request->input('invoice_credit_limit'));
 	 $customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
     $customer->customer_address = $request->input('customer_address');
     $customer->status = $request->input('status');
     $customer->customer_telephone = $request->input('customer_telephone');
-    $customer->adv_customer_credit_limit = $request->input('adv_customer_credit_limit');
+    $customer->adv_customer_credit_limit = normalize_customer_credit_value($request->input('adv_customer_credit_limit'));
     $customer->user_id = $request->input('user_id');
     $customer->comment_notes = $request->input('comment_notes')[0] ?? null;
     $customer->private_comment_notes = $request->input('private_comment_notes')[0] ?? null;

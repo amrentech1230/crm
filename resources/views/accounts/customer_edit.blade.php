@@ -263,7 +263,7 @@
                               <div class="form-group">
                                  <label>Total load Creation Amount<code>*</code></label>
 
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ $loadcreateamount }}">
+                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ max(0, (float) $loadcreateamount) }}">
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -271,7 +271,7 @@
                                  <label>Total Payment Received<code>*</code>
                                  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#paymentmarkedlist"></i>
                               </label>
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ $receiving_amount }}">
+                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ max(0, (float) $receiving_amount) }}">
                               </div>
                            </div>
 

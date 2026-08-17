@@ -82,9 +82,9 @@ if (!function_exists('get_customer_available_credit_limit')) {
 			$customer = Customer::find($customer);
 		}
 
-		$remainingCredit = (float) data_get($customer, 'remaining_credit', 0);
-		$invoiceCreditLimit = (float) data_get($customer, 'invoice_credit_limit', 0);
-		$assignedCreditLimit = (float) data_get($customer, 'adv_customer_credit_limit', 0);
+		$remainingCredit = normalize_customer_credit_value(data_get($customer, 'remaining_credit', 0));
+		$invoiceCreditLimit = normalize_customer_credit_value(data_get($customer, 'invoice_credit_limit', 0));
+		$assignedCreditLimit = normalize_customer_credit_value(data_get($customer, 'adv_customer_credit_limit', 0));
 
 		if ($remainingCredit > 0) {
 			return $remainingCredit;
@@ -95,6 +95,14 @@ if (!function_exists('get_customer_available_credit_limit')) {
 		}
 
 		return $invoiceCreditLimit;
+	}
+}
+
+if (!function_exists('normalize_customer_credit_value')) {
+	function normalize_customer_credit_value($value)
+	{
+		$normalized = is_numeric($value) ? (float) $value : 0.0;
+		return max(0.0, round($normalized, 2));
 	}
 }
 
