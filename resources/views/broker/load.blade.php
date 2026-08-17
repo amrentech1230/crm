@@ -1486,8 +1486,8 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             $('#shipper_load_final_rate').val(0);
             $('#load_shipper_rate').val(0);
             $('#load_fsc_rate').val(0);
-            $('[name="shipperchargeAmount[]"]').val(0);
             $('#totalChargeAmount').val(0);
+            $('[name="shipperchargeAmount[]"]').val(0);
             $('#load_final_carrier_fee').val(0);
             $('#totalShipperOtherChgarges').val(0);
         }
@@ -1495,7 +1495,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         function getSelectedCustomerCreditLimit() {
             var $select = $('#load_bill_to');
             if (!$select.length) {
-                return 0;
+                return { remaining: 0, invoice: 0 };
             }
 
             var selectedOption = $select.find('option:selected');
@@ -1503,15 +1503,38 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
             var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
 
-            if (availableCredit > 0) {
-                return availableCredit;
-            }
+            var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
 
-            if (remainingCredit > 0) {
-                return remainingCredit;
-            }
+            return { remaining: remaining, invoice: invoiceCreditLimit };
+        }
 
-            return invoiceCreditLimit;
+        function isTONU() {
+            var shipmentType = $('[name="load_type"]').val();
+            return shipmentType && shipmentType.toUpperCase() === 'TONU';
+        }
+
+        function getInvoiceChargesTotal() {
+            var total = 0;
+            $('[name="shipperchargeAmount[]"]').each(function (index) {
+                var amount = parseFloat($(this).val()) || 0;
+                var isInvoice = $('[name="for_invoice[]"]').eq(index).is(':checked');
+                if (isInvoice) {
+                    total += amount;
+                }
+            });
+            return total;
+        }
+
+        function getNonInvoiceChargesTotal() {
+            var total = 0;
+            $('[name="shipperchargeAmount[]"]').each(function (index) {
+                var amount = parseFloat($(this).val()) || 0;
+                var isInvoice = $('[name="for_invoice[]"]').eq(index).is(':checked');
+                if (!isInvoice) {
+                    total += amount;
+                }
+            });
+            return total;
         }
 
         function validateCreditForLoad() {
@@ -1532,49 +1555,101 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return true;
             }
 
-            var creditLimit = getSelectedCustomerCreditLimit();
+            var credits = getSelectedCustomerCreditLimit();
+            var remainingLimit = credits.remaining;
+            var invoiceLimit = credits.invoice;
             var enteredAmount = parseFloat($rate.val()) || 0;
 
             if (enteredAmount < 0) {
-                $message
-                    .removeClass('alert-warning alert-success')
-                    .addClass('alert-danger')
-                    .text('Shipper rate cannot be negative.')
-                    .removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Shipper rate cannot be negative.');
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Shipper rate cannot be negative.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
                 $form.data('credit-valid', false);
                 return false;
             }
 
-            if (creditLimit <= 0) {
-                $message
-                    .removeClass('alert-warning alert-success')
-                    .addClass('alert-danger')
-                    .text('You do not have sufficient limit to create this load.')
+            // TONU: Only uses invoice credit limit (no base rate needed)
+            if (isTONU()) {
+                var invoiceCharges = getInvoiceChargesTotal();
+                if (invoiceLimit <= 0) {
+                    $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                        .text('You do not have invoicing limit. Cannot create TONU load.').removeClass('d-none');
+                    $submitButton.prop('disabled', true).addClass('disabled');
+                    zeroRateFields();
+                    $form.data('credit-valid', false);
+                    return false;
+                }
+                if (invoiceCharges > invoiceLimit) {
+                    $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                        .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
+                        .removeClass('d-none');
+                    $submitButton.prop('disabled', true).addClass('disabled');
+                    $('#shipper_load_final_rate').val(0);
+                    $form.data('credit-valid', false);
+                    return false;
+                }
+                $message.removeClass('alert-danger').addClass('alert-warning')
+                    .text('TONU - Invoice limit: ' + formatCreditAmount(invoiceLimit) + '. Used: ' + formatCreditAmount(invoiceCharges) + '.')
                     .removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load.');
+                $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+                $form.data('credit-valid', true);
+                return true;
+            }
+
+            // Non-TONU: Base rate + non-invoice charges use remaining limit
+            //           Invoice-checked charges use invoice limit
+            var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+            var fscAmount = (fscRate / 100) * baseRate;
+            var nonInvoiceCharges = getNonInvoiceChargesTotal();
+            var invoiceCharges = getInvoiceChargesTotal();
+
+            var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
+
+            // Check remaining credit limit (base rate + non-invoice charges)
+            if (remainingLimit <= 0) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('No remaining credit limit available.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
                 zeroRateFields();
                 $form.data('credit-valid', false);
                 return false;
             }
 
-            if (enteredAmount > creditLimit) {
-                var shortageAmount = enteredAmount - creditLimit;
-                $message
-                    .removeClass('alert-warning alert-success')
-                    .addClass('alert-danger')
-                    .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
+            if (remainingUsed > remainingLimit) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds remaining credit limit (' + formatCreditAmount(remainingLimit) + ').')
                     .removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient credits to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
-                zeroRateFields();
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
                 $form.data('credit-valid', false);
                 return false;
             }
 
-            $message
-                .removeClass('alert-danger')
-                .addClass('alert-warning')
-                .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+            // Check invoice credit limit (invoice-checked charges only)
+            if (invoiceCharges > 0 && invoiceLimit <= 0) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('You do not have invoicing limit. Cannot add invoice charges.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            if (invoiceCharges > 0 && invoiceCharges > invoiceLimit) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            // All good
+            $message.removeClass('alert-danger').addClass('alert-warning')
+                .text('Remaining limit: ' + formatCreditAmount(remainingLimit) + ' | Invoice limit: ' + formatCreditAmount(invoiceLimit))
                 .removeClass('d-none');
             $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
             $form.data('credit-valid', true);
@@ -1636,6 +1711,16 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 			});
 
             $('#shipper_load_final_rate').on('input change', function () {
+                validateCreditForLoad();
+            });
+
+            // Re-validate when shipment type changes (TONU logic)
+            $('[name="load_type"]').on('change', function () {
+                validateCreditForLoad();
+            });
+
+            // Re-validate when "For Invoice" checkbox is toggled
+            $(document).on('change', '.for_invoice', function () {
                 validateCreditForLoad();
             });
 
@@ -1989,7 +2074,22 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                $('#shipper_load_final_rate').val(total.toFixed(2));
+                // For TONU: final rate = only invoice charges (no base rate needed)
+                if (isTONU()) {
+                    var invoiceTotal = getInvoiceChargesTotal();
+                    $('#shipper_load_final_rate').val(invoiceTotal.toFixed(2));
+                } else {
+                    // Check if total exceeds credit limit before setting final rate
+                    var credits = getSelectedCustomerCreditLimit();
+                    var remainingLimit = credits.remaining;
+                    var nonInvoiceTotal = loadShipperRate + ((loadFscRate / 100) * loadShipperRate) + getNonInvoiceChargesTotal();
+                    
+                    if (remainingLimit > 0 && nonInvoiceTotal > remainingLimit) {
+                        $('#shipper_load_final_rate').val(0);
+                    } else {
+                        $('#shipper_load_final_rate').val(total.toFixed(2));
+                    }
+                }
                 validateCreditForLoad();
             }
 
@@ -2010,16 +2110,30 @@ $(document).ready(function () {
             });
             $('#totalChargeAmount').val(total.toFixed(2));
 
-            var load_shipper_rate = $('#load_shipper_rate').val();
-
             var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
             total += loadShipperRate;
 
             var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
             total += (loadFscRate / 100) * loadShipperRate;
 
-            $('#shipper_load_final_rate').val(total.toFixed(2));
+            // For TONU: final rate = only invoice charges
+            if (isTONU()) {
+                var invoiceTotal = getInvoiceChargesTotal();
+                $('#shipper_load_final_rate').val(invoiceTotal.toFixed(2));
+            } else {
+                // Check remaining credit (base + non-invoice charges)
+                var credits = getSelectedCustomerCreditLimit();
+                var remainingLimit = credits.remaining;
+                var nonInvoiceTotal = loadShipperRate + ((loadFscRate / 100) * loadShipperRate) + getNonInvoiceChargesTotal();
+                
+                if (remainingLimit > 0 && nonInvoiceTotal > remainingLimit) {
+                    $('#shipper_load_final_rate').val(0);
+                } else {
+                    $('#shipper_load_final_rate').val(total.toFixed(2));
+                }
+            }
             validateCreditForLoad();
+        }
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 
