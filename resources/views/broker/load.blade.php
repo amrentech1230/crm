@@ -1604,10 +1604,16 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var nonInvoiceCharges = getNonInvoiceChargesTotal();
             var invoiceCharges = getInvoiceChargesTotal();
 
-            var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
+            // Deduct customer other charges (non-invoice charges) from invoicing limit
+            var nonInvoiceChargesFromInvoiceLimit = Math.min(nonInvoiceCharges, invoiceLimit);
+            var nonInvoiceChargesFromRemaining = Math.max(0, nonInvoiceCharges - invoiceLimit);
+            var remainingUsed = baseRate + fscAmount + nonInvoiceChargesFromRemaining;
+            
+            // Total invoice usage includes both invoice charges and any non-invoice charges deducted from invoice limit
+            var totalInvoiceUsed = invoiceCharges + nonInvoiceChargesFromInvoiceLimit;
 
             // Check remaining credit limit (base rate + non-invoice charges)
-            if (remainingLimit <= 0) {
+            if (remainingLimit <= 0 && invoiceLimit <= 0) {
                 $message.removeClass('alert-warning alert-success').addClass('alert-danger')
                     .text('No remaining credit limit available.').removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled');
@@ -1626,20 +1632,11 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return false;
             }
 
-            // Check invoice credit limit (invoice-checked charges only)
-            if (invoiceCharges > 0 && invoiceLimit <= 0) {
+            // Check invoice credit limit (invoice-checked charges + non-invoice charges deducted from invoice limit)
+            if (totalInvoiceUsed > invoiceLimit) {
+                var shortageAmount = totalInvoiceUsed - invoiceLimit;
                 $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                    .text('You do not have invoicing limit. Cannot add invoice charges.')
-                    .removeClass('d-none');
-                $submitButton.prop('disabled', true).addClass('disabled');
-                $('#shipper_load_final_rate').val(0);
-                $form.data('credit-valid', false);
-                return false;
-            }
-
-            if (invoiceCharges > 0 && invoiceCharges > invoiceLimit) {
-                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                    .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
+                    .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
                     .removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled');
                 $('#shipper_load_final_rate').val(0);
