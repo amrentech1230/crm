@@ -25,6 +25,33 @@ jobs:
       url: ${{ vars.DEPLOY_URL }}
 
     steps:
+      - name: SSH preflight check and debug
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_BRANCH: main
+        run: |
+          echo "==> Preflight: validate SSH connectivity to $SSH_HOST:$SSH_PORT"
+          for i in 1 2 3; do
+            echo "Attempt $i: testing TCP connect to $SSH_HOST:$SSH_PORT"
+            if timeout 8 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
+              echo "OK: TCP port $SSH_PORT on $SSH_HOST is reachable"
+              break
+            else
+              echo "WARN: attempt $i failed — host not reachable yet"
+              sleep 4
+            fi
+          done
+
+          if ! timeout 2 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
+            echo "::error::SSH host $SSH_HOST:$SSH_PORT unreachable after retries. Aborting deploy step."
+            exit 1
+          fi
+
+          echo "DEPLOY_PATH=${DEPLOY_PATH:-(unset)}"
+          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-(unset)}"
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -39,6 +66,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script_stop: true
+          timeout: 120
           script: |
             set -euo pipefail
 
@@ -52,10 +80,6 @@ jobs:
             git fetch --all --prune
             git reset --hard "origin/$DEPLOY_BRANCH"
 
-            # The site user's umask is restrictive (files land as 660/dirs 770),
-            # but nginx serves static assets as another user and needs to read
-            # them. Make the web root readable/traversable by all, or every
-            # deploy 404s the CSS/JS/images.
             echo "==> Ensuring web-root files are readable by nginx"
             chmod -R a+rX public
 
@@ -74,10 +98,6 @@ jobs:
             $PHP_BIN artisan config:cache
             $PHP_BIN artisan event:cache
             $PHP_BIN artisan view:cache
-            # NOTE: 'php artisan route:cache' is intentionally NOT run — routes/web.php
-            # currently has duplicate route names, which make route caching fail.
-            # Switch this block back to a single 'php artisan optimize' once the
-            # duplicate route names are cleaned up.
             $PHP_BIN artisan storage:link || true
 
             echo "==> Restarting queue workers (Supervisor picks up new code)"
