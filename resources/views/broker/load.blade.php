@@ -2073,9 +2073,51 @@ $(document).ready(function () {
 
                 // Always show the calculated total in final rate field
                 $('#shipper_load_final_rate').val(total.toFixed(2));
-                
-                // Then validate credit (will disable submit if exceeded, but rate stays visible)
+                // Re-validate UI based on new totals (keeps calculated final rate visible)
                 validateCreditForLoad();
+
+                // Also send non-invoice portion to the server-side remaining-credit check
+                var customer_id = $('#customer_id').val();
+
+                // Calculate total of invoice-selected charges only
+                var invoiceTotal = 0;
+                $('[name="for_invoice[]"]').each(function(index, checkbox) {
+                    var checked = $(checkbox).is(':checked');
+                    if (checked) {
+                        // Find corresponding amount input by index
+                        var amountInput = $('[name="shipperchargeAmount[]"]').eq(index);
+                        var val = parseFloat(amountInput.val()) || 0;
+                        invoiceTotal += val;
+                    }
+                });
+
+                // Non-invoice portion should be validated against remaining credit
+                var nonInvoiceFinalRate = total - invoiceTotal;
+
+                $.ajax({
+                    url: '{{ route('check.remaing.limit') }}',
+                    method: 'GET',
+                    data: {
+                        customer_id: customer_id,
+                        finalrate: nonInvoiceFinalRate,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#mc-error-message').text(response.message).fadeIn();
+
+                            // Hide after 2 seconds
+                            setTimeout(function() {
+                                $('#mc-error-message').text('').fadeOut();
+                            }, 2000);
+
+                            // Reset fields when credit insufficient
+                            $('#shipper_load_final_rate').val('0');
+                            $('#totalChargeAmount').val('0');
+                            $('.shipperchargeAmount').val('0');
+                        }
+                    }
+                });
             }
 
             $(document).on('input', '[name="shipperchargeAmount[]"], #load_shipper_rate, #load_fsc_rate',
