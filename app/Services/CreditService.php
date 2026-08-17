@@ -88,7 +88,7 @@ class CreditService
         })->sum('shipper_load_final_rate');
     }
 
-    public function validateCreditForLoad($customer, float $loadAmount): array
+    public function validateCreditForLoad($customer, float $loadAmount, float $invoiceAmount = 0.0): array
     {
         $customer = $this->resolveCustomer($customer);
 
@@ -100,7 +100,10 @@ class CreditService
             ];
         }
 
+        $invoiceAmount = max(0.0, $invoiceAmount);
+        $remainingAmount = max(0.0, $loadAmount - $invoiceAmount);
         $availableCredit = $this->getAvailableCreditLimit($customer);
+        $invoiceLimit = max(0.0, (float) ($customer->invoice_credit_limit ?? 0));
 
         if ($loadAmount <= 0) {
             return [
@@ -110,20 +113,22 @@ class CreditService
             ];
         }
 
-        if ($availableCredit <= 0) {
-            return [
-                'allowed' => false,
-                'message' => 'You do not have sufficient limit to create this load.',
-                'available_credit' => $availableCredit,
-            ];
-        }
-
-        if ($loadAmount > $availableCredit) {
-            $shortage = round($loadAmount - $availableCredit, 2);
+        if ($remainingAmount > $availableCredit) {
+            $shortage = round($remainingAmount - $availableCredit, 2);
 
             return [
                 'allowed' => false,
                 'message' => "You do not have sufficient limit to create this load. Available limit is {$availableCredit}. Requested amount: {$loadAmount}. You need {$shortage} more credits to create this load.",
+                'available_credit' => $availableCredit,
+            ];
+        }
+
+        if ($invoiceAmount > 0 && $invoiceAmount > $invoiceLimit) {
+            $shortage = round($invoiceAmount - $invoiceLimit, 2);
+
+            return [
+                'allowed' => false,
+                'message' => "You do not have sufficient invoicing limit to create the load. Your invoicing limit is {$invoiceLimit}. You need {$shortage} more credits to create this load.",
                 'available_credit' => $availableCredit,
             ];
         }
@@ -203,9 +208,9 @@ class CreditService
         ];
     }
 
-    public function reserveCreditForLoad($customer, float $loadAmount): array
+    public function reserveCreditForLoad($customer, float $loadAmount, float $invoiceAmount = 0.0): array
     {
-        return DB::transaction(function () use ($customer, $loadAmount) {
+        return DB::transaction(function () use ($customer, $loadAmount, $invoiceAmount) {
             $customer = $this->resolveCustomer($customer);
 
             if (!$customer) {
@@ -226,7 +231,10 @@ class CreditService
                 ];
             }
 
+            $invoiceAmount = max(0.0, $invoiceAmount);
+            $remainingAmount = max(0.0, $loadAmount - $invoiceAmount);
             $availableCredit = $this->getAvailableCreditLimit($customer);
+            $invoiceLimit = max(0.0, (float) ($customer->invoice_credit_limit ?? 0));
 
             if ($loadAmount <= 0) {
                 return [
@@ -236,16 +244,8 @@ class CreditService
                 ];
             }
 
-            if ($availableCredit <= 0) {
-                return [
-                    'allowed' => false,
-                    'message' => 'You do not have sufficient limit to create this load.',
-                    'available_credit' => $availableCredit,
-                ];
-            }
-
-            if ($loadAmount > $availableCredit) {
-                $shortage = round($loadAmount - $availableCredit, 2);
+            if ($remainingAmount > $availableCredit) {
+                $shortage = round($remainingAmount - $availableCredit, 2);
 
                 return [
                     'allowed' => false,
@@ -254,9 +254,30 @@ class CreditService
                 ];
             }
 
-            $newRemainingCredit = round(max(0.0, $availableCredit - $loadAmount), 2);
+            if ($invoiceAmount > 0 && $invoiceLimit <= 0) {
+                return [
+                    'allowed' => false,
+                    'message' => 'You do not have sufficient invoicing limit to create the load.',
+                    'available_credit' => $availableCredit,
+                ];
+            }
+
+            if ($invoiceAmount > $invoiceLimit) {
+                $shortage = round($invoiceAmount - $invoiceLimit, 2);
+
+                return [
+                    'allowed' => false,
+                    'message' => "You do not have sufficient invoicing limit to create the load. Your invoicing limit is {$invoiceLimit}. You need {$shortage} more credits to create this load.",
+                    'available_credit' => $availableCredit,
+                ];
+            }
+
+            $newRemainingCredit = round(max(0.0, $availableCredit - $remainingAmount), 2);
+            $newInvoiceCreditLimit = round(max(0.0, $invoiceLimit - $invoiceAmount), 2);
+
             $customer->remaining_credit = $newRemainingCredit;
             $customer->remaining_credit_amount = $newRemainingCredit;
+            $customer->invoice_credit_limit = $newInvoiceCreditLimit;
             $customer->save();
 
             return [
@@ -264,6 +285,7 @@ class CreditService
                 'message' => '',
                 'available_credit' => $availableCredit,
                 'remaining_credit' => $newRemainingCredit,
+                'invoice_credit_limit' => $newInvoiceCreditLimit,
             ];
         });
     }

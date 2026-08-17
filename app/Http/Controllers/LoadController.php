@@ -818,12 +818,20 @@ if (!empty($term)) {
             }
 
             $shipperCharges = [];
+            $invoiceChargeTotal = 0.0;
             foreach ($request->shipperchargeType as $index => $chargeType) {
-                $chargeAmount = $request->shipperchargeAmount[$index];
+                $chargeAmount = (float) ($request->shipperchargeAmount[$index] ?? 0);
+                $forInvoice = isset($request->for_invoice) && is_array($request->for_invoice) && in_array($index, array_keys($request->for_invoice), true) ? 'on' : 'off';
+
                 $shipperCharges[] = [
                     'type' => $chargeType,
+                    'for_invoice' => $forInvoice,
                     'amount' => $chargeAmount,
                 ];
+
+                if ($forInvoice === 'on') {
+                    $invoiceChargeTotal += $chargeAmount;
+                }
             }
 
             $carrierCharges = [];
@@ -843,7 +851,7 @@ if (!empty($term)) {
             $customer = Customer::find($yourModel->customer_id);
             if ($customer) {
                 $loadAmount = (float) $finalRate;
-                $creditResult = $this->creditService->reserveCreditForLoad($customer, $loadAmount);
+                $creditResult = $this->creditService->reserveCreditForLoad($customer, $loadAmount, $invoiceChargeTotal);
 
                 if (!$creditResult['allowed']) {
                     return back()->with('error', $creditResult['message']);

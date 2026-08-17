@@ -41,11 +41,26 @@ class CreditServiceTest extends TestCase
         $customer->remaining_credit = 500.0;
         $customer->invoice_credit_limit = 300.0;
 
-        $result = $service->validateSplitLoadCredit($customer, 400.0, 50.0, 250.0);
+        $result = $service->validateSplitLoadCredit($customer, 400.0, 50.0);
 
         $this->assertTrue($result['allowed']);
         $this->assertSame(500.0, $result['remaining_limit']);
         $this->assertSame(300.0, $result['invoice_limit']);
+    }
+
+    public function test_validate_split_load_credit_deducts_invoice_charges_from_invoice_limit(): void
+    {
+        $service = new CreditService();
+        $customer = new Customer();
+        $customer->remaining_credit = 69.0;
+        $customer->invoice_credit_limit = 5.0;
+
+        $allowed = $service->validateSplitLoadCredit($customer, 69.0, 4.0);
+        $this->assertTrue($allowed['allowed']);
+
+        $blocked = $service->validateSplitLoadCredit($customer, 69.0, 6.0);
+        $this->assertFalse($blocked['allowed']);
+        $this->assertStringContainsString('invoicing limit', $blocked['message']);
     }
 
     public function test_customer_credit_values_are_never_negative(): void
