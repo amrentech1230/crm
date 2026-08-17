@@ -2074,22 +2074,10 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                // For TONU: final rate = only invoice charges (no base rate needed)
-                if (isTONU()) {
-                    var invoiceTotal = getInvoiceChargesTotal();
-                    $('#shipper_load_final_rate').val(invoiceTotal.toFixed(2));
-                } else {
-                    // Check if total exceeds credit limit before setting final rate
-                    var credits = getSelectedCustomerCreditLimit();
-                    var remainingLimit = credits.remaining;
-                    var nonInvoiceTotal = loadShipperRate + ((loadFscRate / 100) * loadShipperRate) + getNonInvoiceChargesTotal();
-                    
-                    if (remainingLimit > 0 && nonInvoiceTotal > remainingLimit) {
-                        $('#shipper_load_final_rate').val(0);
-                    } else {
-                        $('#shipper_load_final_rate').val(total.toFixed(2));
-                    }
-                }
+                // Always show the calculated total in final rate field
+                $('#shipper_load_final_rate').val(total.toFixed(2));
+                
+                // Then validate credit (will disable submit if exceeded, but rate stays visible)
                 validateCreditForLoad();
             }
 
@@ -2116,29 +2104,11 @@ $(document).ready(function () {
             var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
             total += (loadFscRate / 100) * loadShipperRate;
 
-            // For TONU: final rate = only invoice charges
-            if (isTONU()) {
-                var invoiceTotal = getInvoiceChargesTotal();
-                $('#shipper_load_final_rate').val(invoiceTotal.toFixed(2));
-            } else {
-                // Check remaining credit (base + non-invoice charges)
-                var credits = getSelectedCustomerCreditLimit();
-                var remainingLimit = credits.remaining;
-                var nonInvoiceTotal = loadShipperRate + ((loadFscRate / 100) * loadShipperRate) + getNonInvoiceChargesTotal();
-                
-                if (remainingLimit > 0 && nonInvoiceTotal > remainingLimit) {
-                    $('#shipper_load_final_rate').val(0);
-                } else {
-                    $('#shipper_load_final_rate').val(total.toFixed(2));
-                }
-            }
+            // Always show the calculated total in final rate field
+            $('#shipper_load_final_rate').val(total.toFixed(2));
+            
+            // Then validate credit (will disable submit if exceeded, but rate stays visible)
             validateCreditForLoad();
-        }
-
-            //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
-
-            //$('#shipper_load_final_rate').val(final_rate);
-
         }
 
         // Bind input event to existing .shipperchargeAmount inputs
