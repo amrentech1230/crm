@@ -365,7 +365,7 @@
                                     <div class="form-group">
                                         <label>Invoice Status</label>
                                         @php
-                                            $selectedValue = !empty($post->customer?->invoice_through)
+                                            $selectedValue = !empty($post->customer?->invoice_through) 
                                                             ? $post->customer->invoice_through
                                                             : $post->invoice_through;
                                         @endphp
