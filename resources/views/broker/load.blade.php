@@ -1708,13 +1708,28 @@ $(document).ready(function () {
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
                 var customer_id = $('#customer_id').val();
-                
+
+                // Calculate total of invoice-selected charges only
+                var invoiceTotal = 0;
+                $('[name="for_invoice[]"]').each(function(index, checkbox) {
+                    var checked = $(checkbox).is(':checked');
+                    if (checked) {
+                        // Find corresponding amount input by index
+                        var amountInput = $('[name="shipperchargeAmount[]"]').eq(index);
+                        var val = parseFloat(amountInput.val()) || 0;
+                        invoiceTotal += val;
+                    }
+                });
+
+                // Non-invoice portion should be validated against remaining credit
+                var nonInvoiceFinalRate = total - invoiceTotal;
+
                  $.ajax({
                         url: '{{ route('check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             customer_id: customer_id,
-                            finalrate: total,
+                            finalrate: nonInvoiceFinalRate,
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
