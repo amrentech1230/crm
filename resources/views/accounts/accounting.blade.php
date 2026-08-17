@@ -47,6 +47,15 @@ table.dataTable tbody > tr.selected td p {
     border-color: rgba(15, 156, 243, .2);
     color: #000 !important;
 }
+.mail-document-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.mail-document-card { position: relative; display: block; min-height: 150px; padding: 10px; border: 1px solid #d9e0e7; border-radius: 8px; background: #fff; cursor: pointer; }
+.mail-document-card:has(input:not(:checked)) { opacity: .55; }
+.mail-document-card input[type="checkbox"] { margin-right: 6px; }
+.mail-document-preview { display: flex; min-height: 86px; align-items: center; justify-content: center; flex-direction: column; color: #dc3545; text-decoration: none; overflow: hidden; }
+.mail-document-preview img { max-width: 100%; max-height: 86px; object-fit: contain; }
+.mail-document-preview .fa-file-pdf { font-size: 40px; }
+.mail-document-name { display: block; max-width: 100%; padding-right: 26px; font-size: 12px; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
+.remove-mail-document { position: absolute; right: 8px; bottom: 7px; }
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
