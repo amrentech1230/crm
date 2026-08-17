@@ -350,7 +350,7 @@ body.vertical-collpsed #credit-limit-message {
                                                 <div class="modal-body pt-0">
                                                     <div class="container">
                                                         <div class="row">
-                                                            <div class="col-md-6">
+                                                            <div class="col-md-4">
                                                                 <div class="form-group">
                                                                     <label for="shipperchargeType"> Charge Type:</label>
                                                                     <input type="text" class="form-control"
@@ -358,7 +358,16 @@ body.vertical-collpsed #credit-limit-message {
                                                                         placeholder="Enter Charge Type">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-5">
+                                                            <div class="col-md-2">
+                                                                <div class="form-group mt-3">
+                                                                    <label>For Invoice:</label><br>
+                                                                    <input type="checkbox"
+                                                                        class="form-check-input for_invoice"
+                                                                        name="for_invoice[]"
+                                                                        value="on">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
                                                                 <div class="form-group">
                                                                     <label> Amount:</label>
                                                                     <input type="number" class="form-control shipperchargeAmount"
@@ -366,7 +375,7 @@ body.vertical-collpsed #credit-limit-message {
                                                                         placeholder="Enter Amount">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-1" style="margin-top: 27px;">
+                                                            <div class="col-md-2" style="margin-top: 27px;">
                                                                 <a type="button" class="remove-charge"
                                                                     name="shipperchargeAmountdelete[]">
                                                                     <i class="fa fa-trash"
@@ -377,21 +386,29 @@ body.vertical-collpsed #credit-limit-message {
                                                         </div>
 
                                                         <div class="row" id="chargeRowTemplate" style="display: none;">
-                                                            <div class="col-md-6" style="margin-top:20px;">
+                                                            <div class="col-md-4" style="margin-top:20px;">
                                                                 <div class="form-group">
                                                                     <input type="text" class="form-control"
                                                                         name="shipperchargeType[]"
                                                                         placeholder="Enter Charge Type">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-5" style="margin-top:20px;">
+                                                            <div class="col-md-2" style="margin-top:20px;">
+                                                                <div class="form-group">
+                                                                    <input type="checkbox"
+                                                                        class="form-check-input for_invoice"
+                                                                        name="for_invoice[]"
+                                                                        value="on">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4" style="margin-top:20px;">
                                                                 <div class="form-group">
                                                                     <input type="number" class="form-control shipper_other_charge"
                                                                         name="shipperchargeAmount[]"
                                                                         placeholder="Enter Amount">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-1" style="margin-top: 17px;">
+                                                            <div class="col-md-2" style="margin-top: 17px;">
                                                                 <a type="button" class="remove-charge"
                                                                     name="shipperchargeAmountdelete[]">
                                                                     <i class="fa fa-trash"
@@ -844,7 +861,7 @@ body.vertical-collpsed #credit-limit-message {
     function getSelectedCustomerCreditLimit() {
         var $select = $('#load_bill_to');
         if (!$select.length) {
-            return 0;
+            return { remaining: 0, invoice: 0 };
         }
 
         var selectedOption = $select.find('option:selected');
@@ -852,15 +869,45 @@ body.vertical-collpsed #credit-limit-message {
         var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
         var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
 
-        if (availableCredit > 0) {
-            return availableCredit;
+        var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
+
+        return { remaining: remaining, invoice: invoiceCreditLimit };
+    }
+
+    function getInvoiceChargesTotal() {
+        var total = 0;
+        var $invoiceChecks = $('[name="for_invoice[]"]');
+
+        if (!$invoiceChecks.length) {
+            return 0;
         }
 
-        if (remainingCredit > 0) {
-            return remainingCredit;
+        $invoiceChecks.each(function (index) {
+            var amount = parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+            if ($(this).is(':checked')) {
+                total += amount;
+            }
+        });
+
+        return total;
+    }
+
+    function getNonInvoiceChargesTotal() {
+        var total = 0;
+        var $invoiceChecks = $('[name="for_invoice[]"]');
+
+        if (!$invoiceChecks.length) {
+            return 0;
         }
 
-        return invoiceCreditLimit;
+        $invoiceChecks.each(function (index) {
+            var amount = parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+            if (!$(this).is(':checked')) {
+                total += amount;
+            }
+        });
+
+        return total;
     }
 
     function validateCreditForLoad() {
@@ -881,8 +928,16 @@ body.vertical-collpsed #credit-limit-message {
             return true;
         }
 
-        var creditLimit = getSelectedCustomerCreditLimit();
+        var credits = getSelectedCustomerCreditLimit();
+        var remainingLimit = credits.remaining;
+        var invoiceLimit = credits.invoice;
         var enteredAmount = parseFloat($rate.val()) || 0;
+        var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+        var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+        var fscAmount = (fscRate / 100) * baseRate;
+        var nonInvoiceCharges = getNonInvoiceChargesTotal();
+        var invoiceCharges = getInvoiceChargesTotal();
+        var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
 
         if (enteredAmount < 0) {
             $message
@@ -896,7 +951,7 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        if (creditLimit <= 0) {
+        if (remainingLimit <= 0) {
             $message
                 .removeClass('alert-warning alert-success')
                 .addClass('alert-danger')
@@ -909,15 +964,38 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        if (enteredAmount > creditLimit) {
-            var shortageAmount = enteredAmount - creditLimit;
+        if (remainingUsed > remainingLimit) {
+            var shortageAmount = remainingUsed - remainingLimit;
             $message
                 .removeClass('alert-warning alert-success')
                 .addClass('alert-danger')
-                .text('You do not have sufficient limit to create this load. Available limit is ' + formatCreditAmount(creditLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits to create this load.')
+                .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds remaining credit limit (' + formatCreditAmount(remainingLimit) + ').')
                 .removeClass('d-none');
-            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load. You need ' + formatCreditAmount(shortageAmount) + ' more credits.');
-            zeroRateFields();
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient remaining limit.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (invoiceCharges > 0 && invoiceLimit <= 0) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('You do not have invoicing limit. Cannot add invoice charges.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient invoice limit.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (invoiceCharges > 0 && invoiceCharges > invoiceLimit) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient invoicing limit.');
             $rate.val(0);
             $form.data('credit-valid', false);
             return false;
@@ -926,7 +1004,7 @@ body.vertical-collpsed #credit-limit-message {
         $message
             .removeClass('alert-danger')
             .addClass('alert-warning')
-            .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+            .text('Remaining limit: ' + formatCreditAmount(remainingLimit) + ' | Invoice limit: ' + formatCreditAmount(invoiceLimit))
             .removeClass('d-none');
         $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
         $form.data('credit-valid', true);
@@ -1340,13 +1418,22 @@ $(document).ready(function () {
                 }
 
                 var customer_id = $('#load_bill_to').val();
-                
+                var invoiceAmount = 0;
+                $('[name="for_invoice[]"]').each(function (index) {
+                    if ($(this).is(':checked')) {
+                        invoiceAmount += parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+                    }
+                });
+                var remainingAmount = Math.max(0, total - invoiceAmount);
+
                  $.ajax({
                         url: '{{ route('check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             customer_id: customer_id,
                             finalrate: total,
+                            remaining_amount: remainingAmount,
+                            invoice_amount: invoiceAmount,
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
@@ -1374,6 +1461,11 @@ $(document).ready(function () {
                 function () {
                     updateTotalshipper();
                 });
+
+            $(document).on('change', '.for_invoice', function () {
+                updateTotalshipper();
+                validateCreditForLoad();
+            });
 
         });
 

@@ -135,6 +135,74 @@ class CreditService
         ];
     }
 
+    public function validateSplitLoadCredit($customer, float $remainingUsed, float $invoiceUsed = 0.0): array
+    {
+        $customer = $this->resolveCustomer($customer);
+
+        if (!$customer) {
+            return [
+                'allowed' => false,
+                'message' => 'Selected customer is not approved or not found.',
+                'remaining_limit' => 0.0,
+                'invoice_limit' => 0.0,
+                'remaining_used' => $remainingUsed,
+                'invoice_used' => $invoiceUsed,
+            ];
+        }
+
+        $remainingLimit = max(0.0, $this->getAvailableCreditLimit($customer));
+        $invoiceLimit = max(0.0, (float) ($customer->invoice_credit_limit ?? 0));
+
+        $remainingUsed = max(0.0, $remainingUsed);
+        $invoiceUsed = max(0.0, $invoiceUsed);
+
+        if ($remainingUsed > $remainingLimit) {
+            $shortage = round($remainingUsed - $remainingLimit, 2);
+
+            return [
+                'allowed' => false,
+                'message' => "You do not have sufficient remaining credit to create the load. Your remaining credit is {$remainingLimit}. You need {$shortage} more credits to create this load.",
+                'remaining_limit' => $remainingLimit,
+                'invoice_limit' => $invoiceLimit,
+                'remaining_used' => $remainingUsed,
+                'invoice_used' => $invoiceUsed,
+            ];
+        }
+
+        if ($invoiceUsed > 0 && $invoiceLimit <= 0) {
+            return [
+                'allowed' => false,
+                'message' => 'You do not have sufficient invoicing limit to create the load.',
+                'remaining_limit' => $remainingLimit,
+                'invoice_limit' => $invoiceLimit,
+                'remaining_used' => $remainingUsed,
+                'invoice_used' => $invoiceUsed,
+            ];
+        }
+
+        if ($invoiceUsed > $invoiceLimit) {
+            $shortage = round($invoiceUsed - $invoiceLimit, 2);
+
+            return [
+                'allowed' => false,
+                'message' => "You do not have sufficient invoicing limit to create the load. Your invoicing limit is {$invoiceLimit}. You need {$shortage} more credits to create this load.",
+                'remaining_limit' => $remainingLimit,
+                'invoice_limit' => $invoiceLimit,
+                'remaining_used' => $remainingUsed,
+                'invoice_used' => $invoiceUsed,
+            ];
+        }
+
+        return [
+            'allowed' => true,
+            'message' => '',
+            'remaining_limit' => $remainingLimit,
+            'invoice_limit' => $invoiceLimit,
+            'remaining_used' => $remainingUsed,
+            'invoice_used' => $invoiceUsed,
+        ];
+    }
+
     public function reserveCreditForLoad($customer, float $loadAmount): array
     {
         return DB::transaction(function () use ($customer, $loadAmount) {

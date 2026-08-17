@@ -1648,43 +1648,47 @@ for ($i = 1; $i <= 15; $i++) {
     public function checkRemaingLimit(Request $request){
        
         $customer_id = $request->input('customer_id');
-        $final_rate = $request->input('finalrate');
+        $final_rate = (float) $request->input('finalrate', 0);
+        $invoice_amount = (float) $request->input('invoice_amount', 0);
+        $remaining_amount = (float) $request->input('remaining_amount', max(0.0, $final_rate - $invoice_amount));
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
-        if($final_rate > $remaining_limit){
-            $shortage = round($final_rate - $remaining_limit, 2);
-            return response()->json([
-                'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit . '. You need ' . $shortage . ' more credits to create this load.'
-            ]);
-        }else{
+        $validation = $this->creditService->validateSplitLoadCredit($customerdata, $remaining_amount, $invoice_amount);
+
+        if ($validation['allowed']) {
             return response()->json([
                 'success' => false,
                 'message' => '',
             ]);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => $validation['message'],
+        ]);
 
     }
      public function checkRemaingLimiteditload(Request $request){
        
         $customer_id = $request->input('customer_id');
-        $final_rate = $request->input('finalrate');
+        $final_rate = (float) $request->input('finalrate', 0);
+        $invoice_amount = (float) $request->input('invoice_amount', 0);
+        $remaining_amount = (float) $request->input('remaining_amount', max(0.0, $final_rate - $invoice_amount));
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $this->creditService->getAvailableCreditLimit($customerdata);
-        if($final_rate > $remaining_limit){
-            $shortage = round($final_rate - $remaining_limit, 2);
-            return response()->json([
-                'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit . '. You need ' . $shortage . ' more credits to create this load.'
-            ]);
-        }else{
+        $validation = $this->creditService->validateSplitLoadCredit($customerdata, $remaining_amount, $invoice_amount);
+
+        if ($validation['allowed']) {
             return response()->json([
                 'success' => false,
                 'message' => '',
             ]);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => $validation['message'],
+        ]);
 
     }
 
