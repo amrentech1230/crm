@@ -77,18 +77,15 @@ li{
                 <h3>CUSTOMER RATE & LOAD CONFIRMATION</h3>
                         <div class="direction">
                             <div class="logo" style="text-align:center; width: 30%;">
-                                                               @php
-                                    $logoPath = public_path('images/cargo.png');
-
-                                    if (file_exists($logoPath)) {
-                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
-                                    } else {
-                                        $logoBase64 = '';
-                                        // Optional: dd($logoPath); // Check the resolved path
-                                    }
+                                @php
+                                    $logoFile = public_path('images/cargo.png');
+                                    $logoBase64 = file_exists($logoFile) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoFile)) : '';
                                 @endphp
-
-                                <img style="width: 40%;" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">
+                                @if($logoBase64)
+                                    <img style="width: 40%;" src="{{ $logoBase64 }}" alt="logo">
+                                @else
+                                    <p style="color: red;">Logo not found at {{ $logoFile }}</p>
+                                @endif
                             </div>
                             
                         </div>

@@ -80,7 +80,10 @@ class MailController extends Controller
         $subject = trim((string) $request->input('subject', ''));
 
         if ($subject === '') {
-            return 'Invoice For Load #' . $loadNo . ' (#' . $invoiceNo . ') REF #' . $referenceNo;
+        $customerReference = trim((string) $request->input('customer_refrence_number', ''));
+        $customerReferenceSuffix = $customerReference === '' ? '' : ' | Customer Ref #' . $customerReference;
+
+        return 'Invoice For Load #' . $loadNo . ' (#' . $invoiceNo . ') REF #' . $referenceNo . $customerReferenceSuffix;
         }
 
         return $subject;
