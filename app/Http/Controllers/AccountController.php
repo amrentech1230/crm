@@ -1394,8 +1394,6 @@ public function accountupdateCustomer(Request $request, $id)
     $newCreditLimitLogs = [];
     $creditLimitLogData = $request->input('new_credit_limit', []);
     $creditTimes = $request->input('new_credit_time', []);
-
-
     if (!empty($creditLimitLogData) && !empty($creditTimes)) {
         foreach ($creditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit) && isset($creditTimes[$index])) {
@@ -1406,19 +1404,11 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new logs
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-	
-	// Decode existing remaning credit limit logs or initialize an empty array
     $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
-
-
     if (!empty($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit)) {
@@ -1429,13 +1419,8 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-
-    // Decode existing remaning credit limit logs or initialize an empty array
     $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
@@ -1450,26 +1435,16 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new remaning logs
     $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
     $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
- 
-    // Calculate total credit limit from the updated logs
     $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-
-    // Calculate remaining credit
-   // $usedAmount = $customer->used_amount ?? 0;
     $remainingCredit = $totalCreditLimit - $usedAmount;
-  
-    // Update customer details
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    //$customer->adv_customer_credit_limit = $totalCreditLimit; // Save total credit limit in adv_customer_credit_limit
-    $customer->remaining_credit = $request->input('remaining_credit'); // Save remaining credit in remaining_credit
+    $customer->remaining_credit = $request->input('remaining_credit'); 
     $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
-	 $customer->customer_country = $request->input('customer_country');
+	$customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
     $customer->customer_address = $request->input('customer_address');
@@ -1483,6 +1458,10 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->approved_limit = $request->input('approved_limit');
     $customer->customer_hold_status = $request->has('customer_hold_status') ? 'hold' : 'unhold';
     $customer->invoice_through = $request->input('invoice_through');
+//     echo '<pre>';
+// print_r($customer);
+// echo '</pre>';
+// die;
     $customer->save();
 
     $subject = "Update the Customer info";
