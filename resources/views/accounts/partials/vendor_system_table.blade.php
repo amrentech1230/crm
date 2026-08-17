@@ -54,18 +54,92 @@ $rowClass = 'row-completed';
     </td>
 
     <td class="dynamic-data">{{ $vendor->load_workorder }}</td>
-    <td class="dynamic-data">{{ $vendor->load_bill_to }}</td>
     <td class="dynamic-data">{{ $vendor->load_carrier }}</td>
     <td class="dynamic-data">
-        <input type="date" class="form-control load_carrier_due_date" name="load_carrier_due_date"
-            value="{{ $vendor->load_carrier_due_date }}" data-id="{{ $vendor->id }}">
+    <input
+        type="date"
+        class="form-control carrier_invoice_date"
+        name="carrier_invoice_date"
+        data-id="{{ $vendor->id }}"
+        value="{{ $vendor->carrier_invoice_date ? \Carbon\Carbon::parse($vendor->carrier_invoice_date)->format('Y-m-d') : '' }}"    >
     </td>
     <td class="dynamic-data">
-        <span
-            class="formatted_date due_date-{{ $vendor->id }}">{{ $vendor->load_carrier_due_date ? \Carbon\Carbon::parse($vendor->load_carrier_due_date)->format('d-m-Y') : '' }}</span>
+        <span class="formatted_date due_date-{{ $vendor->id }}">
+            @if($vendor->load_carrier_due_date)
+                {{ \Carbon\Carbon::parse($vendor->load_carrier_due_date)->format('m/d/Y') }}
+            @elseif($vendor->carrier_invoice_date)
+                {{ \Carbon\Carbon::parse($vendor->carrier_invoice_date)->addDays(25)->format('m/d/Y') }}
+            @endif
+        </span>
+    </td>
+        <td class="dynamic-data">
+        <select style="width: 100%;" class="form-control ready_to_pay" name="ready_to_pay" class="ready_to_pay"
+            data-id="{{ $vendor->id }}">
+            <option value="">Please Select Ready to Pay</option>
+            <option value="Yes" @if($vendor->ready_to_pay == 'Yes') selected @endif style="background-color: green;
+                color: white;">Yes</option>
+            <option @if($vendor->ready_to_pay == 'No') selected @endif value="No" style="background-color: red; color:
+                white;">No</option>
+            <option value="Hold/Dispute" @if($vendor->ready_to_pay == 'Hold/Dispute') selected @endif style="background-color: yellow;
+                color: black;">Hold/Dispute</option>
+        </select>
+    </td>
+        <td>
+    @php
+        $selectedValue = !empty($vendor->customer?->invoice_through)
+            ? $vendor->customer->invoice_through
+            : $vendor->invoice_through;
+    @endphp
+
+    <select class="form-control load_priority"
+            name="load_priority"
+            data-id="{{ $vendor->id }}">
+
+        <option value="">Please Select Invoice Through</option>
+
+        <option value="DIRECT"
+            {{ $selectedValue == 'DIRECT' ? 'selected' : '' }}>
+            DIRECT
+        </option>
+
+        <option value="OTR"
+            {{ $selectedValue == 'OTR' ? 'selected' : '' }}>
+            OTR
+        </option>
+
+        <option value="Buyout"
+            {{ $selectedValue == 'Buyout' ? 'selected' : '' }}>
+            Buyout
+        </option>
+
+    </select>
+</td>
+    <td class="dynamic-data">
+        <select
+            class="form-control carrier_documents"
+            name="carrier_documents"
+            data-id="{{ $vendor->id }}"
+        >
+            <option value="">Select Document</option>
+
+            <option value="NOA"
+                {{ $vendor->carrier_documents == 'NOA' ? 'selected' : '' }}>
+                NOA
+            </option>
+
+            <option value="Void Check"
+                {{ $vendor->carrier_documents == 'Void Check' ? 'selected' : '' }}>
+                Void Check
+            </option>
+
+            <option value="Pay by Check"
+                {{ $vendor->carrier_documents == 'Pay by Check' ? 'selected' : '' }}>
+                Pay by Check
+            </option>
+        </select>
     </td>
     <td class="dynamic-data">
-        <select style="width: 100%;" name="quick_pay" class="form-control quick_pay" class="quick_pay"
+        <select name="quick_pay" class="form-control quick_pay" class="quick_pay"
             data-id="{{ $vendor->id }}">
             <option value="">Please Select Quick Pay</option>
             <option value="1%" @if($vendor->quick_pay == '1%') selected @endif>1%</option>
@@ -76,18 +150,7 @@ $rowClass = 'row-completed';
             <option value="6%" @if($vendor->quick_pay == '6%') selected @endif>6%</option>
         </select>
     </td>
-    <td class="dynamic-data">
-        <select style="width: 100%;" class="form-control ready_to_pay" name="ready_to_pay" class="ready_to_pay"
-            data-id="{{ $vendor->id }}">
-            <option value="">Please Select Ready to Pay</option>
-            <option value="Yes" @if($vendor->ready_to_pay == 'Yes') selected @endif style="background-color: green;
-                color: white;">Yes</option>
-            <option @if($vendor->ready_to_pay == 'No') selected @endif value="No" style="background-color: red; color:
-                white;">No</option>
-            <option value="Hold" @if($vendor->ready_to_pay == 'Hold') selected @endif style="background-color: yellow;
-                color: black;">Hold</option>
-        </select>
-    </td>
+
     <td class="dynamic-data">
         <input type="file" class="carrierDoc" name="carrierDoc[]" multiple data-id="{{ $vendor->id }}">
     </td>
@@ -190,7 +253,7 @@ $rowClass = 'row-completed';
     @endif
 
     <td class="dynamic-data">
-        <select style="width: 100%;" class="form-control payment_method" name="payment_method" class="payment_method"
+        <select class="form-control payment_method" name="payment_method" class="payment_method"
             data-id="{{ $vendor->id }}">
             <option value="">Please Select Payment Method</option>
             <option value="ACH" @if($vendor->payment_method == 'ACH') selected @endif>ACH</option>
@@ -220,7 +283,6 @@ $rowClass = 'row-completed';
     <td>{{ $vendor->load_carrier_due_date_on }}</td>
 
 
-    <td class="dynamic-data">{{ $vendor->invoice_number }}</td>
     <td class="dynamic-data">
         @if(!empty($vendor->invoice_date) && $vendor->invoice_date !== '0000-00-00')
         {{ \Carbon\Carbon::parse($vendor->invoice_date)->format('m/d/Y') }}
@@ -230,26 +292,7 @@ $rowClass = 'row-completed';
         -
         @endif
     </td>
-
-    <td class="dynamic-data">
-        @if($vendor->invoice_status == 'Paid')
-        Invoiced
-        @elseif($vendor->invoice_status == 'Paid Record')
-        Paid
-        @elseif($vendor->load_status == 'Completed')
-        Completed
-        @elseif($vendor->load_status == 'Open')
-        Open
-        @elseif($vendor->load_status == 'Unloading')
-        Unloading
-        @else
-        {{ $vendor->load_status }}
-        @endif
-    </td>
-    <td class="dynamic-data">{{ $vendor->created_at }}</td>
-    <td class="dynamic-data">@if($vendor->user) {{ $vendor->user->name }} @endif</td>
-
-    <td>
+    <!-- <td>
         @if($vendor->public_file)
 
         @php
@@ -273,7 +316,6 @@ $rowClass = 'row-completed';
             data-bs-target="#view-documents-{{ $vendor->id }}"> <i class="fa fa-eye"
                 style="font-size: 15px;color: #000; margin-right: 6px;"></i></span>
 
-        <!-- Display Folder Creation Date -->
         <p style="margin: 7px 0;">Folder Created At: {{ $folderCreationDate }}</p>
 
         @else
@@ -284,22 +326,8 @@ $rowClass = 'row-completed';
         </a>
 
         @endif
-    </td>
-    <td>
-        @php
-        $selectedValue = $vendor->invoice_through ?? $vendor->customer?->invoice_through;
-        @endphp
+    </td> -->
 
-
-        <select class="form-control load_priority" name="load_priority" data-id="{{ $vendor->id }}">
-            <option value="">Please Select Invoice Through</option>
-
-            <option value="OTR" {{ $selectedValue == "OTR" ? "selected" : "" }}>OTR</option>
-
-            <option value="Buyout" {{ $selectedValue == "Buyout" ? "selected" : "" }}>Buyout</option>
-        </select>
-
-    </td>
     <td class="dynamic-data"><a href="{{ route('accounts.view_loads_detail', $vendor->id) }}"
             class="btn btn-primary btn-sm"> <i class="fas fa-eye"></i></a></td>
     <td>
@@ -720,41 +748,121 @@ $rowClass = 'row-completed';
         });
 
 
-        $(document).on('change', '.load_carrier_due_date', function () {
-            var dueDate = $(this).val();
-            var vendorId = $(this).data('id');
+$(document).on('change', '.carrier_invoice_date', function () {
 
-            $.ajax({
-                url: '/account/update-carrier-due-date', // Replace with your actual endpoint
-                method: 'POST',
-                data: {
-                    id: vendorId,
-                    load_carrier_due_date: dueDate
-                },
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function (response) {
-                    console.log('Success:', response);
-                    $('.due_date-' + vendorId).text(dueDate);
-                    $('#mc-success-message').text(response.message).fadeIn();
+    var invoiceDate = $(this).val();
+    var vendorId = $(this).data('id');
 
-                    // Hide after 10 seconds
-                    setTimeout(function () {
-                        $('#mc-success-message').text('').fadeOut();
-                    }, 1000); // 10000ms = 10s
-                },
-                error: function (xhr, status, error) {
-                    console.error('Error:', error);
-                    $('#mc-error-message').text(error).fadeIn();
+    if (!invoiceDate) {
+        return;
+    }
 
-                    // Hide after 10 seconds
-                    setTimeout(function () {
-                        $('#mc-error-message').text('').fadeOut();
-                    }, 1000);
-                }
-            });
-        });
+    $.ajax({
+        url: '/account/update-carrier-invoice-date',
+        method: 'POST',
+
+        data: {
+            id: vendorId,
+            carrier_invoice_date: invoiceDate
+        },
+
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+
+        success: function (response) {
+
+            if (response.success) {
+
+                $('.due_date-' + vendorId).text(
+                    response.formatted_due_date
+                );
+
+                $('#mc-success-message')
+                    .text(response.message)
+                    .fadeIn();
+
+                setTimeout(function () {
+                    $('#mc-success-message')
+                        .text('')
+                        .fadeOut();
+                }, 1000);
+            }
+        },
+
+        error: function (xhr) {
+
+            console.error('Error:', xhr.responseText);
+
+            $('#mc-error-message')
+                .text(
+                    xhr.responseJSON?.message ||
+                    'Something went wrong.'
+                )
+                .fadeIn();
+
+            setTimeout(function () {
+                $('#mc-error-message')
+                    .text('')
+                    .fadeOut();
+            }, 1000);
+        }
+    });
+});
+
+$(document).on('change', '.carrier_documents', function () {
+
+    var documentValue = $(this).val();
+    var vendorId = $(this).data('id');
+
+    $.ajax({
+        url: '/account/update-carrier-documents',
+        method: 'POST',
+
+        data: {
+            id: vendorId,
+            carrier_documents: documentValue
+        },
+
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+
+        success: function (response) {
+
+            if (response.success) {
+
+                $('#mc-success-message')
+                    .text(response.message)
+                    .fadeIn();
+
+                setTimeout(function () {
+                    $('#mc-success-message')
+                        .text('')
+                        .fadeOut();
+                }, 1000);
+            }
+        },
+
+        error: function (xhr) {
+
+            console.error('Error:', xhr.responseText);
+
+            $('#mc-error-message')
+                .text(
+                    xhr.responseJSON?.message ||
+                    'Something went wrong.'
+                )
+                .fadeIn();
+
+            setTimeout(function () {
+                $('#mc-error-message')
+                    .text('')
+                    .fadeOut();
+            }, 1000);
+        }
+    });
+});
 
 
         $(document).ready(function () {
@@ -1113,3 +1221,5 @@ ${note} — {{ auth()->user()->name }} (Just now)
             });
         });
     </script>
+
+    
