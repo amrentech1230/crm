@@ -1194,25 +1194,32 @@
                                                             value="{{ $consignee['name'] ?? '' }}">
                                                     @else
                                                         <!-- Show select normally -->
-                                                        <select class="form-control load_consignee" 
-                                                                name="load_consignee_{{ $key + 1 }}" 
-                                                                autocomplete="off"
-                                                                id="load_consignee_{{ $key + 1 }}" 
-                                                                required style="width: 100%;">
-                                                            <option value="">Select Consignee</option>
-                                                            @foreach($consigneedata as $consignees)
-                                                                <option value="{{ $consignees->consignee_name }}" 
-                                                                        data-name="{{ $consignees->consignee_name }}" 
-                                                                        data-address="{{ $consignees->consignee_address }}" 
-                                                                        data-city="{{ $consignees->consignee_city }}" 
-                                                                        data-state="{{ $consignees->consignee_state }}" 
-                                                                        data-country="{{ $consignees->consignee_country }}" 
-                                                                        data-zip="{{ $consignees->consignee_zip }}" 
-                                                                        @if($consignee['name'] == $consignees->consignee_name) selected @endif>
-                                                                    {{ $consignees->consignee_name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
+                                                        @if(empty($consigneedata))
+                                                            <div class="alert alert-warning" role="alert">
+                                                                <strong>No consignees found!</strong> Please add consignees in Consignee Management first.
+                                                            </div>
+                                                            <input type="text" class="form-control" placeholder="No consignees available" disabled>
+                                                        @else
+                                                            <select class="form-control load_consignee" 
+                                                                    name="load_consignee_{{ $key + 1 }}" 
+                                                                    autocomplete="off"
+                                                                    id="load_consignee_{{ $key + 1 }}" 
+                                                                    required style="width: 100%;">
+                                                                <option value="">Select Consignee ({{ count($consigneedata) }} available)</option>
+                                                                @foreach($consigneedata as $consignees)
+                                                                    <option value="{{ $consignees->consignee_name }}" 
+                                                                            data-name="{{ $consignees->consignee_name }}" 
+                                                                            data-address="{{ $consignees->consignee_address }}" 
+                                                                            data-city="{{ $consignees->consignee_city }}" 
+                                                                            data-state="{{ $consignees->consignee_state }}" 
+                                                                            data-country="{{ $consignees->consignee_country }}" 
+                                                                            data-zip="{{ $consignees->consignee_zip }}" 
+                                                                            @if($consignee['name'] == $consignees->consignee_name) selected @endif>
+                                                                        {{ $consignees->consignee_name }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        @endif
                                                         <span class="customerErrorMessage" style="color: red; display: none;">
                                                             Select Consignee From the List
                                                         </span>
