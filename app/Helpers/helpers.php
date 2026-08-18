@@ -82,14 +82,17 @@ if (!function_exists('get_customer_display_remaining_credit')) {
 			$customer = Customer::find($customer);
 		}
 
-		$remainingCredit = normalize_customer_credit_value(data_get($customer, 'remaining_credit', 0));
+		// If remaining_credit has ever been set (tracked), use it — even if it's 0.
+		// Only fall back to assigned limit if remaining_credit is null (never been set).
+		$remainingCredit = data_get($customer, 'remaining_credit');
+		if ($remainingCredit !== null) {
+			return normalize_customer_credit_value($remainingCredit);
+		}
+
 		$invoiceCreditLimit = normalize_customer_credit_value(data_get($customer, 'invoice_credit_limit', 0));
 		$assignedCreditLimit = normalize_customer_credit_value(data_get($customer, 'adv_customer_credit_limit', 0));
 
-		if ($remainingCredit > 0) {
-			return $remainingCredit;
-		}
-
+		// Fall back only if remaining_credit was never set
 		if ($assignedCreditLimit > 0) {
 			return $assignedCreditLimit;
 		}
