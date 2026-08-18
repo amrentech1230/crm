@@ -1933,9 +1933,22 @@ $(document).ready(function () {
                 var $creditDisplay = $('#creditlimitcheck');
                 if (!$creditDisplay.length) return;
 
+                // Calculate Non-Invoice Charges (For Invoice unchecked)
+                var nonInvoiceCharges = 0;
+                $('.shipperchargeAmount').each(function (index) {
+                    var amount = parseFloat($(this).val()) || 0;
+                    var isInvoice = $('[name="for_invoice[' + index + ']"]').is(':checked');
+                    if (!isInvoice && amount > 0) {
+                        nonInvoiceCharges += amount;
+                    }
+                });
+
                 var deductionBreakdown = 'Base: $' + parseFloat(baseRate || 0).toFixed(2);
                 if (fscAmount > 0) {
                     deductionBreakdown += ' + F.S.C: $' + parseFloat(fscAmount || 0).toFixed(2);
+                }
+                if (nonInvoiceCharges > 0) {
+                    deductionBreakdown += ' + Charges: $' + parseFloat(nonInvoiceCharges || 0).toFixed(2);
                 }
                 var displayText = 'Final Deduction: $' + parseFloat(totalDeduction || 0).toFixed(2) + ' (' + deductionBreakdown + ')';
 
@@ -1947,6 +1960,7 @@ $(document).ready(function () {
                     'Base Rate': '$' + parseFloat(baseRate || 0).toFixed(2),
                     'FSC Rate %': fscRate + '%',
                     'FSC Amount': '$' + parseFloat(fscAmount || 0).toFixed(2),
+                    'Non-Invoice Charges': '$' + parseFloat(nonInvoiceCharges || 0).toFixed(2),
                     'Total Final Rate': '$' + parseFloat(totalDeduction || 0).toFixed(2)
                 });
             }
