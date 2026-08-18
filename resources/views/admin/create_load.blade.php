@@ -997,8 +997,15 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        // Simple visible message, detailed calculations in console
-        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' | Available after: ' + formatCreditAmount(remainingLimit - remainingUsed);
+        // Simple visible message showing all deductions
+        var deductionBreakdown = 'Base: ' + formatCreditAmount(baseRate);
+        if (fscAmount > 0) {
+            deductionBreakdown += ' + F.S.C: ' + formatCreditAmount(fscAmount);
+        }
+        if (nonInvoiceChargesFromRemaining > 0) {
+            deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceChargesFromRemaining);
+        }
+        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - remainingUsed);
 
         $message
             .removeClass('alert-danger')

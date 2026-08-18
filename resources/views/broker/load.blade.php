@@ -1644,8 +1644,15 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return false;
             }
 
-            // All good - simple visible message, detailed calculations in console
-            var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' | Available after: ' + formatCreditAmount(remainingLimit - remainingUsed);
+            // All good - show all deductions in visible message
+            var deductionBreakdown = 'Base: ' + formatCreditAmount(baseRate);
+            if (fscAmount > 0) {
+                deductionBreakdown += ' + F.S.C: ' + formatCreditAmount(fscAmount);
+            }
+            if (nonInvoiceChargesFromRemaining > 0) {
+                deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceChargesFromRemaining);
+            }
+            var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - remainingUsed);
 
             $message.removeClass('alert-danger').addClass('alert-warning')
                 .text(deductionSummary)
