@@ -1604,13 +1604,10 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var nonInvoiceCharges = getNonInvoiceChargesTotal();
             var invoiceCharges = getInvoiceChargesTotal();
 
-            // Deduct customer other charges (non-invoice charges) from invoicing limit
-            var nonInvoiceChargesFromInvoiceLimit = Math.min(nonInvoiceCharges, invoiceLimit);
-            var nonInvoiceChargesFromRemaining = Math.max(0, nonInvoiceCharges - invoiceLimit);
-            var remainingUsed = baseRate + fscAmount + nonInvoiceChargesFromRemaining;
-            
-            // Total invoice usage includes both invoice charges and any non-invoice charges deducted from invoice limit
-            var totalInvoiceUsed = invoiceCharges + nonInvoiceChargesFromInvoiceLimit;
+            // Only For Invoice=checked charges are deducted from the invoicing limit.
+            // Base rate, F.S.C and non-invoice charges are deducted from the remaining limit.
+            var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
+            var totalInvoiceUsed = invoiceCharges;
 
             // Check remaining credit limit (base rate + non-invoice charges)
             if (remainingLimit <= 0 && invoiceLimit <= 0) {
@@ -1649,8 +1646,8 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             if (fscAmount > 0) {
                 deductionBreakdown += ' + F.S.C: ' + formatCreditAmount(fscAmount);
             }
-            if (nonInvoiceChargesFromRemaining > 0) {
-                deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceChargesFromRemaining);
+            if (nonInvoiceCharges > 0) {
+                deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceCharges);
             }
             var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - remainingUsed);
 
@@ -1664,9 +1661,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 'FSC Rate %': parseFloat(fscRate || 0).toFixed(1) + '%',
                 'FSC Amount': formatCreditAmount(fscAmount),
                 'Invoice Charges (For Invoice=checked)': formatCreditAmount(invoiceCharges),
+                '  → Deducted from Invoice Limit': formatCreditAmount(totalInvoiceUsed),
                 'Non-Invoice Charges (For Invoice=unchecked)': formatCreditAmount(nonInvoiceCharges),
-                '  → Deducted from Invoice Limit': formatCreditAmount(nonInvoiceChargesFromInvoiceLimit),
-                '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceChargesFromRemaining),
+                '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceCharges),
                 'Total Used from Remaining': formatCreditAmount(remainingUsed),
                 'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
                 'Remaining Limit': formatCreditAmount(remainingLimit),
