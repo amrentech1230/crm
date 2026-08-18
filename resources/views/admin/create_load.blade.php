@@ -939,14 +939,10 @@ body.vertical-collpsed #credit-limit-message {
         var invoiceCharges = getInvoiceChargesTotal();
         
         // Only For Invoice=checked charges are deducted from the invoicing limit.
-        // Base rate, F.S.C and non-invoice charges are deducted from the remaining limit,
-        // and anything they cannot cover spills over into the leftover invoicing limit -
-        // but only while the customer still has some remaining limit to draw on.
+        // Base rate, F.S.C and non-invoice charges must fit inside the remaining limit -
+        // the invoicing limit is never used to cover a shortfall there.
         var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
-        var usedFromRemaining = Math.min(remainingUsed, remainingLimit);
-        var overflowToInvoiceLimit = remainingUsed - usedFromRemaining;
-        var invoiceLimitLeft = Math.max(0, invoiceLimit - invoiceCharges);
-        var totalInvoiceUsed = invoiceCharges + overflowToInvoiceLimit;
+        var totalInvoiceUsed = invoiceCharges;
 
         if (enteredAmount < 0) {
             $message
@@ -973,39 +969,27 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        if (invoiceCharges > invoiceLimit) {
-            var shortageAmount = invoiceCharges - invoiceLimit;
+        if (remainingUsed > remainingLimit) {
+            var shortageAmount = remainingUsed - remainingLimit;
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds remaining credit limit (' + formatCreditAmount(remainingLimit) + '). You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient remaining limit.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (totalInvoiceUsed > invoiceLimit) {
+            var shortageAmount = totalInvoiceUsed - invoiceLimit;
             $message
                 .removeClass('alert-warning alert-success')
                 .addClass('alert-danger')
                 .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
                 .removeClass('d-none');
             $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient invoicing limit.');
-            $rate.val(0);
-            $form.data('credit-valid', false);
-            return false;
-        }
-
-        if (overflowToInvoiceLimit > 0 && remainingLimit <= 0) {
-            $message
-                .removeClass('alert-warning alert-success')
-                .addClass('alert-danger')
-                .text('You do not have any remaining credit limit. Your invoicing limit can only be used once you have some remaining credit available.')
-                .removeClass('d-none');
-            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'No remaining limit available.');
-            $rate.val(0);
-            $form.data('credit-valid', false);
-            return false;
-        }
-
-        if (overflowToInvoiceLimit > invoiceLimitLeft) {
-            var shortageAmount = overflowToInvoiceLimit - invoiceLimitLeft;
-            $message
-                .removeClass('alert-warning alert-success')
-                .addClass('alert-danger')
-                .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds your remaining credit limit (' + formatCreditAmount(remainingLimit) + ') plus the ' + formatCreditAmount(invoiceLimitLeft) + ' left on your invoicing limit. You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
-                .removeClass('d-none');
-            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient remaining limit.');
             $rate.val(0);
             $form.data('credit-valid', false);
             return false;
@@ -1019,10 +1003,7 @@ body.vertical-collpsed #credit-limit-message {
         if (nonInvoiceCharges > 0) {
             deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceCharges);
         }
-        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - usedFromRemaining) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
-        if (overflowToInvoiceLimit > 0) {
-            deductionSummary += ' | ' + formatCreditAmount(overflowToInvoiceLimit) + ' taken from your invoicing limit';
-        }
+        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - remainingUsed) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
 
         $message
             .removeClass('alert-danger')
@@ -1039,10 +1020,9 @@ body.vertical-collpsed #credit-limit-message {
             '  → Deducted from Invoice Limit': formatCreditAmount(invoiceCharges),
             'Non-Invoice Charges (For Invoice=unchecked)': formatCreditAmount(nonInvoiceCharges),
             '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceCharges),
-            'Total Used from Remaining': formatCreditAmount(usedFromRemaining),
-            'Overflow Taken from Invoice Limit': formatCreditAmount(overflowToInvoiceLimit),
+            'Total Used from Remaining': formatCreditAmount(remainingUsed),
             'Total Used from Invoice Limit': formatCreditAmount(totalInvoiceUsed),
-            'Remaining Available': formatCreditAmount(remainingLimit - usedFromRemaining),
+            'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
             'Invoice Limit Available': formatCreditAmount(invoiceLimit - totalInvoiceUsed),
             'Remaining Limit': formatCreditAmount(remainingLimit),
             'Invoice Limit': formatCreditAmount(invoiceLimit)

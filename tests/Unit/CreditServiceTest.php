@@ -63,88 +63,35 @@ class CreditServiceTest extends TestCase
         $this->assertStringContainsString('invoicing limit', $blocked['message']);
     }
 
-    public function test_invoicing_limit_covers_the_load_amount_beyond_the_remaining_limit(): void
+    public function test_invoicing_limit_never_covers_a_shortfall_on_the_remaining_limit(): void
     {
         $service = new CreditService();
         $customer = new Customer();
         $customer->remaining_credit = 700.0;
         $customer->invoice_credit_limit = 4000.0;
 
-        // 4700 load with no invoice-flagged charges: 700 from remaining, 4000 spills to invoicing.
-        $result = $service->validateSplitLoadCredit($customer, 4700.0, 0.0);
-
-        $this->assertTrue($result['allowed']);
-        $this->assertSame(700.0, $result['from_remaining']);
-        $this->assertSame(4000.0, $result['invoice_overflow']);
-    }
-
-    public function test_invoicing_limit_is_not_usable_without_any_remaining_limit(): void
-    {
-        $service = new CreditService();
-        $customer = new Customer();
-        $customer->remaining_credit = 0.0;
-        $customer->invoice_credit_limit = 4000.0;
-
+        // 4700 against the remaining limit is refused even though the invoicing limit
+        // would have covered the missing 4000.
         $result = $service->validateSplitLoadCredit($customer, 4700.0, 0.0);
 
         $this->assertFalse($result['allowed']);
-        $this->assertStringContainsString('remaining credit limit', $result['message']);
+        $this->assertStringContainsString('4000 more credits', $result['message']);
     }
 
-    public function test_overflow_cannot_eat_the_invoicing_limit_needed_by_invoice_charges(): void
+    public function test_load_is_allowed_when_each_limit_covers_its_own_share(): void
     {
         $service = new CreditService();
         $customer = new Customer();
         $customer->remaining_credit = 700.0;
         $customer->invoice_credit_limit = 4000.0;
 
-        // 1000 of invoice-flagged charges leaves only 3000 for the overflow, but 4000 is needed.
-        $result = $service->validateSplitLoadCredit($customer, 4700.0, 1000.0);
-
-        $this->assertFalse($result['allowed']);
-        $this->assertStringContainsString('1000 more credits', $result['message']);
-    }
-
-    public function test_overflow_shares_the_invoicing_limit_with_invoice_charges(): void
-    {
-        $service = new CreditService();
-        $customer = new Customer();
-        $customer->remaining_credit = 700.0;
-        $customer->invoice_credit_limit = 4000.0;
-
-        // 2700 against the remaining limit plus 1000 of invoice-flagged charges:
-        // 700 from remaining, 2000 spills over, and 1000 of invoicing limit is left.
-        $result = $service->validateSplitLoadCredit($customer, 2700.0, 1000.0);
+        // 700 of base/F.S.C/non-invoice charges plus 4000 of For Invoice=checked charges.
+        $result = $service->validateSplitLoadCredit($customer, 700.0, 4000.0);
 
         $this->assertTrue($result['allowed']);
-        $this->assertSame(700.0, $result['from_remaining']);
-        $this->assertSame(2000.0, $result['invoice_overflow']);
-        $this->assertSame(1000.0, round($result['invoice_limit'] - $result['invoice_used'] - $result['invoice_overflow'], 2));
     }
 
-    public function test_cancelling_a_spillover_load_returns_credit_to_both_limits(): void
-    {
-        $service = new CreditService();
-
-        // The 4700 load took 700 from remaining and 4000 from the invoicing limit.
-        $release = $service->splitCreditRelease(4700.0, 0.0, 4000.0);
-
-        $this->assertSame(4000.0, $release['to_invoice_limit']);
-        $this->assertSame(700.0, $release['to_remaining']);
-    }
-
-    public function test_cancelling_returns_invoice_charges_and_overflow_to_the_invoicing_limit(): void
-    {
-        $service = new CreditService();
-
-        // 3700 load: 1000 invoice-flagged charges, 2000 spillover, 700 from remaining.
-        $release = $service->splitCreditRelease(3700.0, 1000.0, 2000.0);
-
-        $this->assertSame(3000.0, $release['to_invoice_limit']);
-        $this->assertSame(700.0, $release['to_remaining']);
-    }
-
-    public function test_cancelling_a_load_without_overflow_is_unchanged(): void
+    public function test_cancelling_returns_invoice_charges_to_the_invoicing_limit(): void
     {
         $service = new CreditService();
 
@@ -158,11 +105,23 @@ class CreditServiceTest extends TestCase
     {
         $service = new CreditService();
 
-        // Stored overflow larger than the load (e.g. the load was later edited down).
-        $release = $service->splitCreditRelease(500.0, 100.0, 9000.0);
+        // Invoice charges larger than the load (e.g. the load was later edited down).
+        $release = $service->splitCreditRelease(500.0, 9000.0);
 
         $this->assertSame(500.0, $release['to_invoice_limit']);
         $this->assertSame(0.0, $release['to_remaining']);
+    }
+
+    public function test_credit_release_still_honours_a_legacy_recorded_overflow(): void
+    {
+        $service = new CreditService();
+
+        // Load created while the invoicing limit could top up the remaining limit:
+        // 300 came from the invoicing limit and has to go back there.
+        $release = $service->splitCreditRelease(15400.0, 0.0, 300.0);
+
+        $this->assertSame(300.0, $release['to_invoice_limit']);
+        $this->assertSame(15100.0, $release['to_remaining']);
     }
 
     public function test_customer_credit_values_are_never_negative(): void

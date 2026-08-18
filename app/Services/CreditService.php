@@ -91,13 +91,12 @@ class CreditService
     /**
      * Allocate a load across the two limits.
      *
-     * Invoice-flagged charges always come out of the invoicing limit. The rest of the load
-     * (base rate, F.S.C and non-invoice charges) comes out of the remaining limit first; any
-     * shortfall may spill over into whatever is left of the invoicing limit, but only while
-     * the customer still has some remaining limit to draw on.
+     * Only For Invoice=checked charges come out of the invoicing limit. The rest of the load
+     * (base rate, F.S.C and non-invoice charges) must fit inside the remaining limit - the
+     * invoicing limit is never used to cover a shortfall there.
      *
      * @return array{allowed: bool, message: string, remaining_limit: float, invoice_limit: float,
-     *               from_remaining: float, invoice_overflow: float, invoice_total: float}
+     *               from_remaining: float, invoice_total: float}
      */
     protected function allocateCreditUsage(float $remainingLimit, float $invoiceLimit, float $remainingUsed, float $invoiceUsed): array
     {
@@ -106,20 +105,26 @@ class CreditService
         $remainingUsed = max(0.0, $remainingUsed);
         $invoiceUsed = max(0.0, $invoiceUsed);
 
-        $fromRemaining = min($remainingUsed, $remainingLimit);
-        $overflow = round($remainingUsed - $fromRemaining, 2);
-
         $allocation = [
             'allowed' => true,
             'message' => '',
             'remaining_limit' => $remainingLimit,
             'invoice_limit' => $invoiceLimit,
-            'from_remaining' => round($fromRemaining, 2),
-            'invoice_overflow' => $overflow,
-            'invoice_total' => round($invoiceUsed + $overflow, 2),
+            'from_remaining' => round($remainingUsed, 2),
+            'invoice_total' => round($invoiceUsed, 2),
         ];
 
-        // Invoice-flagged charges have first claim on the invoicing limit.
+        // The remaining limit has to cover the load on its own - the invoicing limit is never
+        // used to top it up.
+        if ($remainingUsed > $remainingLimit) {
+            $shortage = round($remainingUsed - $remainingLimit, 2);
+
+            return array_merge($allocation, [
+                'allowed' => false,
+                'message' => "You do not have sufficient remaining credit to create the load. Your remaining credit is {$remainingLimit}. You need {$shortage} more credits to create this load.",
+            ]);
+        }
+
         if ($invoiceUsed > 0 && $invoiceLimit <= 0) {
             return array_merge($allocation, [
                 'allowed' => false,
@@ -136,36 +141,16 @@ class CreditService
             ]);
         }
 
-        if ($overflow > 0) {
-            // The invoicing limit can only cover the overflow once there is some remaining limit.
-            if ($remainingLimit <= 0) {
-                return array_merge($allocation, [
-                    'allowed' => false,
-                    'message' => 'You do not have any remaining credit limit. Your invoicing limit can only be used once you have some remaining credit available.',
-                ]);
-            }
-
-            $invoiceLimitLeft = round($invoiceLimit - $invoiceUsed, 2);
-
-            if ($overflow > $invoiceLimitLeft) {
-                $shortage = round($overflow - $invoiceLimitLeft, 2);
-                $combined = round($remainingLimit + $invoiceLimitLeft, 2);
-
-                return array_merge($allocation, [
-                    'allowed' => false,
-                    'message' => "You do not have sufficient limit to create the load. Your remaining credit is {$remainingLimit} and {$invoiceLimitLeft} is available from your invoicing limit ({$combined} in total). You need {$shortage} more credits to create this load.",
-                ]);
-            }
-        }
-
         return $allocation;
     }
 
     /**
-     * Split a cancelled load's final rate back into the two limits it was taken from.
+     * Split a cancelled load's final rate back into the two limits it was taken from:
+     * For Invoice=checked charges return to the invoicing limit, the rest to the remaining limit.
      *
-     * Mirrors allocateCreditUsage(): invoice-flagged charges plus whatever spilled over into
-     * the invoicing limit go back there, and the rest returns to the remaining limit.
+     * $invoiceOverflow is a legacy field: loads created while the invoicing limit could top up
+     * the remaining limit recorded how much it absorbed, and that share still has to go back
+     * there. New loads always store 0, so this reduces to the invoice charges alone.
      *
      * @return array{to_invoice_limit: float, to_remaining: float}
      */
@@ -253,8 +238,6 @@ class CreditService
             'invoice_limit' => $invoiceLimit,
             'remaining_used' => $remainingUsed,
             'invoice_used' => $invoiceUsed,
-            'from_remaining' => $allocation['from_remaining'],
-            'invoice_overflow' => $allocation['invoice_overflow'],
         ];
     }
 
@@ -318,8 +301,6 @@ class CreditService
                 'available_credit' => $availableCredit,
                 'remaining_credit' => $newRemainingCredit,
                 'invoice_credit_limit' => $newInvoiceCreditLimit,
-                'from_remaining' => $allocation['from_remaining'],
-                'invoice_overflow' => $allocation['invoice_overflow'],
             ];
         });
     }

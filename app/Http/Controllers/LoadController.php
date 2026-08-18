@@ -858,10 +858,6 @@ if (!empty($term)) {
                 if (!$creditResult['allowed']) {
                     return back()->with('error', $creditResult['message']);
                 }
-
-                // Remember how much of this load was charged to the invoicing limit because the
-                // remaining limit could not cover it, so cancelling refunds the right limits.
-                $yourModel->invoice_credit_overflow = $creditResult['invoice_overflow'] ?? 0;
             }
 
             $yourModel->save();
