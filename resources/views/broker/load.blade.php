@@ -2114,15 +2114,18 @@ $(document).ready(function () {
                     }
                 });
 
-                // Non-invoice portion should be validated against remaining credit
-                var nonInvoiceFinalRate = total - invoiceTotal;
+                // Non-invoice portion is validated against remaining credit, the For Invoice
+                // portion against the invoicing limit.
+                var nonInvoiceFinalRate = Math.max(0, total - invoiceTotal);
 
                 $.ajax({
                     url: '{{ route('check.remaing.limit') }}',
                     method: 'GET',
                     data: {
                         customer_id: customer_id,
-                        finalrate: nonInvoiceFinalRate,
+                        finalrate: total,
+                        remaining_amount: nonInvoiceFinalRate,
+                        invoice_amount: invoiceTotal,
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
@@ -2134,10 +2137,15 @@ $(document).ready(function () {
                                 $('#mc-error-message').text('').fadeOut();
                             }, 2000);
 
-                            // Reset fields when credit insufficient
-                            $('#shipper_load_final_rate').val('0');
-                            $('#totalChargeAmount').val('0');
-                            $('.shipperchargeAmount').val('0');
+                            // Block saving but keep what was typed. This check only covers the
+                            // remaining limit; a For Invoice charge is paid out of the invoicing
+                            // limit, so the customer other charges must not be cleared here.
+                            var $loadForm = $('#myFormLoad');
+                            $loadForm.data('credit-valid', false);
+                            $loadForm.find('input[type="submit"]')
+                                .prop('disabled', true)
+                                .addClass('disabled')
+                                .prop('title', response.message);
                         }
                     }
                 });

@@ -1456,7 +1456,6 @@ $(document).ready(function () {
                             if (response.success) {
 
                                 zeroRateFields();
-                                validateCreditForLoad();
 
                                 // Show the limit message at the top of the load form
                                 $('#credit-limit-message')
@@ -1464,6 +1463,15 @@ $(document).ready(function () {
                                     .addClass('alert-danger')
                                     .text(response.message)
                                     .removeClass('d-none');
+
+                                // Block saving but keep what was typed. This check only covers the
+                                // remaining limit; a For Invoice charge is paid out of the invoicing
+                                // limit, so the customer other charges must not be cleared here.
+                                $('#myFormLoad').data('credit-valid', false);
+                                $('#submitLoadButton')
+                                    .prop('disabled', true)
+                                    .addClass('disabled')
+                                    .prop('title', response.message);
                             }
 
                         },
