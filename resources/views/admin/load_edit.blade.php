@@ -1,4 +1,4 @@
-@extends('layout.compact.app')
+﻿@extends('layout.compact.app')
 @section('content')
 
 <style>
@@ -1873,6 +1873,7 @@ $(document).ready(function () {
             }
 
             function updateTotalshipper() {
+                
                 var total = 0;
 
                 $('.shipperchargeAmount').each(function (index, inputBox) {
