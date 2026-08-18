@@ -1110,7 +1110,7 @@ public function editCustomer($id)
         $totalCreditLimit = 0.0;
     }
 
-    $remainingCredit = normalize_customer_credit_value($customer->remaining_credit);
+    $remainingCredit = get_customer_display_remaining_credit($customer);
     $usedAmount = max(0.0, $totalCreditLimit - $remainingCredit);
     
 

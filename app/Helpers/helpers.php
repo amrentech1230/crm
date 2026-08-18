@@ -71,8 +71,8 @@ if (!function_exists('calculate_customer_credit_summary')) {
 	}
 }
 
-if (!function_exists('get_customer_available_credit_limit')) {
-	function get_customer_available_credit_limit($customer)
+if (!function_exists('get_customer_display_remaining_credit')) {
+	function get_customer_display_remaining_credit($customer)
 	{
 		if ($customer === null) {
 			return 0.0;
@@ -95,6 +95,13 @@ if (!function_exists('get_customer_available_credit_limit')) {
 		}
 
 		return $invoiceCreditLimit;
+	}
+}
+
+if (!function_exists('get_customer_available_credit_limit')) {
+	function get_customer_available_credit_limit($customer)
+	{
+		return get_customer_display_remaining_credit($customer);
 	}
 }
 
