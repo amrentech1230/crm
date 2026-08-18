@@ -6573,7 +6573,8 @@ $tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_pai
 			}else if($request->input('tab') == '#invoiced_paid'){
 				return view('admin.home.invoiced_paid', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
 			}
-				
+			
+            
 		}
          return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
 
