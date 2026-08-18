@@ -69,13 +69,25 @@ class CreditServiceTest extends TestCase
         $this->assertSame(420.0, normalize_customer_credit_value(420.0));
     }
 
-    public function test_customer_display_remaining_credit_falls_back_to_assigned_credit_limit_when_remaining_is_zero(): void
+    public function test_customer_display_remaining_credit_respects_explicit_zero(): void
     {
         $customer = new Customer();
         $customer->remaining_credit = 0;
         $customer->adv_customer_credit_limit = 7200;
         $customer->invoice_credit_limit = 7200;
 
+        // When remaining_credit is explicitly 0, it means customer used all credit — return 0, don't fall back.
+        $this->assertSame(0.0, get_customer_display_remaining_credit($customer));
+    }
+
+    public function test_customer_display_remaining_credit_falls_back_to_assigned_when_null(): void
+    {
+        $customer = new Customer();
+        $customer->remaining_credit = null;
+        $customer->adv_customer_credit_limit = 7200;
+        $customer->invoice_credit_limit = 7200;
+
+        // When remaining_credit is null (never been set), fall back to assigned limit.
         $this->assertSame(7200.0, get_customer_display_remaining_credit($customer));
     }
 }
