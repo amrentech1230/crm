@@ -997,10 +997,23 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
+        // Build detailed deduction message
+        var deductionDetails = 'Deducting from Remaining limit: ';
+        if (baseRate > 0) {
+            deductionDetails += 'Base Rate: ' + formatCreditAmount(baseRate);
+        }
+        if (fscAmount > 0) {
+            deductionDetails += (baseRate > 0 ? ' + ' : '') + 'F.S.C (' + parseFloat(fscRate || 0).toFixed(1) + '%): ' + formatCreditAmount(fscAmount);
+        }
+        if (nonInvoiceChargesFromRemaining > 0) {
+            deductionDetails += ' + Charges: ' + formatCreditAmount(nonInvoiceChargesFromRemaining);
+        }
+        deductionDetails += ' | Remaining available: ' + formatCreditAmount(remainingLimit - remainingUsed);
+
         $message
             .removeClass('alert-danger')
             .addClass('alert-warning')
-            .text('Remaining limit: ' + formatCreditAmount(remainingLimit) + ' | Invoice limit: ' + formatCreditAmount(invoiceLimit))
+            .html(deductionDetails + '<br><small style="opacity:0.9;">Remaining limit: ' + formatCreditAmount(remainingLimit) + ' | Invoice limit: ' + formatCreditAmount(invoiceLimit) + '</small>')
             .removeClass('d-none');
         $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
         $form.data('credit-valid', true);
