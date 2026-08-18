@@ -78,7 +78,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script_stop: true
-          timeout: 120
+          timeout: 2m
 
           script: |
             set -euo pipefail
