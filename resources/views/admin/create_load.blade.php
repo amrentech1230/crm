@@ -1019,7 +1019,7 @@ body.vertical-collpsed #credit-limit-message {
         if (nonInvoiceCharges > 0) {
             deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceCharges);
         }
-        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - usedFromRemaining);
+        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - usedFromRemaining) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
         if (overflowToInvoiceLimit > 0) {
             deductionSummary += ' | ' + formatCreditAmount(overflowToInvoiceLimit) + ' taken from your invoicing limit';
         }
