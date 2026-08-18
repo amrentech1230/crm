@@ -1644,22 +1644,24 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return false;
             }
 
-            // All good - build detailed deduction message
-            var deductionDetails = 'Deducting from Remaining limit: ';
-            if (baseRate > 0) {
-                deductionDetails += 'Base Rate: ' + formatCreditAmount(baseRate);
-            }
-            if (fscAmount > 0) {
-                deductionDetails += (baseRate > 0 ? ' + ' : '') + 'F.S.C (' + parseFloat(fscRate || 0).toFixed(1) + '%): ' + formatCreditAmount(fscAmount);
-            }
-            if (nonInvoiceChargesFromRemaining > 0) {
-                deductionDetails += ' + Charges: ' + formatCreditAmount(nonInvoiceChargesFromRemaining);
-            }
-            deductionDetails += ' | Remaining available: ' + formatCreditAmount(remainingLimit - remainingUsed);
+            // All good - simple visible message, detailed calculations in console
+            var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' | Available after: ' + formatCreditAmount(remainingLimit - remainingUsed);
 
             $message.removeClass('alert-danger').addClass('alert-warning')
-                .html(deductionDetails + '<br><small style="opacity:0.9;">Remaining limit: ' + formatCreditAmount(remainingLimit) + ' | Invoice limit: ' + formatCreditAmount(invoiceLimit) + '</small>')
+                .text(deductionSummary)
                 .removeClass('d-none');
+
+            // Log detailed calculations to console for background tracking
+            console.log('Credit Limit Check:', {
+                'Base Rate': formatCreditAmount(baseRate),
+                'FSC Rate %': parseFloat(fscRate || 0).toFixed(1) + '%',
+                'FSC Amount': formatCreditAmount(fscAmount),
+                'Non-Invoice Charges': formatCreditAmount(nonInvoiceChargesFromRemaining),
+                'Total Used': formatCreditAmount(remainingUsed),
+                'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
+                'Remaining Limit': formatCreditAmount(remainingLimit),
+                'Invoice Limit': formatCreditAmount(invoiceLimit)
+            });
             $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
             $form.data('credit-valid', true);
             return true;

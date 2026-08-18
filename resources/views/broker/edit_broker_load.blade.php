@@ -2118,20 +2118,21 @@ $(document).ready(function () {
                 var $creditDisplay = $('#creditlimitcheck');
                 if (!$creditDisplay.length) return;
 
-                var baseRateFormatted = '$' + parseFloat(baseRate || 0).toFixed(2);
-                var fscFormatted = '$' + parseFloat(fscAmount || 0).toFixed(2);
                 var totalFormatted = '$' + parseFloat(totalDeduction || 0).toFixed(2);
-
-                var displayText = 'Deducting from Remaining limit: ';
-                if (baseRate > 0) {
-                    displayText += 'Base Rate: ' + baseRateFormatted;
-                }
-                if (fscAmount > 0) {
-                    displayText += (baseRate > 0 ? ' + ' : '') + 'F.S.C (' + parseFloat($('#load_fsc_rate').val() || 0).toFixed(1) + '%): ' + fscFormatted;
-                }
-                displayText += ' | Final Rate: ' + totalFormatted;
+                var displayText = 'Final Deduction: ' + totalFormatted;
 
                 $creditDisplay.html('<small style="color: #0066cc; font-weight: 500;">' + displayText + '</small>');
+
+                // Log detailed calculations to console for background tracking
+                var baseRateFormatted = '$' + parseFloat(baseRate || 0).toFixed(2);
+                var fscFormatted = '$' + parseFloat(fscAmount || 0).toFixed(2);
+                var fscRate = parseFloat($('#load_fsc_rate').val() || 0);
+                console.log('Credit Deduction Breakdown:', {
+                    'Base Rate': baseRateFormatted,
+                    'FSC Rate %': fscRate + '%',
+                    'FSC Amount': fscFormatted,
+                    'Total Final Rate': totalFormatted
+                });
             }
 
             $(document).on('input', '.shipperchargeAmount, #load_shipper_rate, #load_fsc_rate',
