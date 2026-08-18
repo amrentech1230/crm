@@ -20,11 +20,15 @@ jobs:
   deploy:
     name: Deploy devN -> Staging
     runs-on: ubuntu-latest
+
     environment:
       name: staging
       url: ${{ vars.DEPLOY_URL }}
 
     steps:
+      # ============================================================
+      # SSH PREFLIGHT
+      # ============================================================
       - name: SSH preflight check and debug
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -32,13 +36,16 @@ jobs:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_BRANCH: devN
         run: |
-          echo "==> Preflight: validate SSH connectivity to $SSH_HOST:$SSH_PORT"
-          # Try connecting up to 3 times with a short timeout. This helps avoid
-          # intermittent network flakiness causing the drone-ssh CLI to fail fast.
+          echo "==> Preflight: validating SSH TCP connectivity"
+
+          CONNECTED=false
+
           for i in 1 2 3; do
-            echo "Attempt $i: testing TCP connect to $SSH_HOST:$SSH_PORT"
-            if timeout 8 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
-              echo "OK: TCP port $SSH_PORT on $SSH_HOST is reachable"
+            echo "Attempt $i: testing TCP connection to SSH port"
+
+            if timeout 8 bash -c 'exec 3<>/dev/tcp/$1/$2; exec 3>&-; exec 3<&-' _ "$SSH_HOST" "$SSH_PORT"; then
+              echo "OK: TCP port $SSH_PORT on SSH host is reachable"
+              CONNECTED=true
               break
             else
               echo "WARN: attempt $i failed — host not reachable yet"
@@ -46,16 +53,17 @@ jobs:
             fi
           done
 
-          # Double-check we succeeded
-          if ! timeout 2 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
-            echo "::error::SSH host $SSH_HOST:$SSH_PORT unreachable after retries. Aborting deploy step."
+          if [ "$CONNECTED" != "true" ]; then
+            echo "::error::SSH host unreachable after retries. Aborting deploy step."
             exit 1
           fi
 
-          # Small debug output (non-sensitive). Do NOT print secrets here.
           echo "DEPLOY_PATH=${DEPLOY_PATH:-(unset)}"
           echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-(unset)}"
 
+      # ============================================================
+      # DEPLOY OVER SSH
+      # ============================================================
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -70,59 +78,69 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script_stop: true
-          # Shorter command-level timeout; preflight ensures reachability so the
-          # action will fail faster if the host drops during the deploy.
           timeout: 120
+
           script: |
             set -euo pipefail
 
-            # Allow overriding the php/composer binaries per environment
-            # (e.g. PHP_BIN=php8.2 on some Hostinger setups). Defaults are fine
-            # when `php` and `composer` are already on the deploy user's PATH.
+            # Allow overriding PHP/Composer binaries per environment.
             PHP_BIN="${PHP_BIN:-php}"
             COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 
             echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
+
             cd "$DEPLOY_PATH"
 
             echo "==> Fetching latest code"
             git fetch --all --prune
+
+            echo "==> Resetting to origin/$DEPLOY_BRANCH"
             git reset --hard "origin/$DEPLOY_BRANCH"
 
-            # The site user's umask is restrictive (files land as 660/dirs 770),
-            # but nginx serves static assets as another user and needs to read
-            # them. Make the web root readable/traversable by all, or every
-            # deploy 404s the CSS/JS/images.
+            # The site user's umask can create restrictive permissions.
+            # Ensure nginx can read public assets.
             echo "==> Ensuring web-root files are readable by nginx"
             chmod -R a+rX public
 
             echo "==> Installing PHP dependencies (production)"
-            $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            $COMPOSER_BIN install \
+              --no-interaction \
+              --prefer-dist \
+              --optimize-autoloader \
+              --no-dev
 
             echo "==> Enabling maintenance mode"
             $PHP_BIN artisan down --retry=15 || true
-            # Ensure the app is brought back up even if a later step fails.
+
+            # Ensure application comes back up if any later step fails.
             trap '$PHP_BIN artisan up || true' EXIT
 
             echo "==> Running database migrations"
             $PHP_BIN artisan migrate --force
 
-            echo "==> Rebuilding caches (route:cache skipped — see note)"
+            echo "==> Rebuilding application caches"
             $PHP_BIN artisan optimize:clear
+
+            echo "==> Caching configuration"
             $PHP_BIN artisan config:cache
+
+            echo "==> Caching events"
             $PHP_BIN artisan event:cache
+
+            echo "==> Caching views"
             $PHP_BIN artisan view:cache
-            # NOTE: 'php artisan route:cache' is intentionally NOT run — routes/web.php
-            # currently has duplicate route names, which make route caching fail.
-            # Switch this block back to a single 'php artisan optimize' once the
-            # duplicate route names are cleaned up.
+
+            # Route cache intentionally skipped because routes/web.php
+            # currently contains duplicate route names.
+            echo "==> Creating storage link"
             $PHP_BIN artisan storage:link || true
 
-            echo "==> Restarting queue workers (Supervisor picks up new code)"
+            echo "==> Restarting queue workers"
             $PHP_BIN artisan queue:restart
 
             echo "==> Disabling maintenance mode"
             $PHP_BIN artisan up
+
             trap - EXIT
 
             echo "==> Staging deploy complete"
