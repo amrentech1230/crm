@@ -362,9 +362,9 @@ body.vertical-collpsed #credit-limit-message {
                                                                 <div class="form-group mt-3">
                                                                     <label>For Invoice:</label><br>
                                                                     <input type="checkbox"
-                                                                        class="form-check-input for_invoice"
-                                                                        name="for_invoice[]"
-                                                                        value="on">
+                                                                        class="form-check-input for_invoice">
+                                                                    <input type="hidden" class="for_invoice_flag"
+                                                                        name="for_invoice[]" value="off">
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
@@ -396,9 +396,9 @@ body.vertical-collpsed #credit-limit-message {
                                                             <div class="col-md-2" style="margin-top:20px;">
                                                                 <div class="form-group">
                                                                     <input type="checkbox"
-                                                                        class="form-check-input for_invoice"
-                                                                        name="for_invoice[]"
-                                                                        value="on">
+                                                                        class="form-check-input for_invoice">
+                                                                    <input type="hidden" class="for_invoice_flag"
+                                                                        name="for_invoice[]" value="off">
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4" style="margin-top:20px;">
@@ -876,7 +876,7 @@ body.vertical-collpsed #credit-limit-message {
 
     function getInvoiceChargesTotal() {
         var total = 0;
-        var $invoiceChecks = $('[name="for_invoice[]"]');
+        var $invoiceChecks = $('.for_invoice');
 
         if (!$invoiceChecks.length) {
             return 0;
@@ -894,7 +894,7 @@ body.vertical-collpsed #credit-limit-message {
 
     function getNonInvoiceChargesTotal() {
         var total = 0;
-        var $invoiceChecks = $('[name="for_invoice[]"]');
+        var $invoiceChecks = $('.for_invoice');
 
         if (!$invoiceChecks.length) {
             return 0;
@@ -1437,7 +1437,7 @@ $(document).ready(function () {
 
                 var customer_id = $('#load_bill_to').val();
                 var invoiceAmount = 0;
-                $('[name="for_invoice[]"]').each(function (index) {
+                $('.for_invoice').each(function (index) {
                     if ($(this).is(':checked')) {
                         invoiceAmount += parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
                     }
@@ -1480,7 +1480,10 @@ $(document).ready(function () {
                     updateTotalshipper();
                 });
 
+            // Keep the submitted hidden flag in sync so the server receives one
+            // on/off value per charge row, in the same order as the amount inputs.
             $(document).on('change', '.for_invoice', function () {
+                $(this).closest('.row').find('.for_invoice_flag').val(this.checked ? 'on' : 'off');
                 updateTotalshipper();
                 validateCreditForLoad();
             });

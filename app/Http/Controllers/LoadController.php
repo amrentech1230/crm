@@ -821,7 +821,9 @@ if (!empty($term)) {
             $invoiceChargeTotal = 0.0;
             foreach ($request->shipperchargeType as $index => $chargeType) {
                 $chargeAmount = (float) ($request->shipperchargeAmount[$index] ?? 0);
-                $forInvoice = isset($request->for_invoice) && is_array($request->for_invoice) && in_array($index, array_keys($request->for_invoice), true) ? 'on' : 'off';
+                // for_invoice[] is submitted as a dense hidden field per charge row (on/off),
+                // so it stays index-aligned with shipperchargeType[]/shipperchargeAmount[].
+                $forInvoice = (($request->input("for_invoice.{$index}") ?? 'off') === 'on') ? 'on' : 'off';
 
                 $shipperCharges[] = [
                     'type' => $chargeType,

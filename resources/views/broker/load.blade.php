@@ -882,9 +882,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         <div class="form-group mt-3">
             <label>For Invoice:</label><br>
             <input type="checkbox"
-                class="form-check-input for_invoice"
-                name="for_invoice[]"
-                value="on">
+                class="form-check-input for_invoice">
+            <input type="hidden" class="for_invoice_flag"
+                name="for_invoice[]" value="off">
         </div>
     </div>
 
@@ -920,9 +920,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
     <div class="col-md-2" style="margin-top:20px;">
         <div class="form-group">
             <input type="checkbox"
-                class="form-check-input for_invoice"
-                name="for_invoice[]"
-                value="on">
+                class="form-check-input for_invoice">
+            <input type="hidden" class="for_invoice_flag"
+                name="for_invoice[]" value="off">
         </div>
     </div>
 
@@ -1517,7 +1517,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var total = 0;
             $('[name="shipperchargeAmount[]"]').each(function (index) {
                 var amount = parseFloat($(this).val()) || 0;
-                var isInvoice = $('[name="for_invoice[]"]').eq(index).is(':checked');
+                var isInvoice = $('.for_invoice').eq(index).is(':checked');
                 if (isInvoice) {
                     total += amount;
                 }
@@ -1529,7 +1529,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             var total = 0;
             $('[name="shipperchargeAmount[]"]').each(function (index) {
                 var amount = parseFloat($(this).val()) || 0;
-                var isInvoice = $('[name="for_invoice[]"]').eq(index).is(':checked');
+                var isInvoice = $('.for_invoice').eq(index).is(':checked');
                 if (!isInvoice) {
                     total += amount;
                 }
@@ -1737,8 +1737,11 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 validateCreditForLoad();
             });
 
-            // Re-validate when "For Invoice" checkbox is toggled
+            // Re-validate when "For Invoice" checkbox is toggled, and keep the submitted
+            // hidden flag in sync so the server receives one on/off value per charge row,
+            // in the same order as the amount inputs.
             $(document).on('change', '.for_invoice', function () {
+                $(this).closest('.row').find('.for_invoice_flag').val(this.checked ? 'on' : 'off');
                 validateCreditForLoad();
             });
 
@@ -2102,7 +2105,7 @@ $(document).ready(function () {
 
                 // Calculate total of invoice-selected charges only
                 var invoiceTotal = 0;
-                $('[name="for_invoice[]"]').each(function(index, checkbox) {
+                $('.for_invoice').each(function(index, checkbox) {
                     var checked = $(checkbox).is(':checked');
                     if (checked) {
                         // Find corresponding amount input by index
