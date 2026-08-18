@@ -1,7 +1,7 @@
 name: Deploy to Staging
 
-# Auto-deploys the devN branch to the Staging environment on every push
-# (i.e. whenever a PR is merged into devN). Can also be run manually.
+# Auto-deploys the devN branch to the Staging environment on every push.
+# Can also be run manually using workflow_dispatch.
 on:
   push:
     branches: [devN]
@@ -10,8 +10,8 @@ on:
 permissions:
   contents: read
 
-# Never run two staging deploys at once; queue them instead of cancelling
-# so a running deploy always finishes cleanly.
+# Never run two staging deploys at once.
+# A running deployment will finish before the next one starts.
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
@@ -26,121 +26,161 @@ jobs:
       url: ${{ vars.DEPLOY_URL }}
 
     steps:
-      # ============================================================
-      # SSH PREFLIGHT
-      # ============================================================
-      - name: SSH preflight check and debug
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_BRANCH: devN
-        run: |
-          echo "==> Preflight: validating SSH TCP connectivity"
-
-          CONNECTED=false
-
-          for i in 1 2 3; do
-            echo "Attempt $i: testing TCP connection to SSH port"
-
-            if timeout 8 bash -c 'exec 3<>/dev/tcp/$1/$2; exec 3>&-; exec 3<&-' _ "$SSH_HOST" "$SSH_PORT"; then
-              echo "OK: TCP port $SSH_PORT on SSH host is reachable"
-              CONNECTED=true
-              break
-            else
-              echo "WARN: attempt $i failed — host not reachable yet"
-              sleep 4
-            fi
-          done
-
-          if [ "$CONNECTED" != "true" ]; then
-            echo "::error::SSH host unreachable after retries. Aborting deploy step."
-            exit 1
-          fi
-
-          echo "DEPLOY_PATH=${DEPLOY_PATH:-(unset)}"
-          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-(unset)}"
 
       # ============================================================
       # DEPLOY OVER SSH
       # ============================================================
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
+
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_BRANCH: devN
           PHP_BIN: ${{ vars.PHP_BIN }}
           COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+
           script_stop: true
-          timeout: 2m
+
+          # SSH connection timeout.
+          # Duration must include a unit: s, m, etc.
+          timeout: 120s
 
           script: |
             set -euo pipefail
 
-            # Allow overriding PHP/Composer binaries per environment.
+            # --------------------------------------------------------
+            # PHP / Composer configuration
+            # --------------------------------------------------------
+
             PHP_BIN="${PHP_BIN:-php}"
             COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 
-            echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
+            echo "=========================================="
+            echo "==> Starting Staging Deployment"
+            echo "=========================================="
+
+            echo "==> Deploy branch: $DEPLOY_BRANCH"
+            echo "==> Deploy path: $DEPLOY_PATH"
+
+            # --------------------------------------------------------
+            # Go to application directory
+            # --------------------------------------------------------
+
+            echo "==> Changing to application directory"
 
             cd "$DEPLOY_PATH"
 
+            # --------------------------------------------------------
+            # Update Git code
+            # --------------------------------------------------------
+
             echo "==> Fetching latest code"
+
             git fetch --all --prune
 
             echo "==> Resetting to origin/$DEPLOY_BRANCH"
+
             git reset --hard "origin/$DEPLOY_BRANCH"
 
-            # The site user's umask can create restrictive permissions.
-            # Ensure nginx can read public assets.
-            echo "==> Ensuring web-root files are readable by nginx"
+            # --------------------------------------------------------
+            # Web root permissions
+            # --------------------------------------------------------
+
+            echo "==> Ensuring web-root files are readable"
+
             chmod -R a+rX public
 
-            echo "==> Installing PHP dependencies (production)"
+            # --------------------------------------------------------
+            # Install Composer dependencies
+            # --------------------------------------------------------
+
+            echo "==> Installing PHP dependencies"
+
             $COMPOSER_BIN install \
               --no-interaction \
               --prefer-dist \
               --optimize-autoloader \
               --no-dev
 
+            # --------------------------------------------------------
+            # Enable maintenance mode
+            # --------------------------------------------------------
+
             echo "==> Enabling maintenance mode"
+
             $PHP_BIN artisan down --retry=15 || true
 
-            # Ensure application comes back up if any later step fails.
+            # Make sure maintenance mode is disabled even if a
+            # later deployment command fails.
             trap '$PHP_BIN artisan up || true' EXIT
 
+            # --------------------------------------------------------
+            # Database migrations
+            # --------------------------------------------------------
+
             echo "==> Running database migrations"
+
             $PHP_BIN artisan migrate --force
 
-            echo "==> Rebuilding application caches"
+            # --------------------------------------------------------
+            # Clear Laravel caches
+            # --------------------------------------------------------
+
+            echo "==> Clearing Laravel caches"
+
             $PHP_BIN artisan optimize:clear
 
+            # --------------------------------------------------------
+            # Rebuild Laravel caches
+            # --------------------------------------------------------
+
             echo "==> Caching configuration"
+
             $PHP_BIN artisan config:cache
 
             echo "==> Caching events"
+
             $PHP_BIN artisan event:cache
 
             echo "==> Caching views"
+
             $PHP_BIN artisan view:cache
 
-            # Route cache intentionally skipped because routes/web.php
-            # currently contains duplicate route names.
+            # --------------------------------------------------------
+            # Storage link
+            # --------------------------------------------------------
+
             echo "==> Creating storage link"
+
             $PHP_BIN artisan storage:link || true
 
+            # --------------------------------------------------------
+            # Queue workers
+            # --------------------------------------------------------
+
             echo "==> Restarting queue workers"
+
             $PHP_BIN artisan queue:restart
 
+            # --------------------------------------------------------
+            # Disable maintenance mode
+            # --------------------------------------------------------
+
             echo "==> Disabling maintenance mode"
+
             $PHP_BIN artisan up
 
+            # Remove EXIT trap because deployment completed successfully.
             trap - EXIT
 
-            echo "==> Staging deploy complete"
+            echo "=========================================="
+            echo "==> Staging deployment completed"
+            echo "=========================================="
