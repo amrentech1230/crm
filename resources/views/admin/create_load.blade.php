@@ -1011,8 +1011,11 @@ body.vertical-collpsed #credit-limit-message {
             'Base Rate': formatCreditAmount(baseRate),
             'FSC Rate %': parseFloat(fscRate || 0).toFixed(1) + '%',
             'FSC Amount': formatCreditAmount(fscAmount),
-            'Non-Invoice Charges': formatCreditAmount(nonInvoiceChargesFromRemaining),
-            'Total Used': formatCreditAmount(remainingUsed),
+            'Invoice Charges (For Invoice=checked)': formatCreditAmount(invoiceCharges),
+            'Non-Invoice Charges (For Invoice=unchecked)': formatCreditAmount(nonInvoiceCharges),
+            '  → Deducted from Invoice Limit': formatCreditAmount(nonInvoiceChargesFromInvoiceLimit),
+            '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceChargesFromRemaining),
+            'Total Used from Remaining': formatCreditAmount(remainingUsed),
             'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
             'Remaining Limit': formatCreditAmount(remainingLimit),
             'Invoice Limit': formatCreditAmount(invoiceLimit)
