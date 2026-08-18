@@ -2686,17 +2686,20 @@ public function all_search(Request $request)
             $customer = $customer ?? Customer::find($originalLoad->customer_id);
 
             if ($customer) {
-                $finalRate = $this->moneyValue($originalLoad->shipper_load_final_rate);
-                $invoiceCredit = min($this->invoiceCreditAmount($originalLoad), $finalRate);
-                $actualCredit = max($finalRate - $invoiceCredit, 0);
+                $release = app(CreditService::class)->splitCreditRelease(
+                    $this->moneyValue($originalLoad->shipper_load_final_rate),
+                    $this->invoiceCreditAmount($originalLoad),
+                    $this->moneyValue($originalLoad->invoice_credit_overflow)
+                );
 
-                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $actualCredit;
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $release['to_remaining'];
                 $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit amount after refund
-                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $invoiceCredit;
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $release['to_invoice_limit'];
                 $customer->save();
             }
         }
 
+        $load->invoice_credit_overflow = 0;
         $load->load_status = 'Cancelled';
         $load->invoice_status = null;
         $load->load_shipper_rate = 0;

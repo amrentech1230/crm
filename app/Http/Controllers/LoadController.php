@@ -858,8 +858,12 @@ if (!empty($term)) {
                 if (!$creditResult['allowed']) {
                     return back()->with('error', $creditResult['message']);
                 }
+
+                // Remember how much of this load was charged to the invoicing limit because the
+                // remaining limit could not cover it, so cancelling refunds the right limits.
+                $yourModel->invoice_credit_overflow = $creditResult['invoice_overflow'] ?? 0;
             }
-            
+
             $yourModel->save();
             
             $insertedId = $yourModel->id;
@@ -1710,16 +1714,19 @@ for ($i = 1; $i <= 15; $i++) {
             $customer = Customer::find($originalLoad->customer_id);
 
             if ($customer) {
-                $finalRate = $this->moneyValue($originalLoad->shipper_load_final_rate);
-                $invoiceCredit = min($this->invoiceCreditAmount($originalLoad), $finalRate);
-                $actualCredit = max($finalRate - $invoiceCredit, 0);
+                $release = $this->creditService->splitCreditRelease(
+                    $this->moneyValue($originalLoad->shipper_load_final_rate),
+                    $this->invoiceCreditAmount($originalLoad),
+                    $this->moneyValue($originalLoad->invoice_credit_overflow)
+                );
 
-                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $actualCredit;
-                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $invoiceCredit;
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $release['to_remaining'];
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $release['to_invoice_limit'];
                 $customer->save();
             }
         }
 
+        $load->invoice_credit_overflow = 0;
         $load->load_status = 'Cancelled';
         $load->invoice_status = null;
         $load->load_shipper_rate = 0;
