@@ -848,12 +848,13 @@ body.vertical-collpsed #credit-limit-message {
         return '$' + parseFloat(value || 0).toFixed(2);
     }
 
+    // Note: customer other charges are deliberately left alone here. A charge marked
+    // For Invoice is drawn from the invoicing limit, so a credit failure must not wipe
+    // what the user typed - the message and the disabled Save button are the feedback.
     function zeroRateFields() {
         $('#shipper_load_final_rate').val(0);
         $('#load_shipper_rate').val(0);
         $('#load_fsc_rate').val(0);
-        $('[name="shipperchargeAmount[]"]').val(0);
-        $('#totalChargeAmount').val(0);
         $('#load_final_carrier_fee').val(0);
         $('#totalShipperOtherChgarges').val(0);
     }
@@ -995,15 +996,8 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        // Simple visible message showing all deductions
-        var deductionBreakdown = 'Base: ' + formatCreditAmount(baseRate);
-        if (fscAmount > 0) {
-            deductionBreakdown += ' + F.S.C: ' + formatCreditAmount(fscAmount);
-        }
-        if (nonInvoiceCharges > 0) {
-            deductionBreakdown += ' + Charges: ' + formatCreditAmount(nonInvoiceCharges);
-        }
-        var deductionSummary = 'Final Deduction: ' + formatCreditAmount(remainingUsed) + ' (' + deductionBreakdown + ') | Available: ' + formatCreditAmount(remainingLimit - remainingUsed) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
+        // Show only what is left on each limit after this load
+        var deductionSummary = 'Available: ' + formatCreditAmount(remainingLimit - remainingUsed) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
 
         $message
             .removeClass('alert-danger')
@@ -1588,7 +1582,9 @@ $(document).ready(function () {
             
                 if(total > customer_rate){
                       $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
-                      $('.shipper_other_charge').val(0);
+                      // Clear the carrier charges by name: the .shipper_other_charge class is also
+                      // on the customer charge rows, and those must not be wiped here.
+                      $('[name="inputBox2[]"], [name="shipper_other_charge[]"]').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);
                         $('#load_final_carrier_fee').val(0);
