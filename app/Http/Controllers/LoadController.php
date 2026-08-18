@@ -1413,6 +1413,8 @@ for ($i = 1; $i <= 15; $i++) {
         $customerId = $request->customer_id;
 
         $customerdata = customer::where('id', $customerId)->first();
+        $customerOtherCharges = (float) ($request->input('customer_other_charges', 0) ?? 0);
+        $effectiveInvoiceLimit = $customerdata ? max(0, (float) ($customerdata->invoice_credit_limit ?? 0) - $customerOtherCharges) : 0;
 
         $loaddata = Load::findOrFail($id);
 
@@ -1456,10 +1458,13 @@ for ($i = 1; $i <= 15; $i++) {
       
       
         if ($customerdata && (int) $customerdata->remaining_credit < $finalcreditdiff) {
-              
+               
             return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaing credit Limit, your credit limit is ' . $customerdata->remaining_credit);
-        } else if ($customerdata && (int) $customerdata->invoice_credit_limit < $checkinvoice_credit) {
-            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit Limit, your invoice credit limit is ' . $customerdata->invoice_credit_limit);
+        } else if ($customerdata && $customerOtherCharges > (float) ($customerdata->invoice_credit_limit ?? 0)) {
+            $availableInvoiceLimit = max(0, (float) ($customerdata->invoice_credit_limit ?? 0) - $customerOtherCharges);
+            return redirect()->back()->with('error', 'Customer Other Charges exceed the Invoice credit Limit. Available invoice limit is ' . number_format($availableInvoiceLimit, 2));
+        } else if ($customerdata && $effectiveInvoiceLimit < $checkinvoice_credit) {
+            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit Limit, your invoice credit limit is ' . number_format($effectiveInvoiceLimit, 2));
         } else {
   
        
@@ -1601,43 +1606,77 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
     
 
     public function checkRemaingLimit(Request $request){
-       
+        
         $customer_id = $request->input('customer_id');
         $final_rate = $request->input('finalrate');
+        $customer_other_charges = (float) $request->input('customer_other_charges', 0);
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
+        $remaining_limit = $customerdata ? (float) ($customerdata->remaining_credit ?? 0) : 0;
+        $invoice_limit = $customerdata ? (float) ($customerdata->invoice_credit_limit ?? 0) : 0;
+        $available_invoice_limit = max(0, $invoice_limit - $customer_other_charges);
+
         if($final_rate > $remaining_limit){
             return response()->json([
                 'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
-            ]);
-        }else{
-            return response()->json([
-                'success' => false,
-                'message' => '',
+                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . number_format($remaining_limit, 2),
+                'available_limit' => number_format($remaining_limit, 2),
+                'invoice_limit' => number_format($available_invoice_limit, 2),
             ]);
         }
+
+        if ($customer_other_charges > $invoice_limit) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Customer other charges exceed the invoice credit limit. Available invoice limit is ' . number_format($available_invoice_limit, 2),
+                'available_limit' => number_format($remaining_limit, 2),
+                'invoice_limit' => number_format($available_invoice_limit, 2),
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => '',
+            'available_limit' => number_format($remaining_limit, 2),
+            'invoice_limit' => number_format($available_invoice_limit, 2),
+        ]);
 
     }
      public function checkRemaingLimiteditload(Request $request){
-       
+        
         $customer_id = $request->input('customer_id');
         $final_rate = $request->input('finalrate');
+        $customer_other_charges = (float) $request->input('customer_other_charges', 0);
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
+        $remaining_limit = $customerdata ? (float) ($customerdata->remaining_credit ?? 0) : 0;
+        $invoice_limit = $customerdata ? (float) ($customerdata->invoice_credit_limit ?? 0) : 0;
+        $available_invoice_limit = max(0, $invoice_limit - $customer_other_charges);
+
         if($final_rate > $remaining_limit){
             return response()->json([
                 'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
-            ]);
-        }else{
-            return response()->json([
-                'success' => false,
-                'message' => '',
+                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . number_format($remaining_limit, 2),
+                'available_limit' => number_format($remaining_limit, 2),
+                'invoice_limit' => number_format($available_invoice_limit, 2),
             ]);
         }
+
+        if ($customer_other_charges > $invoice_limit) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Customer other charges exceed the invoice credit limit. Available invoice limit is ' . number_format($available_invoice_limit, 2),
+                'available_limit' => number_format($remaining_limit, 2),
+                'invoice_limit' => number_format($available_invoice_limit, 2),
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => '',
+            'available_limit' => number_format($remaining_limit, 2),
+            'invoice_limit' => number_format($available_invoice_limit, 2),
+        ]);
 
     }
 

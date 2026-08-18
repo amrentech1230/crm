@@ -1097,13 +1097,21 @@ $(document).ready(function () {
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
                 var customer_id = $('#load_bill_to').val();
-                
+                var invoiceOtherCharges = 0;
+                $('[name="for_invoice[]"]').each(function(index) {
+                    var chargeAmount = parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+                    if ($(this).is(':checked')) {
+                        invoiceOtherCharges += chargeAmount;
+                    }
+                });
+
                  $.ajax({
                         url: '{{ route('check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             customer_id: customer_id,
                             finalrate: total,
+                            customer_other_charges: invoiceOtherCharges,
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
