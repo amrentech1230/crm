@@ -277,27 +277,57 @@
 
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
-                                 <label for="invoice_credit_limit">Assigned Invoice Credit Limit</label>
+                                 <label for="invoice_credit_limit">Remaining Invoice Credit Limit</label>
 								  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#invoice-credit-limit"></i>
                                  <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}" readonly>
                               </div>
                            </div>
                             @php
-                                $logs = json_decode($customer->remaining_credit_logs, true);
+                                $logs = json_decode($customer->remaining_credit_logs, true) ?? [];
                                 $finalTotalCredit = 0;
 
-                                if (!empty($logs)) {
+                                if (is_array($logs)) {
                                     foreach ($logs as $log) {
-                                        $finalTotalCredit += (int) ($log['credit_limit'] ?? 0);
+                                        $finalTotalCredit += (float) ($log['credit_limit'] ?? 0);
                                     }
                                 }
+
+                                // Sum of every entry logged behind the invoice credit limit modal
+                                $invoiceCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+                                $totalInvoiceCreditLimit = 0;
+
+                                if (is_array($invoiceCreditLogs)) {
+                                    foreach ($invoiceCreditLogs as $invoiceLog) {
+                                        $totalInvoiceCreditLimit += (float) ($invoiceLog['credit_limit'] ?? 0);
+                                    }
+                                }
+
+                                $combinedCreditLimit = $totalInvoiceCreditLimit + $finalTotalCredit;
                             @endphp
 
                             <div class="col-md-3 mt-2">
                                 <div class="form-group">
-                                    <label for="remaining_credit">Total Credit Limit</label>
-                                    <input type="text" class="form-control"
-                                        value="{{ $finalTotalCredit }}"
+                                    <label for="total_credit_limit">Total Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_credit_limit"
+                                        value="{{ number_format($finalTotalCredit, 2, '.', '') }}"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 mt-2">
+                                <div class="form-group">
+                                    <label for="total_invoice_credit_limit">Total Invoice Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_invoice_credit_limit"
+                                        value="{{ number_format($totalInvoiceCreditLimit, 2, '.', '') }}"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 mt-2">
+                                <div class="form-group">
+                                    <label for="total_combined_credit_limit">Total Invoice Credit Limit + Total Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_combined_credit_limit"
+                                        value="{{ number_format($combinedCreditLimit, 2, '.', '') }}"
                                         readonly>
                                 </div>
                             </div>

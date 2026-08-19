@@ -878,7 +878,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         </div>
     </div>
 
-    <div class="col-md-2">
+    <div class="col-md-2 for-invoice-field" style="display: none;">
         <div class="form-group mt-3">
             <label>For Invoice:</label><br>
             <input type="checkbox"
@@ -917,7 +917,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         </div>
     </div>
 
-    <div class="col-md-2" style="margin-top:20px;">
+    <div class="col-md-2 for-invoice-field" style="display: none; margin-top:20px;">
         <div class="form-group">
             <input type="checkbox"
                 class="form-check-input for_invoice">
@@ -1754,6 +1754,20 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             validateCreditForLoad();
 		});
         $(document).ready(function () {
+
+            function toggleForInvoiceFields() {
+                const shipmentType = $('[name="load_type"] option:selected').text().trim().toUpperCase();
+                const isTonu = shipmentType === 'TONU';
+
+                $('.for-invoice-field').toggle(isTonu);
+                if (!isTonu) {
+                    $('.for_invoice').prop('checked', false);
+                    $('.for_invoice_flag').val('off');
+                }
+            }
+
+            $('[name="load_type"]').on('change', toggleForInvoiceFields);
+            toggleForInvoiceFields();
 
             $('#load_shipper_other_charges').on('click', function () {
                 $('#myModal').show();
