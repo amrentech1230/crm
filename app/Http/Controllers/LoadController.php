@@ -1373,7 +1373,10 @@ for ($i = 1; $i <= 15; $i++) {
         $load->load_other_charge = $request->input('load_other_charge') ?? '';
         $load->shipper_load_final_rate = $request->input('shipper_load_final_rate') ?? 0;
         $load->load_fsc_rate = $request->input('load_fsc_rate') ?? '';
-        $load->customer_id = $request->input('customer_id') ?? '';
+        $customerId = $request->filled('customer_id')
+            ? $request->input('customer_id')
+            : $load->customer_id;
+        $load->customer_id = $customerId;
         $load->comment = $request->input('comment') ?? '';
 
         $load->customer_refrence_number = $request->input('customer_refrence_number') ?? '';
@@ -1457,8 +1460,6 @@ for ($i = 1; $i <= 15; $i++) {
 
          
      
-        $customerId = $request->customer_id;
-
         // Lock the customer row to prevent race conditions on credit updates
         $customerdata = Customer::where('id', $customerId)->lockForUpdate()->first();
 

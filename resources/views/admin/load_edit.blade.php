@@ -134,7 +134,7 @@
                                         </div>
                                     </div>
                                 </div>
-                               <input type="hidden" id="customer_id" name="customer_id" value="">
+                               <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? '' }}">
 
 
 
