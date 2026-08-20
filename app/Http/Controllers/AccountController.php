@@ -1136,12 +1136,7 @@ public function editCustomer($id)
 
     $customerLoadScope = function ($query) use ($customer) {
         $query->where('customer_id', $customer->id)
-              ->orWhere(function ($query) use ($customer) {
-                  $query->where(function ($query) {
-                      $query->whereNull('customer_id')
-                            ->orWhere('customer_id', '');
-                  })->where('load_bill_to', $customer->customer_name);
-              });
+              ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
     };
 
     $activeLoadScope = function ($query) {
