@@ -272,12 +272,13 @@ if (!empty($term)) {
         $shipperCharges = json_decode($post->shipper_load_other_charge, true);
         if(isset($shipperCharges)){
             foreach ($shipperCharges as $item) {
-                        if (isset($item['for_invoice']) && !is_null($item['for_invoice'])) {
+                        if (($item['for_invoice'] ?? 'off') === 'on') {
                             $invoicechargestotal += (float)$item['amount'];
                         }
                     }
         }
         $customer = Customer::where('status', 'Approved')->get();
+        $loadCustomer = Customer::find($post->customer_id);
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
 
@@ -285,7 +286,7 @@ if (!empty($term)) {
         $consigneedata= Consignee::where('user_id', $user_id)->orderBy('consignee_name', 'asc')->get();
         
         //$allCustomers = Customer::where('user_id', $user_id)->get();
-        return view('broker.edit_broker_load', compact('shipperdata', 'consigneedata', 'equipmentType', 'customer', 'shipmentType','post', 'shipperData', 'postData', 'allCustomers', 'invoicechargestotal'));
+        return view('broker.edit_broker_load', compact('shipperdata', 'consigneedata', 'equipmentType', 'customer', 'shipmentType','post', 'shipperData', 'postData', 'allCustomers', 'invoicechargestotal', 'loadCustomer'));
     }
 
     public function broker_open_load(Request $request){

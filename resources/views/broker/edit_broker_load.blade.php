@@ -2016,7 +2016,78 @@ $(document).ready(function () {
 </script>
 <script>
 
+const currentInvoiceLimit = {{ (float) ($loadCustomer->invoice_credit_limit ?? 0) }};
+const currentRemainingLimit = {{ (float) ($loadCustomer->remaining_credit ?? 0) }};
+const oldInvoiceChargeTotal = {{ (float) $invoicechargestotal }};
+const oldFinalRate = {{ (float) ($post->shipper_load_final_rate ?? 0) }};
+const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
+
     $(document).ready(function () {
+        function showCreditLimitError(message) {
+            $('#mc-error-message').text(message).stop(true, true).fadeIn();
+            $('#creditlimitcheck').html('<small style="color: #dc3545; font-weight: 600;">' + message + '</small>');
+        }
+
+        function validateCustomerChargeLimits(source) {
+            let invoiceTotal = 0;
+            let totalCharges = 0;
+
+            $('.shipperchargeAmount').each(function () {
+                const amount = parseFloat($(this).val()) || 0;
+                totalCharges += amount;
+                if ($(this).closest('.row').find('.for_invoice').is(':checked')) {
+                    invoiceTotal += amount;
+                }
+            });
+
+            const availableForEditedLoad = Math.max(0, currentInvoiceLimit + oldInvoiceChargeTotal);
+            const availableRemainingForEditedLoad = Math.max(0, currentRemainingLimit + oldRemainingUsed);
+            const loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            const loadFscAmount = (parseFloat($('#load_fsc_rate').val()) || 0) * loadShipperRate / 100;
+            const newRemainingUsed = loadShipperRate + loadFscAmount + totalCharges - invoiceTotal;
+
+            if (invoiceTotal > availableForEditedLoad + 0.001) {
+                const $source = $(source);
+                if ($source.hasClass('for_invoice')) {
+                    $source.prop('checked', false);
+                    $source.closest('.row').find('.shipperchargeAmount').val('0').trigger('input');
+                } else if ($source.hasClass('shipperchargeAmount')) {
+                    $source.val('0');
+                    $source.trigger('input');
+                }
+
+                showCreditLimitError(
+                    'Insufficient invoice credit limit. Available invoice limit: $' + availableForEditedLoad.toFixed(2)
+                );
+                return false;
+            }
+
+            if (newRemainingUsed > availableRemainingForEditedLoad + 0.001) {
+                const $source = $(source);
+                if ($source.hasClass('shipperchargeAmount') && !$source.closest('.row').find('.for_invoice').is(':checked')) {
+                    $source.val('0');
+                    $source.trigger('input');
+                }
+
+                showCreditLimitError(
+                    'Insufficient remaining credit limit. Available remaining limit: $' + availableRemainingForEditedLoad.toFixed(2)
+                );
+                return false;
+            }
+
+            return true;
+        }
+
+        $(document).on('input change', '.shipperchargeAmount, .for_invoice', function () {
+            validateCustomerChargeLimits(this);
+        });
+
+        $('#myFormLoad').on('submit', function (event) {
+            if (!validateCustomerChargeLimits(null)) {
+                event.preventDefault();
+            }
+        });
+
         $('#shipper_load_final_rate').on('keydown paste input', function (e) {
             e.preventDefault();
         });
@@ -2076,13 +2147,12 @@ $(document).ready(function () {
                 // Display credit deduction breakdown
                 displayCreditDeduction(loadShipperRate, fscAmount, total);
 
-                var final_total_rate = parseFloat(total) - parseFloat($('#old_shipper_load_final_rate').val());
-
                 var customer_id = $('#customer_id').val();
 
                 var checkedtotal = checkedvalueshipper();
-
-                var finalrate = final_total_rate - checkedtotal;
+                var newRemainingUsed = total - checkedtotal;
+                var invoiceIncrease = Math.max(0, checkedtotal - oldInvoiceChargeTotal);
+                var remainingIncrease = Math.max(0, newRemainingUsed - oldRemainingUsed);
                 
                  $.ajax({
                         url: '{{ route('edit.check.remaing.limit') }}',
@@ -2090,15 +2160,16 @@ $(document).ready(function () {
                         data: {
                             load_id: "{{$post->load_number}}",
                             customer_id: "{{$post->customer_id }}",
-                            finalrate: finalrate,
-                            checkedtotal:checkedtotal,
+                            finalrate: remainingIncrease + invoiceIncrease,
+                            invoice_amount: invoiceIncrease,
+                            remaining_amount: remainingIncrease,
                             _token: '{{ csrf_token() }}'
                         },  
                         success: function(response) {
                           
-                            if (response.success) {
+                               if (response.success) {
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
+                                   showInvoiceLimitError(response.message);
 
                                 // Hide after 10 seconds
                                 setTimeout(function() {
