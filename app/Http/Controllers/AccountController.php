@@ -1144,7 +1144,8 @@ public function editCustomer($id)
 
     $receiving_amount = max(0.0, (float) Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount'));
 
-    $usedAmount = max(0.0, $loadcreateamount - $receiving_amount);
+    $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
+    $usedAmount = $totalExhaustedLimit;
     $after_used_remaing_amount = max(0.0, $totalCreditLimit - $loadcreateamount);
     $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
 
@@ -1207,7 +1208,7 @@ $totalCustomerPayment = $loadDataabove30days->sum('customer_payment');
 	
 	$state = json_decode($states, true);
     
-    return view('accounts.customer_edit', compact('totalCustomerPayment', 'loadDatacustomeraging', 'loadDataabove30days', 'pendingpayment', 'dailyInvoiceTotals', 'customer', 'usedAmount', 'remainingCredit', 'totalFinalRate', 'users', 'customerAging','last30Days','loadcreateamount', 'receiving_amount', 'afterpaymentremaingamount', 'totalCreditLimit', 'allcountry', 'state'));
+    return view('accounts.customer_edit', compact('totalCustomerPayment', 'loadDatacustomeraging', 'loadDataabove30days', 'pendingpayment', 'dailyInvoiceTotals', 'customer', 'usedAmount', 'totalExhaustedLimit', 'remainingCredit', 'totalFinalRate', 'users', 'customerAging','last30Days','loadcreateamount', 'receiving_amount', 'afterpaymentremaingamount', 'totalCreditLimit', 'allcountry', 'state'));
 }
 
 

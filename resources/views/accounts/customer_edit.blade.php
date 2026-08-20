@@ -212,7 +212,7 @@
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
                                  <label for="used_amount">Total Exhausted Limit</label>
-                                 <input type="text" class="form-control" id="used_amount" name="used_amount" value="{{ $usedAmount }}" required readonly>
+                                 <input type="text" class="form-control" id="total_exhausted_limit" name="used_amount" value="{{ number_format((float) $totalExhaustedLimit, 2, '.', '') }}" required readonly>
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -263,7 +263,7 @@
                               <div class="form-group">
                                  <label>Total load Creation Amount<code>*</code></label>
 
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ max(0, (float) $loadcreateamount) }}">
+                                 <input type="text" class="form-control" readonly id="total_load_creation_amount" value="{{ number_format((float) $loadcreateamount, 2, '.', '') }}">
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -271,7 +271,7 @@
                                  <label>Total Payment Received<code>*</code>
                                  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#paymentmarkedlist"></i>
                               </label>
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ max(0, (float) $receiving_amount) }}">
+                                 <input type="text" class="form-control" readonly id="total_payment_received" value="{{ number_format((float) $receiving_amount, 2, '.', '') }}">
                               </div>
                            </div>
 
