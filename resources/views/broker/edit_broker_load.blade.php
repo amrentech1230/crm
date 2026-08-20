@@ -2028,6 +2028,10 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
             $('#creditlimitcheck').html('<small style="color: #dc3545; font-weight: 600;">' + message + '</small>');
         }
 
+        function clearCreditLimitError() {
+            $('#mc-error-message').text('').stop(true, true).fadeOut();
+        }
+
         function validateCustomerChargeLimits(source) {
             let invoiceTotal = 0;
             let totalCharges = 0;
@@ -2075,6 +2079,7 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                 return false;
             }
 
+            clearCreditLimitError();
             return true;
         }
 
