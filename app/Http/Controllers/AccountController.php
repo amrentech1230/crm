@@ -1157,7 +1157,6 @@ public function editCustomer($id)
         ->sum('shipper_load_final_rate'));
 
     $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
-        ->where('receiving_amount', '>=', 0)
         ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
@@ -1170,8 +1169,7 @@ public function editCustomer($id)
         DB::raw('DATE(invoice_status_date) as date'),
         DB::raw('SUM(receiving_amount) as total_amount')
     )
-    ->where('customer_id', $customer->id)
-    ->where('invoice_status', 'Paid Record')
+    ->where($customerLoadScope)
     ->groupByRaw('DATE(invoice_status_date)')
     ->get();
 
