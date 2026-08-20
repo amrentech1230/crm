@@ -1134,15 +1134,31 @@ public function editCustomer($id)
                             now()->toDateString()
                             ])->sum('shipper_load_final_rate');
 
-    $loadcreateamount = max(0.0, (float) Load::where('customer_id', $customer->id)
-        ->where(function ($query) {
+    $customerLoadScope = function ($query) use ($customer) {
+        $query->where('customer_id', $customer->id)
+              ->orWhere(function ($query) use ($customer) {
+                  $query->where(function ($query) {
+                      $query->whereNull('customer_id')
+                            ->orWhere('customer_id', '');
+                  })->where('load_bill_to', $customer->customer_name);
+              });
+    };
+
+    $activeLoadScope = function ($query) {
+        $query->where(function ($query) {
             $query->where('load_status', '!=', 'Cancelled')
                   ->orWhereNull('load_status');
-        })
+        });
+    };
+
+    $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
+        ->where($activeLoadScope)
         ->where('shipper_load_final_rate', '>=', 0)
         ->sum('shipper_load_final_rate'));
 
-    $receiving_amount = max(0.0, (float) Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount'));
+    $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
+        ->where('receiving_amount', '>=', 0)
+        ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
     $usedAmount = $totalExhaustedLimit;
