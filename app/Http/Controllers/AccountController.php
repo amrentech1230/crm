@@ -1306,7 +1306,33 @@ public function editCustomer($id)
         }));
 
     $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
-        ->sum(DB::raw('COALESCE(NULLIF(shipper_load_final_rate, 0), load_final_rate, 0)')));
+        ->get(['load_shipper_rate', 'shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+        ->sum(function ($load) {
+            $createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+            $baseAmount = (float) ($load->load_shipper_rate ?: 0);
+            $charges = json_decode($load->shipper_load_other_charge, true) ?: [];
+            $hasInvoiceFlags = collect($charges)->contains(function ($charge) {
+                return array_key_exists('for_invoice', $charge);
+            });
+            $invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+                if ($hasInvoiceFlags) {
+                    return ($charge['for_invoice'] ?? 'off') === 'on'
+                        ? (float) ($charge['amount'] ?? 0)
+                        : 0;
+                }
+
+                return 0;
+            });
+            $allCharges = collect($charges)->sum(function ($charge) {
+                return (float) ($charge['amount'] ?? 0);
+            });
+
+            if ($invoiceCharges > 0 && $createdAmount < $baseAmount + $allCharges) {
+                $createdAmount += $invoiceCharges;
+            }
+
+            return max(0.0, $createdAmount);
+        }));
 
     $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
         ->sum('receiving_amount'));
