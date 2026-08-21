@@ -1,7 +1,5 @@
 name: Deploy to Staging
 
-# Auto-deploys the devN branch to the Staging environment on every push.
-# Can also be run manually using workflow_dispatch.
 on:
   push:
     branches: [devN]
@@ -10,8 +8,6 @@ on:
 permissions:
   contents: read
 
-# Never run two staging deploys at once.
-# A running deployment will finish before the next one starts.
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
@@ -27,9 +23,6 @@ jobs:
 
     steps:
 
-      # ============================================================
-      # DEPLOY OVER SSH
-      # ============================================================
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
 
@@ -49,16 +42,10 @@ jobs:
 
           script_stop: true
 
-          # SSH connection timeout.
-          # Duration must include a unit: s, m, etc.
           timeout: 120s
 
           script: |
             set -euo pipefail
-
-            # --------------------------------------------------------
-            # PHP / Composer configuration
-            # --------------------------------------------------------
 
             PHP_BIN="${PHP_BIN:-php}"
             COMPOSER_BIN="${COMPOSER_BIN:-composer}"
@@ -70,115 +57,51 @@ jobs:
             echo "==> Deploy branch: $DEPLOY_BRANCH"
             echo "==> Deploy path: $DEPLOY_PATH"
 
-            # --------------------------------------------------------
-            # Go to application directory
-            # --------------------------------------------------------
-
             echo "==> Changing to application directory"
-
             cd "$DEPLOY_PATH"
 
-            # --------------------------------------------------------
-            # Update Git code
-            # --------------------------------------------------------
-
             echo "==> Fetching latest code"
-
             git fetch --all --prune
 
             echo "==> Resetting to origin/$DEPLOY_BRANCH"
-
             git reset --hard "origin/$DEPLOY_BRANCH"
 
-            # --------------------------------------------------------
-            # Web root permissions
-            # --------------------------------------------------------
-
-            echo "==> Ensuring web-root files are readable"
-
-            chmod -R a+rX public
-
-            # --------------------------------------------------------
-            # Install Composer dependencies
-            # --------------------------------------------------------
-
             echo "==> Installing PHP dependencies"
-
             $COMPOSER_BIN install \
               --no-interaction \
               --prefer-dist \
               --optimize-autoloader \
               --no-dev
 
-            # --------------------------------------------------------
-            # Enable maintenance mode
-            # --------------------------------------------------------
-
             echo "==> Enabling maintenance mode"
-
             $PHP_BIN artisan down --retry=15 || true
 
-            # Make sure maintenance mode is disabled even if a
-            # later deployment command fails.
             trap '$PHP_BIN artisan up || true' EXIT
 
-            # --------------------------------------------------------
-            # Database migrations
-            # --------------------------------------------------------
-
             echo "==> Running database migrations"
-
             $PHP_BIN artisan migrate --force
 
-            # --------------------------------------------------------
-            # Clear Laravel caches
-            # --------------------------------------------------------
-
             echo "==> Clearing Laravel caches"
-
             $PHP_BIN artisan optimize:clear
 
-            # --------------------------------------------------------
-            # Rebuild Laravel caches
-            # --------------------------------------------------------
-
             echo "==> Caching configuration"
-
             $PHP_BIN artisan config:cache
 
             echo "==> Caching events"
-
             $PHP_BIN artisan event:cache
 
             echo "==> Caching views"
-
             $PHP_BIN artisan view:cache
 
-            # --------------------------------------------------------
-            # Storage link
-            # --------------------------------------------------------
-
             echo "==> Creating storage link"
-
             $PHP_BIN artisan storage:link || true
 
-            # --------------------------------------------------------
-            # Queue workers
-            # --------------------------------------------------------
-
             echo "==> Restarting queue workers"
-
             $PHP_BIN artisan queue:restart
 
-            # --------------------------------------------------------
-            # Disable maintenance mode
-            # --------------------------------------------------------
-
             echo "==> Disabling maintenance mode"
-
             $PHP_BIN artisan up
 
-            # Remove EXIT trap because deployment completed successfully.
             trap - EXIT
 
             echo "=========================================="
