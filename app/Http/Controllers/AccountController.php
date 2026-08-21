@@ -1237,16 +1237,23 @@ public function editCustomer($id)
 
 
 
-    $credits = json_decode($customer->credit_limit_log, true);
-
-    if (is_array($credits)) {
-        $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
-    } else {
-        $totalCreditLimit = 0;
+    $credits = json_decode($customer->remaining_credit_logs, true);
+    if (!is_array($credits) || count($credits) === 0) {
+        $credits = json_decode($customer->credit_limit_log, true);
     }
 
-    $usedAmount = $totalCreditLimit - $customer->remaining_credit;
-    $remainingCredit = $customer->remaining_credit;
+    if (is_array($credits)) {
+        $totalCreditLimit = max(0.0, (float) array_sum(array_column($credits, 'credit_limit')));
+    } else {
+        $totalCreditLimit = 0.0;
+    }
+
+    if ($totalCreditLimit <= 0) {
+        $totalCreditLimit = max(
+            0.0,
+            (float) ($customer->adv_customer_credit_limit ?? $customer->invoice_credit_limit ?? 0)
+        );
+    }
     
 
     // Calculate totals using aggregates for better performance
@@ -1269,19 +1276,55 @@ public function editCustomer($id)
                             now()->toDateString()
                             ])->sum('shipper_load_final_rate');
 
-    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-    $receiving_amount = Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount');
+    $customerLoadScope = function ($query) use ($customer) {
+        $query->where('customer_id', $customer->id)
+              ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
+    };
 
-    $after_used_remaing_amount =  $totalCreditLimit - $loadcreateamount;
-    $afterpaymentremaingamount = $after_used_remaing_amount + $receiving_amount;
+    $creditLoadAmount = max(0.0, (float) Load::where($customerLoadScope)
+        ->get(['shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+        ->sum(function ($load) {
+            $createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+            $charges = json_decode($load->shipper_load_other_charge, true) ?: [];
+            $hasInvoiceFlags = collect($charges)->contains(function ($charge) {
+                return array_key_exists('for_invoice', $charge);
+            });
+
+            $invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+                if ($hasInvoiceFlags && ($charge['for_invoice'] ?? 'off') !== 'on') {
+                    return 0;
+                }
+
+                if (!$hasInvoiceFlags && strtolower(trim($charge['type'] ?? '')) !== 'tyre') {
+                    return 0;
+                }
+
+                return (float) ($charge['amount'] ?? 0);
+            });
+
+            return max(0.0, $createdAmount - $invoiceCharges);
+        }));
+
+    $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
+        ->sum(DB::raw('COALESCE(NULLIF(shipper_load_final_rate, 0), load_final_rate, 0)')));
+
+    $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
+        ->sum('receiving_amount'));
+
+    $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
+    $remainingCredit = $totalCreditLimit > 0
+        ? max(0.0, $totalCreditLimit - $creditLoadAmount)
+        : max(0.0, (float) ($customer->remaining_credit ?? 0));
+    $usedAmount = $totalExhaustedLimit;
+    $after_used_remaing_amount = $remainingCredit;
+    $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
 
                       
     $dailyInvoiceTotals = Load::select(
         DB::raw('DATE(invoice_status_date) as date'),
         DB::raw('SUM(receiving_amount) as total_amount')
     )
-    ->where('customer_id', $customer->id)
-    ->where('invoice_status', 'Paid Record')
+    ->where($customerLoadScope)
     ->groupByRaw('DATE(invoice_status_date)')
     ->get();
 
@@ -1289,7 +1332,7 @@ public function editCustomer($id)
     // print_r($dailyInvoiceTotals); die;
 
 	
-	$pendingpayment = $loadcreateamount - $receiving_amount;
+    $pendingpayment = max(0.0, $loadcreateamount - $receiving_amount);
 
     $loads = Load::where('customer_id', $customer->id)->where('invoice_status','Paid')->get();
     $loadDatacustomeraging = $loads->sortByDesc(function ($load) {

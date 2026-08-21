@@ -104,7 +104,60 @@ if (!function_exists('get_customer_display_remaining_credit')) {
 if (!function_exists('get_customer_available_credit_limit')) {
 	function get_customer_available_credit_limit($customer)
 	{
-		return get_customer_display_remaining_credit($customer);
+		if ($customer === null) {
+			return 0.0;
+		}
+
+		if (is_numeric($customer)) {
+			$customer = Customer::find($customer);
+		}
+
+		if (!$customer) {
+			return 0.0;
+		}
+
+		$creditLogs = json_decode($customer->remaining_credit_logs, true);
+		if (!is_array($creditLogs) || count($creditLogs) === 0) {
+			$creditLogs = json_decode($customer->credit_limit_log, true);
+		}
+
+		$assignedCredit = is_array($creditLogs)
+			? array_sum(array_column($creditLogs, 'credit_limit'))
+			: 0.0;
+
+		if ($assignedCredit <= 0) {
+			$assignedCredit = $customer->adv_customer_credit_limit ?: $customer->invoice_credit_limit;
+		}
+
+		$loadAmount = $customer->loads()
+			->where(function ($query) use ($customer) {
+				$query->where('customer_id', $customer->id)
+					  ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
+			})
+			->get(['shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+			->sum(function ($load) {
+				$createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+				$charges = json_decode($load->shipper_load_other_charge, true) ?: [];
+				$hasInvoiceFlags = collect($charges)->contains(function ($charge) {
+					return array_key_exists('for_invoice', $charge);
+				});
+
+				$invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+					if ($hasInvoiceFlags && ($charge['for_invoice'] ?? 'off') !== 'on') {
+						return 0;
+					}
+
+					if (!$hasInvoiceFlags && strtolower(trim($charge['type'] ?? '')) !== 'tyre') {
+						return 0;
+					}
+
+					return (float) ($charge['amount'] ?? 0);
+				});
+
+				return max(0.0, $createdAmount - $invoiceCharges);
+			});
+
+		return normalize_customer_credit_value((float) $assignedCredit - $loadAmount);
 	}
 }
 
