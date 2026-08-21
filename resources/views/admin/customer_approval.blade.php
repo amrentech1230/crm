@@ -93,11 +93,32 @@
                                         <td>{{ $customerApprovalFormBroker->dispatcher_last_name }}</td>
                                         <td>{{ $customerApprovalFormBroker->phone_number }}</td>
                                         <td>{{ $customerApprovalFormBroker->requested_credit_limit }}</td>
-                                        <td>
-                                            {{ $customerApprovalFormBroker->created_at
-                                                    ? $customerApprovalFormBroker->created_at->timezone('America/New_York')->format('m-d-Y h:i A')
-                                                    : '-' }}
-                                        </td>
+@php
+    $createdAtNY = $customerApprovalFormBroker->created_at
+        ? $customerApprovalFormBroker->created_at->timezone('America/New_York')
+        : null;
+
+    $isToday = $createdAtNY
+        ? $createdAtNY->isToday()
+        : false;
+@endphp
+
+<td>
+    @if($createdAtNY)
+        <span
+            style="
+                {{ $isToday
+                    ? 'background:#d4edda; color:#155724; padding:5px 10px; border-radius:5px; font-weight:600;'
+                    : ''
+                }}
+            "
+        >
+            {{ $createdAtNY->format('m-d-Y h:i A') }}
+        </span>
+    @else
+        -
+    @endif
+</td>
                                         <td>
                                             <select class="status-dropdown form-control"
                                                 data-id="{{ $customerApprovalFormBroker->id }}">

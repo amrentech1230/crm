@@ -75,6 +75,10 @@
     </style>
 </head>
 <body>
+    @php
+        // If editData is available, use those values; otherwise fall back to load
+        $editData = $editData ?? [];
+    @endphp
     <div class="bol-container">
         <!-- Top Section -->
         <table class="no-border" style="margin-bottom: 10px;">
@@ -104,11 +108,11 @@
                     <table>
                         <tr>
                             <th>Load Number</th>
-                            <td>{{ $load->load_number }}</td>
+                            <td>{{ $editData['load_number'] ?? $load->load_number }}</td>
                         </tr>
                         <tr>
                             <th>BOL Number</th>
-                            <td>{{ $load->load_workorder ?? '' }}</td>
+                            <td>{{ $editData['bol_number'] ?? $load->load_workorder ?? '' }}</td>
                         </tr>
                         <tr>
                             <th>Ship Date</th>
@@ -137,15 +141,18 @@
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
                     @php
-                        $shippers = json_decode($load->load_shipperr, true);
-                        $shipperText = '';
-                        if($shippers && is_array($shippers)) {
-                            foreach($shippers as $item) {
-                                $shipperText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $shipperText .= $item['location'] . "\n";
+                        $shipperText = $editData['shipper'] ?? null;
+                        if (!$shipperText) {
+                            $shippers = json_decode($load->load_shipperr, true);
+                            $shipperText = '';
+                            if($shippers && is_array($shippers)) {
+                                foreach($shippers as $item) {
+                                    $shipperText .= ($item['name'] ?? '') . "\n";
+                                    if(!empty($item['location'])) {
+                                        $shipperText .= $item['location'] . "\n";
+                                    }
+                                    $shipperText .= "\n";
                                 }
-                                $shipperText .= "\n";
                             }
                         }
                     @endphp
@@ -154,15 +161,18 @@
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
                     @php
-                        $consignees = json_decode($load->load_consignee, true);
-                        $consigneeText = '';
-                        if($consignees && is_array($consignees)) {
-                            foreach($consignees as $item) {
-                                $consigneeText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $consigneeText .= $item['location'] . "\n";
+                        $consigneeText = $editData['consignee'] ?? null;
+                        if (!$consigneeText) {
+                            $consignees = json_decode($load->load_consignee, true);
+                            $consigneeText = '';
+                            if($consignees && is_array($consignees)) {
+                                foreach($consignees as $item) {
+                                    $consigneeText .= ($item['name'] ?? '') . "\n";
+                                    if(!empty($item['location'])) {
+                                        $consigneeText .= $item['location'] . "\n";
+                                    }
+                                    $consigneeText .= "\n";
                                 }
-                                $consigneeText .= "\n";
                             }
                         }
                     @endphp
@@ -181,8 +191,8 @@
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
-Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $editData['mc_number'] ?? $load->load_mc_no ?? '' }}
+Carrier Name: {{ $editData['carrier_name'] ?? $load->load_carrier ?? '' }}</pre>
                 </td>
             </tr>
         </table>

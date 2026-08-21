@@ -2022,11 +2022,15 @@ public function all_search(Request $request)
         $shipmentType = ShipmentType::all();
         $shipperdata = Shipper::orderBy('shipper_name', 'asc')->get();
         $consigneedata = Consignee::orderBy('consignee_name', 'asc')->get();
-
+        $allowedAuthIds = [227, 226, 218, 312, 221, 222];
+        $alllogs = activity_log::where('load_id', $id)
+            ->whereIn('user_id', $allowedAuthIds)
+            ->orderBy('updated_at', 'desc')
+            ->get();
 		$allcustomer= Customer::get();
-         $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
-      
-        return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users'));
+        $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
+    //   echo "<pre>"; print_r($alllogs); die;
+        return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users','alllogs'));
     }
 
     public function loadUpdate(Request $request, $id)

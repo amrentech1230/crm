@@ -360,6 +360,18 @@
                                     </div>
                                 </div>
                                 @endif
+
+                                <div class="col-md-3 mb-2">
+                                    <div class="form-group">
+                                        <label>Invoice Status</label>
+                                        @php
+                                            $selectedValue = !empty($post->customer?->invoice_through) 
+                                                            ? $post->customer->invoice_through
+                                                            : $post->invoice_through;
+                                        @endphp
+                                        <input type="text" value="{{ $selectedValue }}" id="invoice_through" class="form-control" readonly>
+                                    </div>
+                                </div>
 								
 
                             </div>
@@ -1472,7 +1484,7 @@
 							<input class="form-control form-control-lg" name="load_delivery_do_file[]" id="load_delivery_do_file" accept="image/*,application/pdf" type="file" multiple>
 						</div>
 
-                        						<div class="card-header">
+                        <div class="card-header">
                             <h3 class="card-title" style="font-size: 16px; text-align: left; font-weight: 700; margin-left: 0; font-family: 'Poppins';">
                                 Notes </h3>
                         </div>
@@ -1527,7 +1539,61 @@ $notes = json_decode($post->vendorInternalNotes, true);
     @endif
 </div>
 
-                        
+                
+@php
+    $allowedAuthIds = [227, 226, 218, 312, 221, 222];
+@endphp
+
+@if(in_array(auth()->id(), $allowedAuthIds))
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"
+                style="font-size: 16px;
+                       font-weight: 700;
+                       font-family: 'Poppins';">
+                Vendor Logs
+            </h3>
+        </div>
+
+        <div class="card-body" id="vendor_logs">
+
+            @if($alllogs->count())
+
+                @foreach($alllogs as $log)
+
+                    @php
+                        $formattedDate = $log->updated_at
+                            ? \Carbon\Carbon::parse($log->updated_at)->format('m-d-Y h:i A')
+                            : '';
+                    @endphp
+
+                    <div class="mb-2" style="font-size: 13px;">
+                        <span><b>{{ $log->user_name ?? 'Admin' }}</b></span>
+                        <span class="text-muted">
+                            {{ $formattedDate }}
+                        </span>
+                        :
+                        <span>
+                           <b>{{ $log->message ?? '' }}</b>  
+                        </span>
+                    </div>
+
+                @endforeach
+
+            @else
+
+                <div class="text-muted">
+                    No vendor logs available.
+                </div>
+
+            @endif
+
+        </div>
+    </div>
+
+@endif
+        
 
 
                         <input type="submit" class="btn btn-info" value="Update Load">

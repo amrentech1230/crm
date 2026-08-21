@@ -8,7 +8,7 @@
 }
 
 #bolDownloadArea {
-    zoom: 0.8;
+    zoom: 0.85;
 }
 
     ul#navTabs,
@@ -1213,6 +1213,10 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                         Edit
                     </button>
 
+                    <button type="button" class="btn btn-success d-none" id="saveBolBtn" onclick="saveBOL()">
+                        Save
+                    </button>
+
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
@@ -1251,18 +1255,18 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 src="data:image/png;base64,{{ $logoBase64 }}"
                 alt="logo"
                 style="
-                    width:150px;
+                    width:80px;
                     display:block;
                 "
             >
         </div>
 
         <!-- Content -->
-        <div style="line-height:1.3;">
+        <div style="line-height:1.5;">
 
             <h3 style="
-                margin:0 0 6px 0;
-                font-size:32px;
+                margin:0 0 4px 0;
+                font-size:24px;
                 font-weight:700;
                 letter-spacing:0.5px;
             ">
@@ -1270,7 +1274,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </h3>
 
             <div style="
-                font-size:18px;
+                font-size:13px;
                 color:#333;
             ">
                 7119 PENNSYLVANIA AVE,<br>
@@ -1278,11 +1282,11 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </div>
 
             <div style="
-                margin-top:6px;
-                font-size:18px;
+                margin-top:4px;
+                font-size:13px;
                 font-weight:500;
             ">
-                Phone: 267-513-0420
+                Phone: +1 (267) 513-0604
             </div>
 
         </div>
@@ -1298,6 +1302,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>Load Number</th>
                                     <td>
                                         <input class="editable-field border-0 w-100"
+                                            data-field="load_number"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1307,6 +1312,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>BOL Number</th>
                                     <td>
                                         <input class="editable-field border-0 w-100"
+                                            data-field="bol_number"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1386,6 +1392,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 @endphp
 
 <textarea class="form-control editable-field border-0"
+    data-field="shipper"
     rows="6"
     readonly>{{ trim($shipperText) }}</textarea>
                             </div>
@@ -1414,6 +1421,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     }
 @endphp
                                 <textarea class="form-control editable-field border-0"
+                                    data-field="consignee"
                                     rows="5"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
@@ -1440,6 +1448,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                                 <textarea class="form-control editable-field border-0"
                                 rows="5"
+                                data-field="carrier_name"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
@@ -2677,12 +2686,52 @@ function enableEdit() {
 
     });
 
+    // Show the Save button (saves to session for PDF download)
+    document.getElementById('saveBolBtn').classList.remove('d-none');
+
 }
 
 </script>
 
 <script>
 
+function saveBOL() {
+    var bolData = {};
+    
+    document.querySelectorAll('.editable-field').forEach(function(el) {
+        var fieldName = el.getAttribute('data-field') || el.getAttribute('name') || el.id || ('field_' + Math.random());
+        if (fieldName) {
+            bolData[fieldName] = el.value;
+        }
+    });
+
+    // Store in session via AJAX (not in DB)
+    $.ajax({
+        url: '/broker/load/{{ $post->id }}/bol/save',
+        method: 'POST',
+        data: {
+            bol_data: bolData,
+            _token: '{{ csrf_token() }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                alert('BOL data saved for PDF download!');
+                document.getElementById('saveBolBtn').classList.add('d-none');
+                document.querySelectorAll('.editable-field').forEach(function(el) {
+                    el.setAttribute('readonly', true);
+                    el.style.border = 'none';
+                });
+            }
+        },
+        error: function(xhr) {
+            alert('Error saving BOL data. Please try again.');
+        }
+    });
+}
+
+</script>
+
+<script>
 function addFreightRow() {
 
     let tableBody = document.getElementById('freightTableBody');
@@ -2817,8 +2866,60 @@ updateTotals();
 
 async function downloadBOL() {
 
-    // Redirect to the backend route to generate and download the PDF
-    window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
+    // Hide buttons/elements that shouldn't appear in PDF
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = 'none');
+
+    var element = document.getElementById('bolDownloadArea');
+    
+    // Temporarily override styles for clean PDF output
+    element.style.zoom = '1';
+    element.style.padding = '0';
+    element.style.margin = '0';
+    
+    // Replace input/textarea values with plain text for clean PDF
+    var inputs = element.querySelectorAll('input.editable-field, textarea.editable-field');
+    var originals = [];
+    inputs.forEach(function(input) {
+        var span = document.createElement('span');
+        span.className = 'pdf-temp-value';
+        span.style.display = 'block';
+        span.style.minHeight = '20px';
+        span.style.padding = '2px 4px';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = '600';
+        span.style.color = '#333';
+        span.style.whiteSpace = 'pre-wrap';
+        span.style.wordBreak = 'break-word';
+        span.textContent = input.value || '';
+        originals.push({ input: input, parent: input.parentNode, next: input.nextSibling });
+        input.parentNode.replaceChild(span, input);
+    });
+
+    var opt = {
+        margin:       [5, 8, 5, 8],
+        filename:     'BOL-{{ $post->load_number }}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    await html2pdf().set(opt).from(element).save();
+
+    // Restore original inputs
+    originals.forEach(function(item) {
+        var spans = item.parent ? item.parent.querySelectorAll('.pdf-temp-value') : [];
+        spans.forEach(function(span) {
+            span.parentNode.replaceChild(item.input, span);
+        });
+    });
+
+    // Restore styles
+    element.style.zoom = '0.8';
+    element.style.padding = '20px';
+    
+    // Restore hidden elements
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = '');
 
 }
 
@@ -2831,38 +2932,44 @@ async function downloadBOL() {
     background:#fff;
     color:#222;
     font-family:Arial, sans-serif;
-    padding:20px;
+    padding:15px;
+    font-size:12px;
+    line-height:1.4;
 }
 
 #bolDownloadArea table{
     width:100%;
     border-collapse:collapse;
+    margin-bottom:10px;
 }
 
 #bolDownloadArea th{
     background:#f3f3f3;
     font-weight:700;
-    font-size:13px;
+    font-size:11px;
     text-transform:uppercase;
-    letter-spacing:.5px;
+    letter-spacing:.3px;
+    padding:6px 8px;
 }
 
 #bolDownloadArea th,
 #bolDownloadArea td{
     border:1px solid #000 !important;
-    padding:8px;
+    padding:6px 8px;
     vertical-align:top;
-    font-size:13px;
+    font-size:12px;
 }
 
 #bolDownloadArea h3{
     color:#111;
     font-weight:800;
+    font-size:22px;
+    margin:0 0 4px 0;
 }
 
 #bolDownloadArea h6{
-    font-size:15px;
-    margin-bottom:10px;
+    font-size:13px;
+    margin-bottom:6px;
     font-weight:700;
 }
 
@@ -2870,12 +2977,25 @@ async function downloadBOL() {
 #bolDownloadArea input{
     background:transparent !important;
     box-shadow:none !important;
-    font-size:13px;
+    font-size:12px;
     color:#333;
+    border:none !important;
+    padding:2px 4px;
+    font-weight:600;
 }
 
 #bolDownloadArea .border{
     border:1px solid #000 !important;
+}
+
+#bolDownloadArea .row{
+    margin-bottom:8px;
+}
+
+#bolDownloadArea .col-md-6,
+#bolDownloadArea .col-md-8,
+#bolDownloadArea .col-md-4{
+    padding:4px 8px;
 }
 
 .table-grey th{

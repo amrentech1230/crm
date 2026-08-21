@@ -2012,6 +2012,11 @@ public function raiseTicketStore(Request $request)
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
+    public function generateBolPdfWithEditedData(Request $request, $id)
+    {
+        return $this->generateBolPdf($id);
+    }
+
     public function downloadBolPdf(Request $request, $id)
     {
         $load = Load::findOrFail($id);
