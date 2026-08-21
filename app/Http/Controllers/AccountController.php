@@ -672,7 +672,11 @@ public function carrier_block(Request $request)
 
     public function vendor_system(Request $request)
     {
-         $vendormanagement = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(100);
+        $vendormanagement = Load::with(['user', 'customer'])
+        ->orderBy("loads.id", "desc")
+        ->paginate(100);
+
+    // echo "<pre>"; print_r($vendormanagement); die;
 		 
 		 if ($request->ajax()) {
 				return view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render();
@@ -1012,23 +1016,154 @@ public function no_of_macro(Request $request)
         }
     }
 
-     public function updateLoadDate(Request $request)
+    public function updateCarrierInvoiceDate(Request $request)
     {
-       
         $load = Load::find($request->id);
 
-        if ($load) {
-
-            $subject = "Change the Load load carrier due date  $load->load_carrier_due_date to $request->load_carrier_due_date";
-            addToLog($customerId ='', $request->id, $subject, $oldData ='', $newData ='');
-
-            $load->load_carrier_due_date = $request->load_carrier_due_date;
-            $load->save();
-            return response()->json(['success' => true, 'message' => 'Carrier due date updated successfully.']);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Load not found.'], 404);
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found.'
+            ], 404);
         }
-        
+
+        if (empty($request->carrier_invoice_date)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice date is required.'
+            ], 422);
+        }
+
+        try {
+
+            // Save old values BEFORE updating
+            $oldInvoiceDate = $load->carrier_invoice_date;
+            $oldDueDate     = $load->load_carrier_due_date;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Incoming date from <input type="date">
+            | Example: 2026-08-13
+            |--------------------------------------------------------------------------
+            */
+            $invoiceDate = \Carbon\Carbon::createFromFormat(
+                'Y-m-d',
+                $request->carrier_invoice_date,
+                'America/New_York'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Add 25 days
+            |--------------------------------------------------------------------------
+            */
+            $dueDate = $invoiceDate->copy()->addDays(25);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Log
+            |--------------------------------------------------------------------------
+            */
+            $subject = "Carrier invoice date changed from {$oldInvoiceDate} to {$invoiceDate->format('m/d/Y')}";
+
+            addToLog(
+                '',
+                $request->id,
+                $subject,
+                $oldInvoiceDate,
+                $invoiceDate->format('Y-m-d')
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE TO DATABASE
+            |--------------------------------------------------------------------------
+            | MySQL DATE format = Y-m-d
+            |--------------------------------------------------------------------------
+            */
+
+            $load->carrier_invoice_date = $invoiceDate->format('Y-m-d');
+            $load->load_carrier_due_date = $dueDate->format('Y-m-d');
+
+            $load->save();
+
+            return response()->json([
+                'success' => true,
+
+                'message' => 'Carrier invoice date and due date updated successfully by ' .
+                            auth()->user()->name,
+
+                // Old values
+                'old_invoice_date' => $oldInvoiceDate,
+                'old_due_date'     => $oldDueDate,
+
+                // Database values
+                'carrier_invoice_date' => $invoiceDate->format('Y-m-d'),
+                'load_carrier_due_date' => $dueDate->format('Y-m-d'),
+
+                // Frontend values
+                'formatted_invoice_date' => $invoiceDate->format('m/d/Y'),
+                'formatted_due_date'     => $dueDate->format('m/d/Y'),
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid invoice date format.',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+    public function updateCarrierDocuments(Request $request)
+    {
+        $load = Load::find($request->id);
+
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found.'
+            ], 404);
+        }
+
+        $allowedDocuments = [
+            'NOA',
+            'Void Check',
+            'Pay by Check'
+        ];
+
+        $document = $request->carrier_documents;
+
+        if ($document !== '' && !in_array($document, $allowedDocuments)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid document selected.'
+            ], 422);
+        }
+
+        $oldDocument = $load->carrier_documents;
+
+        $load->carrier_documents = $document ?: null;
+        $load->save();
+
+        $subject = "Carrier document changed from "
+            . ($oldDocument ?: 'None')
+            . " to "
+            . ($document ?: 'None');
+
+        addToLog(
+            '',
+            $request->id,
+            $subject,
+            $oldDocument ?: '',
+            $document ?: ''
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Carrier document updated successfully by ' . auth()->user()->name,
+            'carrier_documents' => $load->carrier_documents
+        ]);
     }
 
       public function getFiles(Request $request)
@@ -1259,8 +1394,6 @@ public function accountupdateCustomer(Request $request, $id)
     $newCreditLimitLogs = [];
     $creditLimitLogData = $request->input('new_credit_limit', []);
     $creditTimes = $request->input('new_credit_time', []);
-
-
     if (!empty($creditLimitLogData) && !empty($creditTimes)) {
         foreach ($creditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit) && isset($creditTimes[$index])) {
@@ -1271,19 +1404,11 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new logs
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-	
-	// Decode existing remaning credit limit logs or initialize an empty array
     $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
-
-
     if (!empty($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit)) {
@@ -1294,13 +1419,8 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-
-    // Decode existing remaning credit limit logs or initialize an empty array
     $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
@@ -1315,26 +1435,16 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new remaning logs
     $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
     $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
- 
-    // Calculate total credit limit from the updated logs
     $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-
-    // Calculate remaining credit
-   // $usedAmount = $customer->used_amount ?? 0;
     $remainingCredit = $totalCreditLimit - $usedAmount;
-  
-    // Update customer details
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    //$customer->adv_customer_credit_limit = $totalCreditLimit; // Save total credit limit in adv_customer_credit_limit
-    $customer->remaining_credit = $request->input('remaining_credit'); // Save remaining credit in remaining_credit
+    $customer->remaining_credit = $request->input('remaining_credit'); 
     $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
-	 $customer->customer_country = $request->input('customer_country');
+	$customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
     $customer->customer_address = $request->input('customer_address');
@@ -1348,6 +1458,10 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->approved_limit = $request->input('approved_limit');
     $customer->customer_hold_status = $request->has('customer_hold_status') ? 'hold' : 'unhold';
     $customer->invoice_through = $request->input('invoice_through');
+//     echo '<pre>';
+// print_r($customer);
+// echo '</pre>';
+// die;
     $customer->save();
 
     $subject = "Update the Customer info";
@@ -2483,7 +2597,6 @@ public function deleteCarrierFile(Request $request)
 		$customer = Customer::findOrFail($request->customer_id);
 		$existingFiles = json_decode($customer->remittance, true);
 		$existingFiles = is_array($existingFiles) ? $existingFiles : [];
-
 		$timezone = 'America/New_York';
 		$timestamp = Carbon::now($timezone)->format('Y-m-d H:i:s');
 		$allFiles = [];
@@ -5226,9 +5339,7 @@ public function customerDetailsReportingExcell()
             $shipper_location = json_decode($item->load_shipper_location, true);
             $appointment = isset($shipper_location[0]['appointment']) ? $shipper_location[0]['appointment'] : '';
             $consignee_location = json_decode($item->load_consignee_location, true);
-            $consignee_appointment = json_decode($item->load_consignee_appointment, true);
-            
-            
+            $consignee_appointment = json_decode($item->load_consignee_appointment, true);           
             $sheet->setCellValue($col . $row, $item->load_number ?? '');
             $col++;
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->invoice_number ?? '') : '');

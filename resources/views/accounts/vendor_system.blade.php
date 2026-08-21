@@ -134,6 +134,26 @@ ul.pagination {
     font-size: 15px;
     color: #333;
 }
+.form-control {
+    display: block;
+    width: unset;
+    padding: .47rem .75rem;
+    font-size: .9rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--bs-body-color);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: var(--bs-secondary-bg);
+    background-clip: padding-box;
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    -webkit-transition: border-color .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -193,24 +213,20 @@ ul.pagination {
                 <th>Sr No.</th>
                 <th>Load#</th>
                 <th>W/O #</th>
-                <th>Customer</th>
                 <th>Carrier</th>
-                <th>Due Date</th>
+                <th>Carrier Invoice Date</th>
                 <th>Carrier Due Date</th>
-                <th>Quick Pay %</th>
                 <th>Ready to Pay</th>
+                <th>Proccessed By</th>
+                <th>Documents</th>
+                <th>Quick Pay %</th>
                 <th>Carrier Files Upload</th>
                 <th>Carrier Files View</th>
                 <th>Payment Method</th>
-                <th>Carrier Payment</th>
+                <th>Carrier Payment Status</th>
                 <th>Carrier Payment Date</th></th>
-                <th>Invoice Number</th>
-                <th>Invoice Date</th>
-                <th>Status</th>
-                <th>Load Created</th>
-                <th>Dispatcher</th>
-                <th>Agent Files</th>
-                <th>Buyout Status</th>
+                <th>Customer Invoice Date</th>
+                <!-- <th>Agent Files</th> -->
                 <th>Logs Check</th>
                 <th>Vendor Internal Notes</th>
             </tr>

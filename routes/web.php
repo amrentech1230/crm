@@ -227,7 +227,8 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::post('account/quick_pay', [AccountController::class, 'quick_pay'])->name('quick_pay');
     Route::post('account/payment_method', [AccountController::class, 'payment_method'])->name('payment_method');
     Route::post('account/ready_to_pay', [AccountController::class, 'ready_to_pay'])->name('ready_to_pay');
-    Route::post('account/update-carrier-due-date', [AccountController::class, 'updateLoadDate'])->name('updateLoadDate');
+    Route::post('account/update-carrier-invoice-date', [AccountController::class, 'updateCarrierInvoiceDate'])->name('account.update-carrier-invoice-date');
+    Route::post('account/update-carrier-documents',[AccountController::class, 'updateCarrierDocuments'])->name('account.update-carrier-documents');
     Route::post('account/uploadCarrierDocs', [AccountController::class, 'uploadCarrierDocs'])->name('uploadCarrierDocs');
     Route::post('account/get-files', [AccountController::class, 'getFiles'])->name('get.files');
     Route::post('account/delete-carrier-doc', [AccountController::class, 'deleteCarrierDoc'])->name('delete.carrier.doc');
