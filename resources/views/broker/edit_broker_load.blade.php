@@ -2211,7 +2211,7 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                 if (nonInvoiceCharges > 0) {
                     deductionBreakdown += ' + Charges: $' + parseFloat(nonInvoiceCharges || 0).toFixed(2);
                 }
-                var displayText = 'Final Deduction: $' + parseFloat(totalDeduction || 0).toFixed(2) + ' (' + deductionBreakdown + ')';
+                // var displayText = 'Final Deduction: $' + parseFloat(totalDeduction || 0).toFixed(2) + ' (' + deductionBreakdown + ')';
 
                 $creditDisplay.html('<small style="color: #0066cc; font-weight: 500;">' + displayText + '</small>');
 
