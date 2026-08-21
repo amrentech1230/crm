@@ -1102,12 +1102,19 @@ public function editCustomer($id)
 
 
 
-    $credits = json_decode($customer->credit_limit_log, true);
+    $credits = json_decode($customer->remaining_credit_logs, true);
 
     if (is_array($credits)) {
         $totalCreditLimit = max(0.0, (float) array_sum(array_column($credits, 'credit_limit')));
     } else {
         $totalCreditLimit = 0.0;
+    }
+
+    if ($totalCreditLimit <= 0) {
+        $totalCreditLimit = max(
+            0.0,
+            (float) ($customer->adv_customer_credit_limit ?? $customer->invoice_credit_limit ?? 0)
+        );
     }
 
     $remainingCredit = get_customer_display_remaining_credit($customer);
@@ -1139,24 +1146,18 @@ public function editCustomer($id)
               ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
     };
 
-    $activeLoadScope = function ($query) {
-        $query->where(function ($query) {
-            $query->where('load_status', '!=', 'Cancelled')
-                  ->orWhereNull('load_status');
-        });
-    };
-
     $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
-        ->where($activeLoadScope)
-        ->where('shipper_load_final_rate', '>=', 0)
-        ->sum('shipper_load_final_rate'));
+        ->sum(DB::raw('COALESCE(NULLIF(shipper_load_final_rate, 0), load_final_rate, 0)')));
 
     $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
         ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
+    $remainingCredit = $totalCreditLimit > 0
+        ? max(0.0, $totalCreditLimit - $totalExhaustedLimit)
+        : max(0.0, (float) ($customer->remaining_credit ?? 0));
     $usedAmount = $totalExhaustedLimit;
-    $after_used_remaing_amount = max(0.0, $totalCreditLimit - $loadcreateamount);
+    $after_used_remaing_amount = $remainingCredit;
     $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
 
                       

@@ -1131,19 +1131,6 @@ document.addEventListener('DOMContentLoaded', function () {
          // Update Assigned Credit Limit
          $('#adv_customer_credit_limit').val(totalCreditLimit.toFixed(2));
 
-         // Get the last entered credit value from the last .credit-limit input
-         let lastEntered = parseFloat($('.credit-limit').last().val());
-
-         // Get remaining credit from server-side variable (make sure this renders correctly)
-         let existingRemainingCredit = parseFloat('{{ $customer->remaining_credit ?? 0 }}') || 0;
-
-         // Calculate remaining credit
-         let remainingCredit = !isNaN(lastEntered) ? lastEntered + existingRemainingCredit : existingRemainingCredit;
-
-         // Update remaining credit field
-         $('#remaining_credit').val(remainingCredit.toFixed(2));
-         $('#remaining_credit_new').val(remainingCredit.toFixed(2));
-         
       }
 
      
