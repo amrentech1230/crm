@@ -8,7 +8,7 @@
 }
 
 #bolDownloadArea {
-    zoom: 0.8;
+    zoom: 0.85;
 }
 
     ul#navTabs,
@@ -1255,18 +1255,18 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 src="data:image/png;base64,{{ $logoBase64 }}"
                 alt="logo"
                 style="
-                    width:150px;
+                    width:80px;
                     display:block;
                 "
             >
         </div>
 
         <!-- Content -->
-        <div style="line-height:1.3;">
+        <div style="line-height:1.5;">
 
             <h3 style="
-                margin:0 0 6px 0;
-                font-size:32px;
+                margin:0 0 4px 0;
+                font-size:24px;
                 font-weight:700;
                 letter-spacing:0.5px;
             ">
@@ -1274,7 +1274,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </h3>
 
             <div style="
-                font-size:18px;
+                font-size:13px;
                 color:#333;
             ">
                 7119 PENNSYLVANIA AVE,<br>
@@ -1282,11 +1282,11 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </div>
 
             <div style="
-                margin-top:6px;
-                font-size:18px;
+                margin-top:4px;
+                font-size:13px;
                 font-weight:500;
             ">
-                Phone: 267-513-0420
+                Phone: +1 (267) 513-0604
             </div>
 
         </div>
@@ -2753,18 +2753,54 @@ async function downloadBOL() {
     document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = 'none');
 
     var element = document.getElementById('bolDownloadArea');
+    
+    // Temporarily override styles for clean PDF output
+    element.style.zoom = '1';
+    element.style.padding = '0';
+    element.style.margin = '0';
+    
+    // Replace input/textarea values with plain text for clean PDF
+    var inputs = element.querySelectorAll('input.editable-field, textarea.editable-field');
+    var originals = [];
+    inputs.forEach(function(input) {
+        var span = document.createElement('span');
+        span.className = 'pdf-temp-value';
+        span.style.display = 'block';
+        span.style.minHeight = '20px';
+        span.style.padding = '2px 4px';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = '600';
+        span.style.color = '#333';
+        span.style.whiteSpace = 'pre-wrap';
+        span.style.wordBreak = 'break-word';
+        span.textContent = input.value || '';
+        originals.push({ input: input, parent: input.parentNode, next: input.nextSibling });
+        input.parentNode.replaceChild(span, input);
+    });
 
     var opt = {
-        margin:       [10, 10, 10, 10],
+        margin:       [5, 8, 5, 8],
         filename:     'BOL-{{ $post->load_number }}.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    // Generate PDF from the current DOM (includes all edits)
     await html2pdf().set(opt).from(element).save();
 
+    // Restore original inputs
+    originals.forEach(function(item) {
+        var spans = item.parent ? item.parent.querySelectorAll('.pdf-temp-value') : [];
+        spans.forEach(function(span) {
+            span.parentNode.replaceChild(item.input, span);
+        });
+    });
+
+    // Restore styles
+    element.style.zoom = '0.8';
+    element.style.padding = '20px';
+    
     // Restore hidden elements
     document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = '');
 
@@ -2779,38 +2815,44 @@ async function downloadBOL() {
     background:#fff;
     color:#222;
     font-family:Arial, sans-serif;
-    padding:20px;
+    padding:15px;
+    font-size:12px;
+    line-height:1.4;
 }
 
 #bolDownloadArea table{
     width:100%;
     border-collapse:collapse;
+    margin-bottom:10px;
 }
 
 #bolDownloadArea th{
     background:#f3f3f3;
     font-weight:700;
-    font-size:13px;
+    font-size:11px;
     text-transform:uppercase;
-    letter-spacing:.5px;
+    letter-spacing:.3px;
+    padding:6px 8px;
 }
 
 #bolDownloadArea th,
 #bolDownloadArea td{
     border:1px solid #000 !important;
-    padding:8px;
+    padding:6px 8px;
     vertical-align:top;
-    font-size:13px;
+    font-size:12px;
 }
 
 #bolDownloadArea h3{
     color:#111;
     font-weight:800;
+    font-size:22px;
+    margin:0 0 4px 0;
 }
 
 #bolDownloadArea h6{
-    font-size:15px;
-    margin-bottom:10px;
+    font-size:13px;
+    margin-bottom:6px;
     font-weight:700;
 }
 
@@ -2818,12 +2860,25 @@ async function downloadBOL() {
 #bolDownloadArea input{
     background:transparent !important;
     box-shadow:none !important;
-    font-size:13px;
+    font-size:12px;
     color:#333;
+    border:none !important;
+    padding:2px 4px;
+    font-weight:600;
 }
 
 #bolDownloadArea .border{
     border:1px solid #000 !important;
+}
+
+#bolDownloadArea .row{
+    margin-bottom:8px;
+}
+
+#bolDownloadArea .col-md-6,
+#bolDownloadArea .col-md-8,
+#bolDownloadArea .col-md-4{
+    padding:4px 8px;
 }
 
 .table-grey th{
