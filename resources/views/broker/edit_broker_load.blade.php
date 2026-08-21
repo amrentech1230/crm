@@ -1213,6 +1213,10 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                         Edit
                     </button>
 
+                    <button type="button" class="btn btn-success d-none" id="saveBolBtn" onclick="saveBOL()">
+                        Save
+                    </button>
+
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
@@ -1298,6 +1302,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>Load Number</th>
                                     <td>
                                         <input class="editable-field border-0 w-100"
+                                            data-field="load_number"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1307,6 +1312,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <th>BOL Number</th>
                                     <td>
                                         <input class="editable-field border-0 w-100"
+                                            data-field="bol_number"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1386,6 +1392,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 @endphp
 
 <textarea class="form-control editable-field border-0"
+    data-field="shipper"
     rows="6"
     readonly>{{ trim($shipperText) }}</textarea>
                             </div>
@@ -1414,6 +1421,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
     }
 @endphp
                                 <textarea class="form-control editable-field border-0"
+                                    data-field="consignee"
                                     rows="5"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
@@ -1440,6 +1448,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
                                 <textarea class="form-control editable-field border-0"
                                 rows="5"
+                                data-field="carrier_name"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
@@ -2561,11 +2570,50 @@ function enableEdit() {
 
     });
 
+    // Show the Save button (saves to session for PDF download)
+    document.getElementById('saveBolBtn').classList.remove('d-none');
+
 }
 
 </script>
 
 <script>
+
+function saveBOL() {
+    var bolData = {};
+    
+    document.querySelectorAll('.editable-field').forEach(function(el) {
+        var fieldName = el.getAttribute('data-field') || el.getAttribute('name') || el.id || ('field_' + Math.random());
+        if (fieldName) {
+            bolData[fieldName] = el.value;
+        }
+    });
+
+    // Store in session via AJAX (not in DB)
+    $.ajax({
+        url: '/broker/load/{{ $post->id }}/bol/save',
+        method: 'POST',
+        data: {
+            bol_data: bolData,
+            _token: '{{ csrf_token() }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                alert('BOL data saved for PDF download!');
+                document.getElementById('saveBolBtn').classList.add('d-none');
+                document.querySelectorAll('.editable-field').forEach(function(el) {
+                    el.setAttribute('readonly', true);
+                    el.style.border = 'none';
+                });
+            }
+        },
+        error: function(xhr) {
+            alert('Error saving BOL data. Please try again.');
+        }
+    });
+}
+
+</script>
 
 function addFreightRow() {
 

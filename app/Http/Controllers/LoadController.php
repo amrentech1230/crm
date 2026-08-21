@@ -1713,34 +1713,16 @@ public function raiseTicketStore(Request $request)
     public function generateBolPdf($id)
     {
         $load = Load::findOrFail($id);
-
-        $options = new Options();
-        $options->set('defaultFont', 'Arial'); // Use a common font
-        $options->set('isRemoteEnabled', true); // Enable remote image loading for logo
-        $dompdf = new Dompdf($options);
-
-        $html = view('broker.bol_pdf', compact('load'))->render();
-        $dompdf->loadHtml($html);
-
-        // (Optional) Set paper size and orientation
-        $dompdf->setPaper('letter', 'portrait');
-
-        $dompdf->render();
-
-        // Stream the file for download
-        return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
-    }
-
-    public function generateBolPdfWithEditedData(Request $request, $id)
-    {
-        $load = Load::findOrFail($id);
+        
+        // Read edited data from session (not DB)
+        $editData = session("bol_edit_data_{$id}", []);
 
         $options = new Options();
         $options->set('defaultFont', 'Arial');
         $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('broker.bol_pdf', compact('load'))->render();
+        $html = view('broker.bol_pdf', compact('load', 'editData'))->render();
         $dompdf->loadHtml($html);
         $dompdf->setPaper('letter', 'portrait');
         $dompdf->render();
@@ -1748,13 +1730,18 @@ public function raiseTicketStore(Request $request)
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
+    public function generateBolPdfWithEditedData(Request $request, $id)
+    {
+        return $this->generateBolPdf($id);
+    }
+
     public function saveBolEditData(Request $request, $id)
     {
-        $load = Load::findOrFail($id);
-        $load->bol_edit_data = json_encode($request->input('bol_data', []));
-        $load->save();
+        // Store edited BOL data in session (not in database)
+        $bolData = $request->input('bol_data', []);
+        session(["bol_edit_data_{$id}" => $bolData]);
 
-        return response()->json(['success' => true, 'message' => 'BOL data saved.']);
+        return response()->json(['success' => true, 'message' => 'BOL data saved to session for PDF download.']);
     }
 
     public function downloadBolPdf(Request $request, $id)
