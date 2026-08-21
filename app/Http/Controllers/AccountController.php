@@ -1103,6 +1103,9 @@ public function editCustomer($id)
 
 
     $credits = json_decode($customer->remaining_credit_logs, true);
+    if (!is_array($credits) || count($credits) === 0) {
+        $credits = json_decode($customer->credit_limit_log, true);
+    }
 
     if (is_array($credits)) {
         $totalCreditLimit = max(0.0, (float) array_sum(array_column($credits, 'credit_limit')));
