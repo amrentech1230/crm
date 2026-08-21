@@ -2615,6 +2615,7 @@ function saveBOL() {
 
 </script>
 
+<script>
 function addFreightRow() {
 
     let tableBody = document.getElementById('freightTableBody');

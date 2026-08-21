@@ -674,38 +674,6 @@ public function uploadRemittance(Request $request)
     }
 
 
-
-private function appendToGoogleSheet($data)
-{
-    // PASTE YOUR NEW DEPLOYMENT URL BELOW
-    $url = "https://script.google.com/a/macros/cargoconvoy.co/s/AKfycbydbQCeunLgFGPGqQvXfvm-MHNVtFxSQR_PkLVPhlsL25rdRQIoQ5y0nP9H9ENhOKzO/exec";
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    $error = curl_error($ch);
-    curl_close($ch);
-
-    if ($error) {
-        \Log::error('Google Sheet Error: ' . $error);
-    }
-dd($response); die;
-    return $response;
-}
-
-
-
-
-
-
-
 public function storeCustomerApprovalForm(Request $request)
 {
     $customerApprovalFormBroker = CustomerApprovalForm::create([
@@ -724,22 +692,7 @@ public function storeCustomerApprovalForm(Request $request)
         'requested_credit_limit' => $request->requested_credit_limit,
     ]);
 
-    // Send to Google Sheet
-    $this->appendToGoogleSheet([
-        "date" => now()->format('m-d-Y H:i:s'),
-        "company_name" => $request->company_name,
-        "address" => $request->address,
-        "city" => $request->city,
-        "state" => $request->state,
-        "zip_code" => $request->zip_code,
-        "contact_name" => $request->dispatcher_first_name . ' ' . $request->dispatcher_last_name,
-        "phone" => $request->phone_number,
-        "email" => $request->customer_email,
-        "credit_limit" => $request->requested_credit_limit,
-        "agent_email" => auth()->user()->email
-    ]);
-
-    return redirect()->back()->with('success', 'Customer Approval Form submitted + synced to Google Sheet!');
+    return redirect()->back()->with('success', 'Customer Approval Form submitted successfully!');
 }
 
 

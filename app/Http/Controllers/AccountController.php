@@ -1350,7 +1350,6 @@ public function accountupdateCustomer(Request $request, $id)
         'customer_telephone' => 'required',
     ]);
 	
-	
     if ($validator->fails()) {
         return redirect()->back()->withErrors($validator)->withInput();
     }
@@ -6034,7 +6033,7 @@ public function getVendorNotes(Request $request)
 
 
     public function customerApprovalFormAdmin(){
-        $customers = CustomerApprovalForm::get();
+        $customers = CustomerApprovalForm::orderBy('created_at', 'desc')->get();
         return view('admin.customer_approval', compact('customers'));
     }
 
