@@ -1149,7 +1149,7 @@ public function editCustomer($id)
               ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
     };
 
-    $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
+    $creditLoadAmount = max(0.0, (float) Load::where($customerLoadScope)
         ->get(['shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
         ->sum(function ($load) {
             $createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
@@ -1173,12 +1173,15 @@ public function editCustomer($id)
             return max(0.0, $createdAmount - $invoiceCharges);
         }));
 
+    $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
+        ->sum(DB::raw('COALESCE(NULLIF(shipper_load_final_rate, 0), load_final_rate, 0)')));
+
     $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
         ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
     $remainingCredit = $totalCreditLimit > 0
-        ? max(0.0, $totalCreditLimit - $loadcreateamount)
+        ? max(0.0, $totalCreditLimit - $creditLoadAmount)
         : max(0.0, (float) ($customer->remaining_credit ?? 0));
     $usedAmount = $totalExhaustedLimit;
     $after_used_remaing_amount = $remainingCredit;
