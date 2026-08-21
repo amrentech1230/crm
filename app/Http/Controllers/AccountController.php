@@ -1157,7 +1157,7 @@ public function editCustomer($id)
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
     $remainingCredit = $totalCreditLimit > 0
-        ? max(0.0, $totalCreditLimit - $loadcreateamount)
+        ? max(0.0, $totalCreditLimit - $totalExhaustedLimit)
         : max(0.0, (float) ($customer->remaining_credit ?? 0));
     $usedAmount = $totalExhaustedLimit;
     $after_used_remaing_amount = $remainingCredit;
