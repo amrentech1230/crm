@@ -212,7 +212,7 @@
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
                                  <label for="used_amount">Total Exhausted Limit</label>
-                                 <input type="text" class="form-control" id="total_exhausted_limit" name="used_amount" value="{{ number_format((float) $totalExhaustedLimit, 2, '.', '') }}" required readonly>
+                                 <input type="text" class="form-control" id="total_exhausted_limit" name="used_amount" value="{{ number_format((float) ($totalExhaustedLimit ?? $usedAmount ?? 0), 2, '.', '') }}" required readonly>
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
