@@ -1731,5 +1731,36 @@ public function raiseTicketStore(Request $request)
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
+    public function generateBolPdfWithEditedData(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+
+        $html = view('broker.bol_pdf', compact('load'))->render();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
+    }
+
+    public function saveBolEditData(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+        $load->bol_edit_data = json_encode($request->input('bol_data', []));
+        $load->save();
+
+        return response()->json(['success' => true, 'message' => 'BOL data saved.']);
+    }
+
+    public function downloadBolPdf(Request $request, $id)
+    {
+        return $this->generateBolPdf($id);
+    }
+
 
 }
