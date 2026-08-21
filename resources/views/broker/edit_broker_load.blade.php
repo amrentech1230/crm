@@ -2749,8 +2749,24 @@ updateTotals();
 
 async function downloadBOL() {
 
-    // Redirect to the backend route to generate and download the PDF
-    window.location.href = "{{ route('broker.load.bol.pdf', $post->id) }}";
+    // Hide buttons/elements that shouldn't appear in PDF
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = 'none');
+
+    var element = document.getElementById('bolDownloadArea');
+
+    var opt = {
+        margin:       [10, 10, 10, 10],
+        filename:     'BOL-{{ $post->load_number }}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    };
+
+    // Generate PDF from the current DOM (includes all edits)
+    await html2pdf().set(opt).from(element).save();
+
+    // Restore hidden elements
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = '');
 
 }
 
