@@ -41,8 +41,10 @@ jobs:
           VIEW_COUNT=$(find resources/views -name "*.blade.php" | wc -l)
           LAST_COMMIT=$(git log -1 --format="%h - %s (%ci)")
           
-          # Update the manual's metadata section (use ~ as delimiter to avoid conflict with | in text)
-          sed -i "s~Generated from codebase branch:.*~Generated from codebase branch: devSumit<br>Last updated: $(date '+%Y-%m-%d %H:%M UTC')<br>Commit: ${LAST_COMMIT}<br>Routes: ${ROUTE_COUNT} | Controllers: ${CONTROLLER_COUNT} | Models: ${MODEL_COUNT} | Migrations: ${MIGRATION_COUNT} | Views: ${VIEW_COUNT}</p>~" docs/CRM_User_Manual.html
+          # Update the manual's metadata section
+          MANUAL_METADATA="Generated from codebase branch: devSumit<br>Last updated: $(date '+%Y-%m-%d %H:%M UTC')<br>Commit: ${LAST_COMMIT}<br>Routes: ${ROUTE_COUNT} | Controllers: ${CONTROLLER_COUNT} | Models: ${MODEL_COUNT} | Migrations: ${MIGRATION_COUNT} | Views: ${VIEW_COUNT}</p>"
+          ESCAPED_METADATA=$(printf '%s' "$MANUAL_METADATA" | sed 's/[\\&#]/\\&/g')
+          sed -i "s#Generated from codebase branch:.*#${ESCAPED_METADATA}#" docs/CRM_User_Manual.html
           
           echo "==> Manual HTML updated with latest stats"
 
