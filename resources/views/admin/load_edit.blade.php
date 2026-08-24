@@ -1961,7 +1961,6 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 var fscAmount = (loadFscRate / 100) * loadShipperRate;
                 total += fscAmount;
-
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
                 // Display credit deduction breakdown
