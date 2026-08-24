@@ -845,7 +845,11 @@ body.vertical-collpsed #credit-limit-message {
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     function formatCreditAmount(value) {
-        return '$' + parseFloat(value || 0).toFixed(2);
+        var numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '$0.00';
+        }
+        return '$' + numericValue.toFixed(2);
     }
 
     // Note: customer other charges are deliberately left alone here. A charge marked

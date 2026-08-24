@@ -1479,7 +1479,11 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
 
         function formatCreditAmount(value) {
-            return '$' + parseFloat(value || 0).toFixed(2);
+            var numericValue = Number(value);
+            if (!isFinite(numericValue)) {
+                return '$0.00';
+            }
+            return '$' + numericValue.toFixed(2);
         }
 
         // Note: customer other charges are deliberately left alone here. A charge marked
@@ -1694,8 +1698,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return;
             }
 
-            var creditLimit = getSelectedCustomerCreditLimit();
-            var shouldLock = !!$select.val() && creditLimit <= 0;
+            var creditInfo = getSelectedCustomerCreditLimit();
+            var availableLimit = Number(creditInfo.remaining) || 0;
+            var shouldLock = !!$select.val() && availableLimit <= 0;
 
             $form.data('credit-locked', shouldLock);
 
@@ -1719,7 +1724,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 $message
                     .removeClass('alert-danger')
                     .addClass('alert-warning')
-                    .text('Available limit: ' + formatCreditAmount(creditLimit) + '.')
+                    .text('Available limit: ' + formatCreditAmount(availableLimit) + '.')
                     .removeClass('d-none');
             } else {
                 $message.text('').addClass('d-none');
