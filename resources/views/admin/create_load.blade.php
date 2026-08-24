@@ -980,7 +980,7 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
-        if (enteredAmount < 200) {
+        if (enteredAmount > 0 && enteredAmount < 200) {
             var validationMessage = 'Final shipper rate is not less than 200.';
 
             $message
