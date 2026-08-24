@@ -32,10 +32,10 @@ jobs:
       - name: Deploy to Production Server
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.PROD_PORT }}
-          username: ${{ secrets.PROD_USERNAME }}
-          key: ${{ secrets.PROD_SSH_KEY }}
+          host: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
+          port: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
+          username: ${{ secrets.PROD_USERNAME || secrets.SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ${{ secrets.PROD_PATH }}
             git fetch origin main
@@ -68,10 +68,10 @@ jobs:
       - name: Deploy to Staging Server
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          port: ${{ secrets.STAGING_PORT }}
-          username: ${{ secrets.STAGING_USERNAME }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
+          host: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
+          port: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+          username: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ${{ secrets.STAGING_PATH }}
             git fetch origin devN
