@@ -1578,6 +1578,13 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 var validationMessage = 'Final shipper rate is not less than 200.';
                 var displayMessage = previousMessage ? previousMessage + ' | ' + validationMessage : validationMessage;
 
+                if (!previousMessage || (!previousMessage.includes('Available limit:') && !previousMessage.includes('Invoicing limit:'))) {
+                    var credits = getSelectedCustomerCreditLimit();
+                    var availableLimit = Number(credits.remaining) || 0;
+                    var invoiceLimit = Number(credits.invoice) || 0;
+                    displayMessage = 'Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + ' | ' + validationMessage;
+                }
+
                 $message.removeClass('alert-warning alert-success').addClass('alert-danger')
                     .text(displayMessage).removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled').prop('title', validationMessage);
@@ -1700,6 +1707,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
             var creditInfo = getSelectedCustomerCreditLimit();
             var availableLimit = Number(creditInfo.remaining) || 0;
+            var invoiceLimit = Number(creditInfo.invoice) || 0;
             var shouldLock = !!$select.val() && availableLimit <= 0;
 
             $form.data('credit-locked', shouldLock);
@@ -1724,7 +1732,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 $message
                     .removeClass('alert-danger')
                     .addClass('alert-warning')
-                    .text('Available limit: ' + formatCreditAmount(availableLimit) + '.')
+                    .text('Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + '.')
                     .removeClass('d-none');
             } else {
                 $message.text('').addClass('d-none');

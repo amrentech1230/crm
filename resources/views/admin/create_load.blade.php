@@ -879,6 +879,25 @@ body.vertical-collpsed #credit-limit-message {
         return { remaining: remaining, invoice: invoiceCreditLimit };
     }
 
+    function showCustomerLimitSummary() {
+        var $message = $('#credit-limit-message');
+        var $select = $('#load_bill_to');
+
+        if (!$message.length || !$select.length || !$select.val()) {
+            return;
+        }
+
+        var credits = getSelectedCustomerCreditLimit();
+        var availableLimit = Number(credits.remaining) || 0;
+        var invoiceLimit = Number(credits.invoice) || 0;
+
+        $message
+            .removeClass('alert-danger')
+            .addClass('alert-warning')
+            .text('Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + '.')
+            .removeClass('d-none');
+    }
+
     function getInvoiceChargesTotal() {
         var total = 0;
         var $invoiceChecks = $('.for_invoice');
@@ -966,6 +985,13 @@ body.vertical-collpsed #credit-limit-message {
             var validationMessage = 'Final shipper rate is not less than 200.';
             var displayMessage = previousMessage ? previousMessage + ' | ' + validationMessage : validationMessage;
 
+            if (!previousMessage || !previousMessage.includes('Available limit:') && !previousMessage.includes('Invoicing limit:')) {
+                var credits = getSelectedCustomerCreditLimit();
+                var availableLimit = Number(credits.remaining) || 0;
+                var invoiceLimit = Number(credits.invoice) || 0;
+                displayMessage = 'Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + ' | ' + validationMessage;
+            }
+
             $message
                 .removeClass('alert-warning alert-success')
                 .addClass('alert-danger')
@@ -1051,6 +1077,7 @@ body.vertical-collpsed #credit-limit-message {
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
             $('#shipper_load_final_rate').val('');
+            showCustomerLimitSummary();
             validateCreditForLoad();
         });
 
