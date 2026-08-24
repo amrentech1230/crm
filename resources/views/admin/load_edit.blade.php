@@ -1953,7 +1953,6 @@ $(document).ready(function () {
                     var amount = parseFloat($(inputBox).val()) || 0;
                     total += amount;
                 });
-
                 $('#totalChargeAmount').val(total.toFixed(2));
 
                 var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
