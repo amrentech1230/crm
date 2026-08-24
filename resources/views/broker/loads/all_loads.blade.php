@@ -36,12 +36,12 @@
         @endif
     </td>
     <td id="edit_btn">
-		@if ($loads->load_status != 'Completed')
-			<a href="{{ route('load.editload', $loads->id) }}" class="btn btn-primary btn-sm">
-				<i class="fas fa-edit"></i>
-			</a>
-        @endif
-    </td>
+    @if ($loads->load_status != 'Completed')
+        <a href="{{ route('load.editload', encrypt($loads->id)) }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-edit"></i>
+        </a>
+    @endif
+</td>
 
 
 

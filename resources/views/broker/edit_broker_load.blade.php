@@ -100,7 +100,7 @@
                 <div class="card">
                     <div class="card-body">
 
-                        <form method="POST" action="{{ route('broker.load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
+                        <form method="POST" action="{{ route('broker.load.update', encrypt($post->id)) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
                         <div class="card-header">
                             <h3 class="card-title"

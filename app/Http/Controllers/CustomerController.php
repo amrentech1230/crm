@@ -23,6 +23,8 @@ use \App\Models\User;
 use \App\Models\TeamLeader;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Mail\Message;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class CustomerController extends Controller
 {
@@ -393,30 +395,47 @@ if ($request->has('download') && $request->download === 'excel') {
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        $customer = Customer::with('user.teamLeaderInfo','user.managerInfo')->where('id', $id)->first();
-        $allcountry = Country::get();
-		$state = State::get();
-        return view('broker.customer-edit', compact('state','allcountry','customer'));
+
+
+public function edit(string $id)
+{
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
     }
+
+    $customer = Customer::with('user.teamLeaderInfo', 'user.managerInfo')
+        ->where('id', $decryptedId)
+        ->firstOrFail();
+
+    $allcountry = Country::get();
+    $state = State::get();
+
+    return view('broker.customer-edit', compact('state', 'allcountry', 'customer'));
+}
+
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
-    {
-		
-        $validator = Validator::make($request->all(), [
-            'customer_name' => 'required|string|max:255',
-        ]);
-	
+public function update(Request $request, string $id)
+{
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
+    }
 
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
+    $validator = Validator::make($request->all(), [
+        'customer_name' => 'required|string|max:255',
+    ]);
 
-        $yourModel = Customer::findOrFail($id);
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
+    }
+
+    $yourModel = Customer::findOrFail($decryptedId);
 
         $oldData = json_encode($yourModel);
 
