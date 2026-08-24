@@ -1958,7 +1958,6 @@ $(document).ready(function () {
 
                 var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
                 total += loadShipperRate;
-
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 var fscAmount = (loadFscRate / 100) * loadShipperRate;
                 total += fscAmount;
