@@ -1574,19 +1574,10 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             }
 
             if (enteredAmount < 200) {
-                var previousMessage = $message.text().trim();
                 var validationMessage = 'Final shipper rate is not less than 200.';
-                var displayMessage = previousMessage ? previousMessage + ' | ' + validationMessage : validationMessage;
-
-                if (!previousMessage || (!previousMessage.includes('Available limit:') && !previousMessage.includes('Invoicing limit:'))) {
-                    var credits = getSelectedCustomerCreditLimit();
-                    var availableLimit = Number(credits.remaining) || 0;
-                    var invoiceLimit = Number(credits.invoice) || 0;
-                    displayMessage = 'Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + ' | ' + validationMessage;
-                }
 
                 $message.removeClass('alert-warning alert-success').addClass('alert-danger')
-                    .text(displayMessage).removeClass('d-none');
+                    .text(validationMessage).removeClass('d-none');
                 $submitButton.prop('disabled', true).addClass('disabled').prop('title', validationMessage);
                 $form.data('credit-valid', false);
                 return false;
