@@ -1569,6 +1569,14 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                 return false;
             }
 
+            if (enteredAmount < 200) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Final shipper rate is not less than 200.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Final shipper rate is not less than 200.');
+                $form.data('credit-valid', false);
+                return false;
+            }
+
             // TONU: Only uses invoice credit limit (no base rate needed)
             if (isTONU()) {
                 var invoiceCharges = getInvoiceChargesTotal();

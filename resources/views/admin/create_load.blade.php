@@ -957,6 +957,17 @@ body.vertical-collpsed #credit-limit-message {
             return false;
         }
 
+        if (enteredAmount < 200) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Final shipper rate is not less than 200.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Final shipper rate is not less than 200.');
+            $form.data('credit-valid', false);
+            return false;
+        }
+
         if (remainingLimit <= 0 && invoiceLimit <= 0) {
             $message
                 .removeClass('alert-warning alert-success')
