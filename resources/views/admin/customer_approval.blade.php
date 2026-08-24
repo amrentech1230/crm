@@ -45,12 +45,12 @@
                         <div class="table-responsive" style="max-height: 500px; overflow: auto;">
                             <table class="table table-striped table-bordered dt-responsive nowrap"
                                 style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                                <span>
-                                    <a href="{{route('customer.approval.excel')}}">
-                                        <button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">Customer
-                                            Approval Excel</button>
-                                    </a>
-                                </span>
+@if(in_array(auth()->id(), [52,222]))
+    <a href="{{ route('customer.approval.excel') }}"
+       class="btn btn-primary waves-effect waves-light mb-3 exlbtn">
+        Customer Approval Excel
+    </a>
+@endif
                                 <thead>
                                     <tr>
                                         <th>Sr No.</th>
@@ -120,8 +120,7 @@
     @endif
 </td>
                                         <td>
-                                            <select class="status-dropdown form-control"
-                                                data-id="{{ $customerApprovalFormBroker->id }}">
+                                            <select class="status-dropdown" data-id="{{ $customerApprovalFormBroker->id }}">
 
                                                 <option value=""
                                                     {{ empty($customerApprovalFormBroker->status) ? 'selected' : '' }}>

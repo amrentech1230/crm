@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Pagination\Paginator;
 use Carbon\Carbon;
 use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class LoadController extends Controller
 {
@@ -247,7 +249,14 @@ if (!empty($term)) {
     public function editload($id)
     {
 
-        $post = Load::find($id);
+        try {
+            $decryptedId = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            abort(404);
+        }
+
+
+    $post = Load::find($decryptedId);
 
         if (!$post) {
             // Record not found, handle the error gracefully
@@ -879,8 +888,13 @@ if (!empty($term)) {
 
     public function BrokerLoadUpdate(Request $request, $id)
     {
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
+    }
 
-return \DB::transaction(function () use ($request, $id) {
+return \DB::transaction(function () use ($request, $decryptedId) {
 
 for ($i = 1; $i <= 15; $i++) {
 
@@ -912,7 +926,7 @@ for ($i = 1; $i <= 15; $i++) {
     }
 }
       
-        $load = Load::findOrFail($id);
+        $load = Load::findOrFail($decryptedId);
         
         // Capture original load data BEFORE any form processing
         $loaddata = clone $load;
@@ -1544,8 +1558,8 @@ for ($i = 1; $i <= 15; $i++) {
 
         $newData = json_encode($load);
 
-        $subject = "Broker Update the Load, loadid:-".$id;
-        addToLog($customerId ='', $id, $subject, $oldData, $newData);
+        $subject = "Broker Update the Load, loadid:-".$load->number;
+        addToLog($customerId ='', $load->number, $subject, $oldData, $newData);
 
         return redirect('broker/load')->with('success', 'Load has been updated successfully!');
     }); // end DB::transaction

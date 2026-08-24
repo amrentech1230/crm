@@ -6386,11 +6386,56 @@ public function customerApprovalupdateStatus(Request $request)
         $data->status = $request->status;
         $data->save();
 
+        // Send email using core PHP mail() 
+        if ($data->agent_email) {
+            $to = $data->agent_email;
+            $subject = "Customer Approval Status Updated - " . $request->status;
+
+            // Email body
+            $message = "
+            <html>
+            <head>
+                <title>Approval Status Update</title>
+            </head>
+            <body>
+                <h2>Approval Status Update</h2>
+                <p>Dear User,</p>
+                <p>Your customer approval status has been updated by the admin.</p>
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{$data->agent_email}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>{$request->status}</td>
+                    </tr>
+                </table>
+                <br>
+                <p>Regards,<br><strong>Admin Team</strong></p>
+            </body>
+            </html>
+            ";
+
+            // Headers
+            $headers = "MIME-Version: 1.0" . "\r
+";
+            $headers .= "Content-type:text/html;charset=UTF-8" . "\r
+";
+            $headers .= "From: admin@yourdomain.com" . "\r
+";
+            $headers .= "Cc: sumit@geeshasolutions.com" . "\r
+";
+
+            mail($to, $subject, $message, $headers);
+        }
+
         return response()->json(['success' => true]);
     }
 
     return response()->json(['success' => false], 404);
 }
+
 
     public function generateBolPdf($id)
     {
