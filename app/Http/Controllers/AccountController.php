@@ -6386,7 +6386,7 @@ public function customerApprovalupdateStatus(Request $request)
         $data->status = $request->status;
         $data->save();
 
-        // Send email using core PHP mail()
+        // Send email using core PHP mail() 
         if ($data->agent_email) {
             $to = $data->agent_email;
             $subject = "Customer Approval Status Updated - " . $request->status;
