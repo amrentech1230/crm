@@ -304,11 +304,12 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             </div>
         </div>
         <!-- end page title -->
-        @if(session('error'))
-        <div class="alert alert-danger" id="error-alert">
-            {{ session('error') }}
-        </div>
-        @endif
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
 
         @if(session('success'))
         <div class="alert alert-success" id="success-alert">
@@ -684,8 +685,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     <div class="form-group">
                                         <label>Load Number
                                         </label>
-                                        <input class="form-control" name="load_number"
-                                            title="Load number generated automatically" disabled style="width: 100%;">
+                                        <input class="form-control" name="load_number" title="Load number generated automatically" readonly style="width: 100%;">
                                     </div>
                                 </div>
                                 <div class="col-md-2 mb-2">
