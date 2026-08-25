@@ -29,13 +29,17 @@ class MailController extends Controller
 		
 		$emailArray = array_filter(array_map('trim', explode(',', $email)));
 		$ccArray = array_filter(array_map('trim', explode(',', (string) $ccemail)));
+        $logoPath = public_path('images/logo-with-cci.png');
         $temporaryFiles = [];
 
         try {
             [$attachmentPaths, $temporaryFiles] = $this->prepareAttachments($files, $load_no);
 
-            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $attachmentPaths, $subject) {
-                $htmlBody = 'Greetings!<br><p>Kindly find the attached invoice for load #'.$load_no.'('.$invoice_no.') Ref #'.$refrance_no.'</p><br><p>Thanks & Regards</p><p>'.$username.'</p><p>Accounts Receivable</p><p>Cargo Convoy Inc</p><p>Mailing Address : 7119, Pennsylvania Ave, Upper Darby, PA - 19082</p><p>Physical Address : Rosemont Business Campus - 9919 Conestoga Road Bldg. 3 Suite 215 Bryn Mawr, PA 19010</p><p>MC - 01512751 | DOT - 4014885</p>';
+            Mail::mailer('smtp')->raw('', function (Message $message) use ($emailArray, $ccArray, $username, $load_no, $refrance_no, $invoice_no, $attachmentPaths, $subject, $logoPath) {
+                $logo = is_readable($logoPath)
+                    ? '<p><img src="'.$message->embed($logoPath).'" alt="Cargo Convoy Inc" style="max-width: 240px; height: auto;"></p>'
+                    : '';
+                $htmlBody = $logo.'Greetings!<br><p>Kindly find the attached invoice for load #'.$load_no.'('.$invoice_no.') Ref #'.$refrance_no.'</p><br><p>Thanks & Regards</p><p>'.$username.'</p><p>Accounts Receivable</p><p>Cargo Convoy Inc</p><p>Mailing Address : 7119, Pennsylvania Ave, Upper Darby, PA - 19082</p><p>Physical Address : Rosemont Business Campus - 9919 Conestoga Road Bldg. 3 Suite 215 Bryn Mawr, PA 19010</p><p>MC - 01512751 | DOT - 4014885</p>';
                 
                 $message->to($emailArray)
                         ->from('ar@cargoconvoy.co', 'Cargoconvoy')

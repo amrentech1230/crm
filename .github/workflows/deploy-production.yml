@@ -27,8 +27,8 @@ jobs:
     steps:
       - name: SSH preflight check and debug
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_HOST: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_BRANCH: main
         run: |
@@ -60,10 +60,10 @@ jobs:
           PHP_BIN: ${{ vars.PHP_BIN }}
           COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.PROD_USERNAME || secrets.SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script_stop: true
           timeout: 120

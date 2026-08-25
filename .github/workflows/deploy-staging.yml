@@ -23,6 +23,20 @@ jobs:
 
     steps:
 
+      - name: Validate SSH configuration
+        env:
+          SSH_HOST: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+        run: |
+          if [[ -z "$SSH_HOST" ]]; then
+            echo "::error::Missing staging SSH host. Configure STAGING_HOST or SSH_HOST in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_PORT" ]]; then
+            echo "::error::Missing staging SSH port. Configure STAGING_PORT or SSH_PORT in the staging environment."
+            exit 1
+          fi
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
 
@@ -33,10 +47,10 @@ jobs:
           COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
 
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
 
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
 
