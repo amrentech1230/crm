@@ -37,13 +37,13 @@ class GetDifferenceHelperTest extends TestCase
             ])
         );
 
-        $this->assertStringContainsString('Load Workorder', $output);
+        $this->assertStringContainsString('Work order number', $output);
         $this->assertStringContainsString('32511', $output);
         $this->assertStringContainsString('32752', $output);
         $this->assertStringContainsString('Load Shipper Appointment', $output);
         $this->assertStringContainsString('Load Consignee Notes', $output);
         $this->assertStringContainsString('From:', $output);
         $this->assertStringContainsString('To:', $output);
-        $this->assertStringContainsString('Updated At', $output);
+        $this->assertStringContainsString('Last updated', $output);
     }
 }

@@ -1563,20 +1563,18 @@ $notes = json_decode($post->vendorInternalNotes, true);
                 @foreach($alllogs as $log)
 
                     @php
-                        $formattedDate = $log->updated_at
-                            ? \Carbon\Carbon::parse($log->updated_at)->format('m-d-Y h:i A')
-                            : '';
+                        $formattedDate = format_activity_timestamp($log->created_at ?: $log->updated_at);
+                        $changes = getdiffrance($log->old_json, $log->new_json);
                     @endphp
 
-                    <div class="mb-2" style="font-size: 13px;">
-                        <span><b>{{ $log->user_name ?? 'Admin' }}</b></span>
-                        <span class="text-muted">
-                            {{ $formattedDate }}
-                        </span>
-                        :
-                        <span>
-                           <b>{{ $log->message ?? '' }}</b>  
-                        </span>
+                    <div class="activity-history mb-3 border-bottom pb-3">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                            <strong class="activity-title">{{ $log->message ?: 'Activity was recorded' }}</strong>
+                            <span class="activity-time text-muted">{{ $formattedDate }}</span>
+                        </div>
+                        <div class="mt-1">Performed by: <strong class="activity-actor">{{ $log->user_name ?: 'System' }}</strong></div>
+                        <div class="activity-label text-muted mt-2"><strong>What changed:</strong></div>
+                        <div class="mt-1">{!! $changes !!}</div>
                     </div>
 
                 @endforeach
@@ -1593,6 +1591,25 @@ $notes = json_decode($post->vendorInternalNotes, true);
     </div>
 
 @endif
+
+<style>
+.activity-history {
+    font-size: 16px;
+}
+
+.activity-history .activity-title {
+    font-size: 17px;
+}
+
+.activity-history .activity-label,
+.activity-history .small {
+    font-size: 20px !important;
+}
+
+.activity-actor {
+    color: #35e950;
+}
+</style>
         
 
 

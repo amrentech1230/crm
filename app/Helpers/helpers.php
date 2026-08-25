@@ -254,6 +254,21 @@ if (!function_exists('format_log_label')) {
 
 	function format_log_label($key)
 	{
+		$labels = [
+			'load_workorder' => 'Work order number',
+			'load_status' => 'Load status',
+			'load_carrier' => 'Carrier',
+			'load_bill_to' => 'Customer',
+			'customer_id' => 'Customer',
+			'load_id' => 'Load',
+			'updated_at' => 'Last updated',
+			'created_at' => 'Created',
+		];
+
+		if (isset($labels[$key])) {
+			return $labels[$key];
+		}
+
 		$key = str_replace(['_', '-'], ' ', $key);
 		$key = preg_replace('/\s+/', ' ', trim($key));
 		$key = ucwords(strtolower($key));
@@ -302,7 +317,7 @@ if (!function_exists('format_log_value')) {
 		if (is_string($value)) {
 			if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $value)) {
 				try {
-					return \Carbon\Carbon::parse($value)->format('d-m-Y h:i:s A');
+					return \Carbon\Carbon::parse($value)->setTimezone('America/New_York')->format('m-d-Y h:i:s A T');
 				} catch (\Exception $e) {
 					return $value;
 				}
@@ -312,6 +327,20 @@ if (!function_exists('format_log_value')) {
 		}
 
 		return (string) $value;
+	}
+}
+
+if (!function_exists('format_activity_timestamp')) {
+
+	function format_activity_timestamp($timestamp)
+	{
+		if (!$timestamp) {
+			return 'Time not available';
+		}
+
+		return \Carbon\Carbon::parse($timestamp)
+			->setTimezone('America/New_York')
+			->format('m-d-Y h:i A T');
 	}
 }
 if (!function_exists('render_pagination_links')) {
