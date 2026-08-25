@@ -860,7 +860,7 @@
                             </div>
 
                         </div>
-                        <input type="submit" class="btn btn-info" value="update Load">
+                        <input type="submit" class="btn btn-info" value="Update Load">
                        
                     </form>
 

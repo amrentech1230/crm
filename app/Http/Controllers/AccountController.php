@@ -474,7 +474,10 @@ public function carrier_block(Request $request)
 
 			// Load Completed Log Tab
 			if ($tab == '#load_completed_log') {
-				$dashboard_logs = Load::with('user')->paginate(50, ['*'], 'logs');
+                $dashboard_logs = Load::with('user')
+                    ->where('load_status', 'Completed')
+                    ->latest('created_at')
+                    ->simplePaginate(50, ['*'], 'logs');
 				return view('accounts.reporting.load_completed_logs', compact('dashboard_logs'))->render();
 			}
 
@@ -2429,21 +2432,25 @@ $searchTerms = array_filter(
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $dashboard_logs = Load::with('user')
+                    $dashboard_logs = Load::with('user')
+                        ->where('load_status', 'Completed')
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "{$term}");
                                 //->orWhere('load_workorder', 'like', "%{$term}%")
                                 //->orWhere('customer_refrence_number', 'like', "%{$term}%");
                         }
-                    })->paginate(50);
+                        })->latest('created_at')->simplePaginate(50);
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
                 $dashboard_logs = collect();
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $dashboard_logs = Load::with('user')->paginate(50);
+                $dashboard_logs = Load::with('user')
+                    ->where('load_status', 'Completed')
+                    ->latest('created_at')
+                    ->simplePaginate(50);
   
         }
         
@@ -5367,21 +5374,15 @@ public function customerDetailsReportingExcell()
 
     public function loadCompleteReportingExcel()
     {
-        // Increase memory and time limits to handle large data
-        ini_set('memory_limit', '1024M');
-        set_time_limit(600);
+        $loadQuery = Load::where('load_status', 'Completed');
 
-        try {
-
-        $data = Load::with('user')->get();
-
-            $maxConsignees = 0;
-        foreach ($data as $item) {
+        $maxConsignees = 0;
+        $loadQuery->select('id', 'load_consignee_location')->cursor()->each(function ($item) use (&$maxConsignees) {
             $consignee_location = json_decode($item->load_consignee_location, true);
             if (is_array($consignee_location)) {
                 $maxConsignees = max($maxConsignees, count($consignee_location));
             }
-        }
+        });
 
         $headers = ['Sr.no', 'load Number', 'Invoice No', 'Agent Name', 'Load Status', 'Invoice Status', 'Customer Reference #','Load Create Date', 'Customer Name', 'Carrier Name','Pickup Location'];
 
@@ -5391,9 +5392,48 @@ public function customerDetailsReportingExcell()
         
          $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Currency' ]);
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Data');
+        $outputPath = storage_path('app/load-complete-report-' . uniqid('', true) . '.csv');
+        $output = fopen($outputPath, 'w');
+
+        $sheet = new class($output) {
+            private int $currentRow = 0;
+            private array $values = [];
+
+            public function __construct(private $output)
+            {
+            }
+
+            public function setTitle(string $title): void
+            {
+            }
+
+            public function setCellValue(string $coordinate, mixed $value): void
+            {
+                preg_match('/^([A-Z]+)(\d+)$/', $coordinate, $matches);
+                $row = (int) $matches[2];
+
+                if ($this->currentRow !== 0 && $row !== $this->currentRow) {
+                    fputcsv($this->output, $this->values);
+                    $this->values = [];
+                }
+
+                $this->currentRow = $row;
+                $column = 0;
+                foreach (str_split($matches[1]) as $letter) {
+                    $column = ($column * 26) + ord($letter) - 64;
+                }
+
+                $this->values[$column - 1] = $value ?? '';
+            }
+
+            public function finish(): void
+            {
+                if ($this->values !== []) {
+                    fputcsv($this->output, $this->values);
+                }
+                fclose($this->output);
+            }
+        };
 
         $col = 'A';
         foreach ($headers as $header) {
@@ -5402,9 +5442,10 @@ public function customerDetailsReportingExcell()
         }
 
         $row = 2;
-        foreach ($data as $index => $item) {
+        $index = 0;
+        foreach (Load::with('user')->where('load_status', 'Completed')->latest('created_at')->cursor() as $item) {
             $col = 'A';
-            $sheet->setCellValue($col . $row, $index + 1);
+            $sheet->setCellValue($col . $row, ++$index);
             $col++;
             
             $shipper = json_decode($item->load_shipperr, true);
@@ -5611,25 +5652,13 @@ public function customerDetailsReportingExcell()
             $row++;
         }
 
-        $writer = new Xlsx($spreadsheet);
         $filename = 'Load Complete Report ' . date('Y-m-d') . '.xlsx';
+        $sheet->finish();
+        $filename = str_replace('.xlsx', '.csv', $filename);
 
-        // Write to temp file instead of memory buffer
-        $tempFile = tempnam(sys_get_temp_dir(), 'excel_');
-        $writer->save($tempFile);
-
-        // Free memory
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet, $data);
-
-        return response()->download($tempFile, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        return response()->download($outputPath, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ])->deleteFileAfterSend(true);
-
-        } catch (\Exception $e) {
-            \Log::error('Load Complete Excel Export Error: ' . $e->getMessage() . ' | Line: ' . $e->getLine() . ' | File: ' . $e->getFile());
-            return redirect()->back()->with('error', 'Excel export failed. Please try again or contact admin.');
-        }
     }
 
 
