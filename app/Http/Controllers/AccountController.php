@@ -5367,6 +5367,10 @@ public function customerDetailsReportingExcell()
 
     public function loadCompleteReportingExcel()
     {
+        // Increase memory and time limits to handle large data
+        ini_set('memory_limit', '512M');
+        set_time_limit(300);
+
         $data = Load::with('user')->get();
 
             $maxConsignees = 0;
@@ -5457,7 +5461,7 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier_due_date ? \Carbon\Carbon::parse($item->load_carrier_due_date)->format('m/d/Y') : '');
             $col++;
-           $date = trim($item->load_carrier_due_date_on);
+           $date = trim($item->load_carrier_due_date_on ?? '');
             $formatted = '';
 
             try {
@@ -5547,36 +5551,47 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->no_of_macro ?? '');
             $col++;
-            $lastAppointment = !empty($consignee_appointment) 
-                ? end($consignee_appointment)['appointment'] 
-                : null;
+            // Safely get last consignee appointment
+            $lastAppointment = null;
+            if (!empty($consignee_appointment) && is_array($consignee_appointment)) {
+                $lastItem = end($consignee_appointment);
+                $lastAppointment = $lastItem['appointment'] ?? null;
+            }
 
             // Format with Carbon
-            $formattedAppointment = $lastAppointment 
-                ? Carbon::parse($lastAppointment)->format('m/d/Y') 
-                : '-';
+            $formattedAppointment = '-';
+            if ($lastAppointment) {
+                try {
+                    $formattedAppointment = \Carbon\Carbon::parse($lastAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedAppointment = '-';
+                }
+            }
 
             // Set value in Excel
             $sheet->setCellValue($col . $row, $formattedAppointment);
             $col++;
 
+            // Safely get first shipper appointment
             $firstAppointment = null;
+            if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+                $firstItem = reset($shipper_appointment);
+                if (isset($firstItem['appointment'])) {
+                    $firstAppointment = $firstItem['appointment'];
+                }
+            }
 
-if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+            $formattedFirstAppointment = '-';
+            if ($firstAppointment) {
+                try {
+                    $formattedFirstAppointment = \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedFirstAppointment = '-';
+                }
+            }
 
-    $firstItem = reset($shipper_appointment); // safely get first element
-
-    if (isset($firstItem['appointment'])) {
-        $firstAppointment = $firstItem['appointment'];
-    }
-}
-
-$formattedFirstAppointment = $firstAppointment
-    ? \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y')
-    : '-';
-
-$sheet->setCellValue($col . $row, $formattedFirstAppointment);
-$col++;
+            $sheet->setCellValue($col . $row, $formattedFirstAppointment);
+            $col++;
             
             $sheet->setCellValue($col . $row, $item->load_equipment_type ?? '');
             $col++;
