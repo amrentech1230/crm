@@ -2650,7 +2650,7 @@ public function deleteCarrierFile(Request $request)
     public function viewLoadDetail($id)
     {
         $load = Load::findOrFail($id);
-		$alllogs = activity_log::where('load_id', $id)->get();
+        $alllogs = activity_log::where('load_id', $id)->orderBy('created_at', 'desc')->get();
 
         return view('accounts.view_loads_detail', compact('load', 'alllogs'));
     }
@@ -5367,6 +5367,12 @@ public function customerDetailsReportingExcell()
 
     public function loadCompleteReportingExcel()
     {
+        // Increase memory and time limits to handle large data
+        ini_set('memory_limit', '1024M');
+        set_time_limit(600);
+
+        try {
+
         $data = Load::with('user')->get();
 
             $maxConsignees = 0;
@@ -5457,7 +5463,7 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier_due_date ? \Carbon\Carbon::parse($item->load_carrier_due_date)->format('m/d/Y') : '');
             $col++;
-           $date = trim($item->load_carrier_due_date_on);
+           $date = trim($item->load_carrier_due_date_on ?? '');
             $formatted = '';
 
             try {
@@ -5547,36 +5553,47 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->no_of_macro ?? '');
             $col++;
-            $lastAppointment = !empty($consignee_appointment) 
-                ? end($consignee_appointment)['appointment'] 
-                : null;
+            // Safely get last consignee appointment
+            $lastAppointment = null;
+            if (!empty($consignee_appointment) && is_array($consignee_appointment)) {
+                $lastItem = end($consignee_appointment);
+                $lastAppointment = $lastItem['appointment'] ?? null;
+            }
 
             // Format with Carbon
-            $formattedAppointment = $lastAppointment 
-                ? Carbon::parse($lastAppointment)->format('m/d/Y') 
-                : '-';
+            $formattedAppointment = '-';
+            if ($lastAppointment) {
+                try {
+                    $formattedAppointment = \Carbon\Carbon::parse($lastAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedAppointment = '-';
+                }
+            }
 
             // Set value in Excel
             $sheet->setCellValue($col . $row, $formattedAppointment);
             $col++;
 
+            // Safely get first shipper appointment
             $firstAppointment = null;
+            if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+                $firstItem = reset($shipper_appointment);
+                if (isset($firstItem['appointment'])) {
+                    $firstAppointment = $firstItem['appointment'];
+                }
+            }
 
-if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+            $formattedFirstAppointment = '-';
+            if ($firstAppointment) {
+                try {
+                    $formattedFirstAppointment = \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedFirstAppointment = '-';
+                }
+            }
 
-    $firstItem = reset($shipper_appointment); // safely get first element
-
-    if (isset($firstItem['appointment'])) {
-        $firstAppointment = $firstItem['appointment'];
-    }
-}
-
-$formattedFirstAppointment = $firstAppointment
-    ? \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y')
-    : '-';
-
-$sheet->setCellValue($col . $row, $formattedFirstAppointment);
-$col++;
+            $sheet->setCellValue($col . $row, $formattedFirstAppointment);
+            $col++;
             
             $sheet->setCellValue($col . $row, $item->load_equipment_type ?? '');
             $col++;
@@ -5597,19 +5614,22 @@ $col++;
         $writer = new Xlsx($spreadsheet);
         $filename = 'Load Complete Report ' . date('Y-m-d') . '.xlsx';
 
-        $file = $this->getFileStream($writer);
+        // Write to temp file instead of memory buffer
+        $tempFile = tempnam(sys_get_temp_dir(), 'excel_');
+        $writer->save($tempFile);
 
-        return response()->stream(
-            function () use ($file) {
-                echo $file;
-            },
-            200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment;filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
-        );
+        // Free memory
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet, $data);
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            \Log::error('Load Complete Excel Export Error: ' . $e->getMessage() . ' | Line: ' . $e->getLine() . ' | File: ' . $e->getFile());
+            return redirect()->back()->with('error', 'Excel export failed. Please try again or contact admin.');
+        }
     }
 
 

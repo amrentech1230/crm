@@ -97,28 +97,20 @@
                                             <div class="d-flex flex-column gap-3 p-3">
                                                 @foreach($alllogs as $log)
                                                     @php
-                                                        $logDate = $log->updated_at ? \Carbon\Carbon::parse($log->updated_at)->setTimezone('America/New_York')->format('d-m-Y h:i A') : '-';
                                                         $changes = getdiffrance($log->old_json, $log->new_json);
                                                     @endphp
 
-                                                    <div class="border rounded p-3 bg-white shadow-sm">
+                                                    <div class="activity-history border rounded p-3 bg-white shadow-sm">
                                                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                                                            <!-- <div> -->
-                                                                <!-- <div class="fw-semibold">{{ $log->message ?: 'Load activity' }}</div> -->
-                                                                <!-- <div class="small text-muted mt-1">
-                                                                    <span class="me-3"><i class="fas fa-user"></i> {{ $log->user_name ?: 'System' }}</span>
-                                                                    <span><i class="fas fa-clock"></i> {{ $logDate }}</span>
-                                                                </div> -->
-                                                                <div class="fs-5 fw-bold mb-0">
-                                                                    <span class="text-primary">{{ $log->user_name ?: 'System' }}</span>
-                                                                    <span class="text-dark">{{ lcfirst($log->message ?: 'performed an activity') }}</span>
-                                                                </div>
-                                                            <!-- </div> -->
-                                                            <span class="badge bg-primary-subtle text-primary">{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->setTimezone('America/New_York')->format('d-m-Y') : '-' }}</span>
+                                                            <div>
+                                                                <div class="activity-title fw-bold mb-0">{{ $log->message ?: 'Activity was recorded' }}</div>
+                                                                <div class="activity-label text-muted mt-1">Performed by: <strong class="activity-actor">{{ $log->user_name ?: 'System' }}</strong></div>
+                                                            </div>
+                                                            <span class="activity-time text-muted">{{ format_activity_timestamp($log->created_at ?: $log->updated_at) }}</span>
                                                         </div>
 
                                                         <div class="mt-3">
-                                                            <div class="small fw-semibold text-dark">Details</div>
+                                                            <div class="activity-label fw-semibold text-dark">What changed</div>
                                                             <div class="mt-2">{!! trim($changes) !== '' ? $changes : '<div class="text-muted">No details found.</div>' !!}</div>
                                                         </div>
                                                     </div>
@@ -137,3 +129,22 @@
 </div> <!-- page-content -->
 
 @endsection
+
+<style>
+.activity-history {
+    font-size: 16px;
+}
+
+.activity-history .activity-title {
+    font-size: 17px;
+}
+
+.activity-history .activity-label,
+.activity-history .small {
+    font-size: 15px !important;
+}
+
+.activity-actor {
+    color: #a6ce3a;
+}
+</style>

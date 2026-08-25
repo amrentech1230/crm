@@ -34,16 +34,11 @@
         
                                         <table id="datatable-buttons-log" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                             <thead>
-												<tr>
-													<th>Date</th>
-													<th>Load Id</th>
-													<th>Customer Id</th>
-													<th>Subject</th>
-													<th>Changes</th>
-													<th>Name</th>
-													<th>Ip Address</th>
-													<th>Url</th>
-												</tr>
+                                                                <tr>
+                                                                    <th>Activity</th>
+                                                                    <th>Performed by</th>
+                                                                    <th>Date and time (US Eastern)</th>
+                                                                </tr>
                                             </thead>
         
         
@@ -54,18 +49,18 @@
 												@endphp
 												
 												<tr>
-													<th>{{$log->updated_at}}</th>
-													<th>{{$log->load_id}}</th>
-													<th>{{$log->customer_id}}</th>
-													<th>{{$log->message}}</th>
-													<th>{!! $diffrent !!}</th>
-													<th>{{$log->user_name}}</th>
-													<th>{{$log->ip}}</th>
-													<th>{{$log->url}}</th>
-												</tr>
+                                                                        <td class="activity-history">
+                                                                            <div class="fw-semibold activity-title">{{ $log->message ?: 'Activity was recorded' }}</div>
+                                                                            <div class="activity-label text-muted mt-2"><strong>What changed:</strong></div>
+                                                                            {!! $diffrent !!}
+                                                                        </td>
+                                                                        <td class="activity-history">Performed by: <strong class="activity-actor">{{ $log->user_name ?: 'System' }}</strong></td>
+                                                                        <td class="activity-history activity-time" data-order="{{ optional($log->created_at)->timestamp ?? 0 }}">{{ format_activity_timestamp($log->created_at ?: $log->updated_at) }}</td>
+                                                                    </tr>
 												@endforeach
                                             </tbody>
                                         </table>
+																{{ $alllogs->links() }}
                                     </div>
                                 </div>
                             </div> <!-- end col -->
@@ -80,6 +75,24 @@
 <script src="https://ccicrm.in/public/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
 <script src="https://ccicrm.in/public/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
 <script>
+<style>
+.activity-history {
+    font-size: 16px;
+}
+
+.activity-history .activity-title {
+    font-size: 17px;
+}
+
+.activity-history .activity-label,
+.activity-history .small {
+    font-size: 15px !important;
+}
+
+.activity-actor {
+    color: #a6ce3a;
+}
+</style>
 $('#datatable-buttons-log').DataTable({
 	responsive: true,
 	dom: 'Bfrtip',
