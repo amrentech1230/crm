@@ -1076,7 +1076,7 @@ $(document).on('change', '.carrier_mark_as_paid', function () {
                     success: function (res) {
                         if (res.success) {
                             alert('Files uploaded successfully!');
-                            location.reload();
+                            // location.reload();
                         } else {
                             alert('Upload failed: ' + res.message);
                         }

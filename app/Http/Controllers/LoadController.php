@@ -591,9 +591,11 @@ if (!empty($term)) {
         $request->validate([
             'load_bill_to' => 'required|string',
             'load_delivery_do_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'shipper_load_final_rate' => 'required|numeric|gt:0',
+            'shipper_load_final_rate' => 'required|numeric|min:200',
             'load_shipper_commodity' => 'required|string',
             'load_consignee_commodity' => 'required|string',
+        ],[
+            'shipper_load_final_rate.min' => 'Customer final rate must not be less than 200.',
         ]);
 
             $yourModel = new Load();
@@ -777,10 +779,9 @@ if (!empty($term)) {
             $finalRate = (float) $request->input('shipper_load_final_rate');
 
             // Validate first
-            if ($finalRate == 0) {
-                return back()->with('error', "Customer load final rate cannot be 0.");
+            if ($finalRate < 200) {
+                return back()->with('error', "Customer final rate must not be less than 200.");
             }
-
             // Then assign
             $yourModel->shipper_load_final_rate = $finalRate;
             
