@@ -5368,8 +5368,10 @@ public function customerDetailsReportingExcell()
     public function loadCompleteReportingExcel()
     {
         // Increase memory and time limits to handle large data
-        ini_set('memory_limit', '512M');
-        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        set_time_limit(600);
+
+        try {
 
         $data = Load::with('user')->get();
 
@@ -5612,19 +5614,22 @@ public function customerDetailsReportingExcell()
         $writer = new Xlsx($spreadsheet);
         $filename = 'Load Complete Report ' . date('Y-m-d') . '.xlsx';
 
-        $file = $this->getFileStream($writer);
+        // Write to temp file instead of memory buffer
+        $tempFile = tempnam(sys_get_temp_dir(), 'excel_');
+        $writer->save($tempFile);
 
-        return response()->stream(
-            function () use ($file) {
-                echo $file;
-            },
-            200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment;filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
-        );
+        // Free memory
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet, $data);
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            \Log::error('Load Complete Excel Export Error: ' . $e->getMessage() . ' | Line: ' . $e->getLine() . ' | File: ' . $e->getFile());
+            return redirect()->back()->with('error', 'Excel export failed. Please try again or contact admin.');
+        }
     }
 
 
