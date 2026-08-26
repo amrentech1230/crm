@@ -2666,7 +2666,24 @@ public function deleteCarrierFile(Request $request)
     public function viewLoadDetail($id)
     {
         $load = Load::findOrFail($id);
-        $alllogs = activity_log::where('load_id', $id)->orderBy('created_at', 'desc')->get();
+        $logs = activity_log::where('load_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $seenMailMessages = [];
+        $alllogs = $logs->reject(function ($log) use (&$seenMailMessages) {
+            $message = (string) $log->message;
+            if (!str_starts_with($message, 'mail send to customer ')) {
+                return false;
+            }
+
+            if (isset($seenMailMessages[$message])) {
+                return true;
+            }
+
+            $seenMailMessages[$message] = true;
+            return false;
+        })->values();
 
         return view('accounts.view_loads_detail', compact('load', 'alllogs'));
     }
