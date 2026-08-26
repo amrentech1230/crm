@@ -382,8 +382,10 @@
     @if($loads->load_status)
     <td class="dynamic-data" colspan="2">
                
-                    <a href="{{route('clone.load', $loads->load_number)}}" target="_blank">
-                        <i class="fas fa-clone dynamic-data" style="margin:0 10px; font-size: 20px;"></i> Clone
+                    <a href="{{ route('clone.load', encrypt($loads->load_number)) }}" target="_blank">
+                        <i class="fas fa-clone dynamic-data"
+                        style="margin:0 10px; font-size:20px;"></i>
+                        Clone
                     </a>
                     @if($loads->load_final_carrier_fee == 0 || $loads->load_final_carrier_fee == null)
                     <a href="javascript:void(0);" style="color: #0c7ce6; cursor:not-allowed" title="Your Carrier Rate is 0">
