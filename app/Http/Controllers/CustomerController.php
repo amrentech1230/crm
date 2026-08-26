@@ -716,7 +716,203 @@ public function storeCustomerApprovalForm(Request $request)
         'requested_credit_limit' => $request->requested_credit_limit,
     ]);
 
-    return redirect()->back()->with('success', 'Customer Approval Form submitted successfully!');
+    $agentName = $request->agent_name;
+    $customerName = $request->company_name;
+
+    $data = $request->all();
+    $data['agent_email'] = auth()->user()->email;
+
+    try {
+
+        Mail::html(
+            $this->buildApprovalEmailHtml($agentName, $data),
+            function ($mail) use ($agentName, $customerName) {
+
+                $mail->from(
+                    config('mail.from.address'),
+                    'Customer Approval Form'
+                )
+                ->to('credit@cargoconvoy.co')
+                ->cc('adam@cargoconvoy.co')
+                ->subject('Client Approval (' . $customerName . ') ' . $agentName);
+            }
+        );
+
+    } catch (\Exception $e) {
+
+        \Log::error('Customer Approval Email Failed: ' . $e->getMessage());
+    }
+
+    return redirect()
+        ->back()
+        ->with('success', 'Client Approval ' . $customerName .$agentName);
+}
+
+
+private function buildApprovalEmailHtml($agentName, $data)
+{
+    return '
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+            }
+
+            .container {
+                max-width: 600px;
+                margin: 20px auto;
+                padding: 20px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+
+            .header {
+                background-color: #1a73e8;
+                color: #ffffff;
+                padding: 20px;
+                text-align: center;
+                border-radius: 8px 8px 0 0;
+            }
+
+            .header h1 {
+                margin: 0;
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .content p {
+                font-size: 15px;
+                color: #333;
+                line-height: 1.6;
+            }
+
+            .details-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }
+
+            .details-table td {
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+                font-size: 14px;
+            }
+
+            .details-table td:first-child {
+                font-weight: bold;
+                color: #555;
+                width: 40%;
+            }
+
+            .footer {
+                text-align: center;
+                padding: 15px;
+                font-size: 12px;
+                color: #999;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <div class="container">
+
+            <div class="header">
+                <h1>New Customer Approval Form</h1>
+            </div>
+
+            <div class="content">
+
+                <p>
+                    A new Customer Approval Form has been submitted by
+                    <strong>' . htmlspecialchars($agentName, ENT_QUOTES, 'UTF-8') . '</strong>.
+                </p>
+
+                <table class="details-table">
+
+                    <tr>
+                        <td>Agent Name</td>
+                        <td>' . htmlspecialchars($data['agent_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Agent Email</td>
+                        <td>' . htmlspecialchars($data['agent_email'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Customer Email</td>
+                        <td>' . htmlspecialchars($data['customer_email'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Company Name</td>
+                        <td>' . htmlspecialchars($data['company_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Address</td>
+                        <td>' . htmlspecialchars($data['address'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Country</td>
+                        <td>' . htmlspecialchars($data['country'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>State</td>
+                        <td>' . htmlspecialchars($data['state'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>City</td>
+                        <td>' . htmlspecialchars($data['city'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Zip Code</td>
+                        <td>' . htmlspecialchars($data['zip_code'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Dispatcher First Name</td>
+                        <td>' . htmlspecialchars($data['dispatcher_first_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Dispatcher Last Name</td>
+                        <td>' . htmlspecialchars($data['dispatcher_last_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Phone Number</td>
+                        <td>' . htmlspecialchars($data['phone_number'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Requested Credit Limit</td>
+                        <td>$' . htmlspecialchars($data['requested_credit_limit'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                </table>
+
+            </div>
+
+            <div class="footer">
+                <p>This is an automated notification from Cargo Convoy Inc.</p>
+            </div>
+
+        </div>
+
+    </body>
+    </html>';
 }
 
 
