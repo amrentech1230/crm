@@ -1778,11 +1778,20 @@ public function updateInvoiceStatus(Request $request, $id)
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $this->applyPaymentAmounts($load, floatval($request->receiving_amount));
-            $load->save();
+            $receivingAmount = floatval($request->receiving_amount);
+            $previousReceivingAmount = round(floatval($load->receiving_amount), 2);
+            $previousRemainingAmount = round(floatval($load->remaining_amount), 2);
 
-            $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
-            addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            $this->applyPaymentAmounts($load, $receivingAmount);
+            $amountsChanged = $previousReceivingAmount !== round(floatval($load->receiving_amount), 2)
+                || $previousRemainingAmount !== round(floatval($load->remaining_amount), 2);
+
+            if ($amountsChanged) {
+                $load->save();
+
+                $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
+                addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            }
     
             return response()->json([
                 'success' => true,
@@ -1905,7 +1914,7 @@ public function updateInvoiceStatus(Request $request, $id)
 
        
         if (!$invoice) {
-            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found
+            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found 
         }
         
         // Clean up the address data
