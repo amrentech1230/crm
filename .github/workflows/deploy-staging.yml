@@ -19,7 +19,7 @@ jobs:
 
     environment:
       name: staging
-      url: ${{ vars.DEPLOY_URL }}
+      url: https://ccicrm.in
 
     steps:
 
@@ -34,6 +34,10 @@ jobs:
           fi
           if [[ -z "$SSH_PORT" ]]; then
             echo "::error::Missing staging SSH port. Configure STAGING_PORT or SSH_PORT in the staging environment."
+            exit 1
+          fi
+          if [[ -z "${{ vars.DEPLOY_PATH }}" ]]; then
+            echo "::error::Missing staging deployment path. Configure DEPLOY_PATH in the staging environment."
             exit 1
           fi
 

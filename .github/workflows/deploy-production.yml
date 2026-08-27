@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: ${{ vars.DEPLOY_URL }}
+      url: https://crmcargoconvoy.co
 
     steps:
       - name: SSH preflight check and debug

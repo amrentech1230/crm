@@ -2415,7 +2415,7 @@ $searchTerms = array_filter(
                 $totalRevenueBroker = collect();
             }
         } else {
-            // If query is empty, return a paginated result without any filter
+            // If query is empty, return a paginated result without any filter 
             $totalRevenueBroker = Load::join('users', 'loads.user_id', '=', 'users.id')
                     ->select('users.name')
                     ->selectRaw('SUM(loads.load_shipper_rate) AS total_revenue')
