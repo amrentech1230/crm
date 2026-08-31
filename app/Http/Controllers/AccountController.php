@@ -2383,7 +2383,6 @@ $searchTerms = array_filter(
         }
         return view('accounts.reporting.load', compact('dashboard'))->render();
     }
-
     public function report_sales_rep_search(Request $request){
         $q = $request->input('query');
         if (!empty($q)) {
