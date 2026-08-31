@@ -2068,6 +2068,23 @@ public function all_search(Request $request)
                 return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
             }
         }
+
+        $originalCustomerId = (int) ($load->customer_id ?? 0);
+        $newCustomerId = (int) ($request->input('customer_id') ?? 0);
+        $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
+
+        if ($originalCustomerId > 0 && $newCustomerId > 0 && $originalCustomerId !== $newCustomerId && $targetCustomer) {
+            $transferResult = $this->creditService->transferLoadCreditBetweenCustomers(
+                Customer::find($originalCustomerId),
+                $targetCustomer,
+                (float) ($request->input('shipper_load_final_rate') ?? $load->shipper_load_final_rate ?? 0),
+                (float) ($request->input('invoice_amount') ?? 0)
+            );
+
+            if (!$transferResult['allowed']) {
+                return back()->with('error', $transferResult['message']);
+            }
+        }
    
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
         ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
