@@ -2410,7 +2410,7 @@ $searchTerms = array_filter(
                     })->paginate(50);
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
-                $totalRevenueBroker = collect();
+                $totalRevenueBroker = collect(); 
             }
         } else {
             // If query is empty, return a paginated result without any filter 
