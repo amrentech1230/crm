@@ -42,6 +42,12 @@ use App\Services\CreditService;
 
 class AdminController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
 
    public function correct_data(){
 	   $allload = Load::get('load_mc_no');
