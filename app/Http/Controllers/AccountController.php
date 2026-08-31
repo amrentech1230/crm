@@ -2381,7 +2381,6 @@ $searchTerms = array_filter(
             $dashboard = Load::with('user')->paginate(50);
   
         }
-        
         return view('accounts.reporting.load', compact('dashboard'))->render();
     }
 
