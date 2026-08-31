@@ -116,14 +116,15 @@
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
                                         <div class="input-group">
-                                            @if(!empty($post->customer_id))
+                                            @php
+                                                $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
+                                                $currentCustomerId = $post->customer_id ?: ($post->customer?->id ?? '');
+                                            @endphp
+                                            @if(!empty($currentCustomerName) || !empty($currentCustomerId))
                                                 <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
                                                     <option value="">Select Customer</option>
-                                                    @php
-                                                        $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
-                                                    @endphp
                                                     @if(!empty($currentCustomerName))
-                                                        <option value="{{ $currentCustomerName }}" data-id="{{ $post->customer_id ?? '' }}" selected>
+                                                        <option value="{{ $currentCustomerName }}" data-id="{{ $currentCustomerId }}" selected>
                                                             {{ $currentCustomerName }}
                                                         </option>
                                                     @endif
@@ -141,7 +142,7 @@
                                         </div>
                                     </div>
                                 </div>
-                               <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? '' }}">
+                               <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? ($post->customer?->id ?? '') }}">
 
 
 
