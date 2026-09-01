@@ -2102,11 +2102,22 @@ public function all_search(Request $request)
         $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
 
         if ($originalCustomerId > 0 && $newCustomerId > 0 && $originalCustomerId !== $newCustomerId && $targetCustomer) {
+            // Calculate invoice amount from shipper_load_other_charge
+            $invoiceAmount = 0;
+            $shipperCharges = json_decode($load->shipper_load_other_charge, true);
+            if (is_array($shipperCharges)) {
+                foreach ($shipperCharges as $charge) {
+                    if (isset($charge['for_invoice']) && $charge['for_invoice'] === 'on') {
+                        $invoiceAmount += (float) ($charge['amount'] ?? 0);
+                    }
+                }
+            }
+            
             $transferResult = $this->creditService->transferLoadCreditBetweenCustomers(
                 Customer::find($originalCustomerId),
                 $targetCustomer,
                 (float) ($request->input('shipper_load_final_rate') ?? $load->shipper_load_final_rate ?? 0),
-                (float) ($request->input('invoice_amount') ?? 0)
+                $invoiceAmount
             );
 
             if (!$transferResult['allowed']) {
