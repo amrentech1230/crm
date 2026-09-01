@@ -222,7 +222,7 @@
                                 
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
-    <label>Customer Load Status</label>
+    <label>Load Status</label>
     <select class="form-control select2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
