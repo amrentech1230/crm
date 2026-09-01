@@ -124,13 +124,25 @@
                                                 <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
                                                     <option value="">Select Customer</option>
                                                     @if(!empty($currentCustomerName))
-                                                        <option value="{{ $currentCustomerName }}" data-id="{{ $currentCustomerId }}" selected>
+                                                        @php
+                                                            $currentCustomer = collect($allcustomer)->firstWhere('customer_name', $currentCustomerName);
+                                                        @endphp
+                                                        <option value="{{ $currentCustomerName }}" 
+                                                            data-id="{{ $currentCustomerId }}"
+                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer) }}"
+                                                            data-remaining-credit="{{ (float) ($currentCustomer->remaining_credit ?? 0) }}"
+                                                            data-invoice-credit-limit="{{ (float) ($currentCustomer->invoice_credit_limit ?? 0) }}"
+                                                            selected>
                                                             {{ $currentCustomerName }}
                                                         </option>
                                                     @endif
                                                     @foreach($allcustomer as $cust)
                                                         @if(trim((string) $cust->customer_name) !== trim((string) $currentCustomerName))
-                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}">
+                                                            <option value="{{ $cust->customer_name }}" 
+                                                                data-id="{{ $cust->id }}"
+                                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
                                                                 {{ $cust->customer_name }}
                                                             </option>
                                                         @endif
@@ -2613,6 +2625,49 @@ $(document).on('click', '#carrierInfoBtn', function() {
     });
 });
 
+</script>
+
+<script>
+// Credit Limit Validation for Admin Load Edit
+$(document).ready(function() {
+    // When customer changes, update and validate credit
+    $('#load_bill_to').on('change', function() {
+        validateCustomerCredit();
+    });
+
+    // When final rate changes, validate credit
+    $('#shipper_load_final_rate').on('change', function() {
+        validateCustomerCredit();
+    });
+
+    function validateCustomerCredit() {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+
+        var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
+        var $message = $('#creditlimitcheck');
+
+        if (!selectedOption.val()) {
+            $message.html('').removeClass('alert alert-warning alert-danger');
+            return;
+        }
+
+        // Calculate needed credit
+        if (finalRate > remaining) {
+            var shortage = finalRate - remaining;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ Insufficient credit! Available: $' + remaining.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = remaining - finalRate;
+            $message.html('<div class="alert alert-warning mt-2">✓ Available after this load: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    // Validate on page load
+    validateCustomerCredit();
+});
 </script>
 
 <style>
