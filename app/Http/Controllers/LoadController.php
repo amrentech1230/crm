@@ -1545,19 +1545,26 @@ for ($i = 1; $i <= 15; $i++) {
 
                 // Deduct credit from new customer using NEW load rate
                 if ($customerdata) {
+                    // For customer transfer, check against adv_customer_credit_limit (total assigned)
+                    // not remaining_credit, because remaining already accounts for other loads.
+                    // We deduct from remaining_credit directly.
                     $newAvailable    = $this->creditService->getAvailableCreditLimit($customerdata);
                     $newInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
 
-                    if ($newAvailable - $newRemainingAmt < 0) {
-                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $newAvailable);
+                    if ($newAvailable < $newRemainingAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient remaining credit. ' .
+                            'Available: ' . $newAvailable . ', Required: ' . $newRemainingAmt . '.');
                     }
-                    if ($newInvoiceAmt > 0 && $newInvoiceLimit - $newInvoiceAmt < 0) {
-                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $newInvoiceLimit);
+                    if ($newInvoiceAmt > 0 && $newInvoiceLimit < $newInvoiceAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient invoice credit limit. ' .
+                            'Available: ' . $newInvoiceLimit . ', Required: ' . $newInvoiceAmt . '.');
                     }
 
-                    $customerdata->remaining_credit       = round(max(0.0, $newAvailable - $newRemainingAmt), 2);
+                    $customerdata->remaining_credit        = round(max(0.0, $newAvailable - $newRemainingAmt), 2);
                     $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                    $customerdata->invoice_credit_limit   = round(max(0.0, $newInvoiceLimit - $newInvoiceAmt), 2);
+                    $customerdata->invoice_credit_limit    = round(max(0.0, $newInvoiceLimit - $newInvoiceAmt), 2);
                     $customerdata->save();
                 }
             } elseif ($customerdata) {
