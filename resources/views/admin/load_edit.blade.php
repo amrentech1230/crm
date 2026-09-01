@@ -1938,18 +1938,38 @@ $(document).ready(function () {
 <script>
 
     $(document).ready(function () {
+        function syncCustomerSelection() {
+            var selectedCustomer = $('#load_bill_to').find('option:selected');
+            var customerId = selectedCustomer.data('id');
+            $('#customer_id').val(customerId || '');
+
+            if (!customerId && $('#load_bill_to').val()) {
+                var customerName = $.trim($('#load_bill_to').val());
+                var matches = $('#load_bill_to option').filter(function () {
+                    return $.trim($(this).text()) === customerName || $.trim($(this).val()) === customerName;
+                });
+                if (matches.length) {
+                    $('#customer_id').val(matches.first().data('id') || '');
+                }
+            }
+        }
+
 		 $('#load_bill_to').select2(); // Initialize Select2
 		$('#load_bill_to').on('change', function() {
-			var customer_id =  $(this).find('option:selected').data('id');
-			$('#customer_id').val(customer_id);
+			syncCustomerSelection();
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
 			$('#shipper_load_final_rate').val(0);
-			
         });
+
+        syncCustomerSelection();
 		
         $('#shipper_load_final_rate').on('keydown paste input', function (e) {
             e.preventDefault();
+        });
+
+        $('#myFormLoad').on('submit', function () {
+            syncCustomerSelection();
         });
     });
 

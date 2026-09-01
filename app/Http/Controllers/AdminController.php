@@ -2080,6 +2080,17 @@ public function all_search(Request $request)
         }
 
         $originalCustomerId = (int) ($load->customer_id ?? 0);
+        $requestedCustomerId = $request->filled('customer_id') ? (int) $request->input('customer_id') : 0;
+
+        if ($requestedCustomerId <= 0 && !empty($request->input('load_bill_to'))) {
+            $customerName = trim((string) $request->input('load_bill_to'));
+            if ($customerName !== '') {
+                $requestedCustomerId = (int) Customer::whereRaw('LOWER(TRIM(customer_name)) = ?', [mb_strtolower($customerName)])->value('id');
+            }
+        }
+
+        $request->merge(['customer_id' => $requestedCustomerId > 0 ? $requestedCustomerId : $request->input('customer_id')]);
+
         $newCustomerId = (int) ($request->input('customer_id') ?? 0);
         $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
 
