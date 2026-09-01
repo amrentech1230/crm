@@ -1536,13 +1536,12 @@ for ($i = 1; $i <= 15; $i++) {
                 $newInvoiceAmt   = (float) $invoicechargestotal;
                 $newRemainingAmt = max(0.0, $newRate - $newInvoiceAmt);
 
-                // Release credit to old customer using OLD load rate
-                if ($oldCustomer) {
-                    $oldCustomer->remaining_credit       = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingAmt, 2);
-                    $oldCustomer->remaining_credit_amount = $oldCustomer->remaining_credit;
-                    $oldCustomer->invoice_credit_limit   = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceAmt, 2);
-                    $oldCustomer->save();
-                }
+        if ($oldCustomer) {
+            $oldCustomer->remaining_credit       = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingAmt, 2);
+            $oldCustomer->remaining_credit_amount = $oldCustomer->remaining_credit;
+            $oldCustomer->invoice_credit_limit   = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceAmt, 2);
+            $oldCustomer->save();
+        }
 
                 // Deduct credit from new customer using NEW load rate
                 if ($customerdata) {

@@ -2020,7 +2020,7 @@ $(document).ready(function () {
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
-                            customer_id: "{{$post->customer_id}}",
+                            customer_id: $('#customer_id').val() || "{{$post->customer_id}}",
                             finalrate: final_total_rate,
                             _token: '{{ csrf_token() }}'
                         },
