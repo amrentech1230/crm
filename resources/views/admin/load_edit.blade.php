@@ -2630,43 +2630,89 @@ $(document).on('click', '#carrierInfoBtn', function() {
 <script>
 // Credit Limit Validation for Admin Load Edit
 $(document).ready(function() {
+    var originalCustomerId = $('#customer_id').val();
+    
     // When customer changes, update and validate credit
     $('#load_bill_to').on('change', function() {
-        validateCustomerCredit();
+        var selectedCustomerId = $(this).find('option:selected').data('id');
+        
+        // If customer is being changed from the original, validate NEW customer only
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            // If customer is same as original, validate based on rate change
+            validateCurrentCustomerCredit();
+        } else {
+            clearValidationMessage();
+        }
     });
 
     // When final rate changes, validate credit
     $('#shipper_load_final_rate').on('change', function() {
-        validateCustomerCredit();
+        var selectedCustomerId = $('#load_bill_to').find('option:selected').data('id');
+        
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            validateCurrentCustomerCredit();
+        }
     });
 
-    function validateCustomerCredit() {
+    function validateNewCustomerCredit(newCustomerId) {
         var selectedOption = $('#load_bill_to').find('option:selected');
         var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
-        var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
         var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
         var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
-
-        var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
+        
         var $message = $('#creditlimitcheck');
 
-        if (!selectedOption.val()) {
-            $message.html('').removeClass('alert alert-warning alert-danger');
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
             return;
         }
 
-        // Calculate needed credit
-        if (finalRate > remaining) {
-            var shortage = finalRate - remaining;
-            $message.html('<div class="alert alert-danger mt-2">⚠️ Insufficient credit! Available: $' + remaining.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        // Only validate NEW customer, not old customer
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ <strong>New Customer - Insufficient Credit!</strong><br>Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
         } else {
-            var available = remaining - finalRate;
-            $message.html('<div class="alert alert-warning mt-2">✓ Available after this load: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-success mt-2">✓ <strong>New Customer - Credit OK!</strong><br>Available after transfer: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
         }
     }
 
+    function validateCurrentCustomerCredit() {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+
+        var $message = $('#creditlimitcheck');
+
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
+            return;
+        }
+
+        // Current customer - check if rate change exceeds limit
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ Insufficient credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-warning mt-2">✓ Available after this update: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    function clearValidationMessage() {
+        $('#creditlimitcheck').html('');
+    }
+
     // Validate on page load
-    validateCustomerCredit();
+    var initialCustomerId = $('#load_bill_to').find('option:selected').data('id');
+    if (initialCustomerId && initialCustomerId == originalCustomerId) {
+        validateCurrentCustomerCredit();
+    }
 });
 </script>
 
