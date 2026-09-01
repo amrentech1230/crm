@@ -2035,14 +2035,14 @@ public function all_search(Request $request)
 
     public function loadUpdate(Request $request, $id)
     {
-    return DB::transaction(function () use ($request, $id) {
+        return DB::transaction(function () use ($request, $id) {
 
-// dd($request->all());
+        // dd($request->all());
         $load = Load::findOrFail($id);
 
-         if(empty($request->input('shipper_load_final_rate'))){
+        if(empty($request->input('shipper_load_final_rate'))){
             return redirect()->back()->with('error', 'please enter the Customer Final Rate');
-         }
+        }
    
         // ✅ VALIDATION: Check if total load creation amount would exceed the customer's effective credit limit
         $newFinalRate = (float) $request->input('shipper_load_final_rate');
@@ -2223,7 +2223,6 @@ public function all_search(Request $request)
 				];
 			}
 		
-			
         }
 
         // Loop through the request to extract shipper data
@@ -2562,6 +2561,7 @@ public function all_search(Request $request)
             $load->load_carrier_due_date_on = null;
         }
         $currentDateTime = Carbon::now();  // Get the current timestamp
+        
         if ($newStatus === 'Delivered') {
             // When the load status is 'Delivered', add the actual delivery date
             $data = [

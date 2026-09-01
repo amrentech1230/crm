@@ -12,9 +12,8 @@
 
 .switch-button {
     /* background color when "off" */
-    background: #FFFFFF;
-
     /* size of switch */
+    background: #FFFFFF;
     width: 43px;
     height: 25px;
     border: 2px solid #E6E6E6;
