@@ -2064,7 +2064,6 @@ public function all_search(Request $request)
         if (!$customerIsChanging) {
             $customer = Customer::find($load->customer_id);
             if ($customer && $rateDifference > 0) {
-                $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
                 $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
                     ->where('load_status', '!=', 'Cancelled')
                     ->where('id', '!=', $load->id)
@@ -2074,11 +2073,13 @@ public function all_search(Request $request)
                     })
                     ->sum('shipper_load_final_rate');
 
+                $availableLimit = (float) get_customer_available_credit_limit($customer);
+                $effectiveAssignedLimit = $eligibleLoadAmount + $availableLimit;
                 $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
 
-                if ($newTotalLoadAmount > $assignedCreditLimit) {
-                    $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
-                    return back()->with('error', "Cannot update load. Assigned credit limit is {$assignedCreditLimit}. Load amount already counted: {$eligibleLoadAmount}. Available credit: {$availableCredit}. New load amount: {$newFinalRate}.");
+                if ($newTotalLoadAmount > $effectiveAssignedLimit) {
+                    $availableCredit = $effectiveAssignedLimit - $eligibleLoadAmount;
+                    return back()->with('error', "Cannot update load. Effective credit limit is {$effectiveAssignedLimit}. Load amount already counted: {$eligibleLoadAmount}. Available credit: {$availableCredit}. New load amount: {$newFinalRate}.");
                 }
             }
         }
