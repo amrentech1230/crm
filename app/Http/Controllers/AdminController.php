@@ -2023,9 +2023,6 @@ public function all_search(Request $request)
         $customer = Customer::where('status', 'Approved')->get();
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
-        $customer = Customer::where('status', 'Approved')->get();
-        $equipmentType = EquipmentType::all();
-        $shipmentType = ShipmentType::all();
         $shipperdata = Shipper::orderBy('shipper_name', 'asc')->get();
         $consigneedata = Consignee::orderBy('consignee_name', 'asc')->get();
         $allowedAuthIds = [227, 226, 218, 312, 221, 222];
@@ -2033,7 +2030,7 @@ public function all_search(Request $request)
             ->whereIn('user_id', $allowedAuthIds)
             ->orderBy('updated_at', 'desc')
             ->get();
-		$allcustomer= Customer::get();
+        $allcustomer = Customer::where('status', 'Approved')->get();
         $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
 
         $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));

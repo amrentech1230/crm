@@ -119,17 +119,29 @@
                                             @php
                                                 $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
                                                 $currentCustomerId = $post->customer_id ?: ($post->customer?->id ?? '');
+                                                $selectedCustomer = null;
+
+                                                if (!empty($currentCustomerId)) {
+                                                    $selectedCustomer = $allcustomer->firstWhere('id', $currentCustomerId);
+                                                }
+
+                                                if (!$selectedCustomer && !empty($currentCustomerName)) {
+                                                    $selectedCustomer = $allcustomer->first(function ($cust) use ($currentCustomerName) {
+                                                        return trim((string) $cust->customer_name) === trim((string) $currentCustomerName);
+                                                    });
+                                                }
                                             @endphp
                                             @if(!empty($currentCustomerName) || !empty($currentCustomerId))
                                                 <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
                                                     <option value="">Select Customer</option>
                                                     @if(!empty($currentCustomerName))
                                                         @php
-                                                            $currentCustomer = collect($allcustomer)->firstWhere('customer_name', $currentCustomerName);
+                                                            $currentCustomer = $selectedCustomer ?? $allcustomer->firstWhere('customer_name', $currentCustomerName);
+                                                            $selectedCustomerId = $currentCustomer?->id ?? $currentCustomerId;
                                                         @endphp
                                                         <option value="{{ $currentCustomerName }}" 
-                                                            data-id="{{ $currentCustomerId }}"
-                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer) }}"
+                                                            data-id="{{ $selectedCustomerId }}"
+                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer ?? $allcustomer->firstWhere('id', $selectedCustomerId)) }}"
                                                             data-remaining-credit="{{ (float) ($currentCustomer->remaining_credit ?? 0) }}"
                                                             data-invoice-credit-limit="{{ (float) ($currentCustomer->invoice_credit_limit ?? 0) }}"
                                                             selected>
@@ -137,7 +149,15 @@
                                                         </option>
                                                     @endif
                                                     @foreach($allcustomer as $cust)
-                                                        @if(trim((string) $cust->customer_name) !== trim((string) $currentCustomerName))
+                                                        @php
+                                                            $isSelected = false;
+                                                            if (!empty($currentCustomerId)) {
+                                                                $isSelected = (int) $cust->id === (int) $currentCustomerId;
+                                                            } elseif (trim((string) $cust->customer_name) === trim((string) $currentCustomerName)) {
+                                                                $isSelected = true;
+                                                            }
+                                                        @endphp
+                                                        @if(!$isSelected)
                                                             <option value="{{ $cust->customer_name }}" 
                                                                 data-id="{{ $cust->id }}"
                                                                 data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
