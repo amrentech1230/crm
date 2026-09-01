@@ -29,10 +29,24 @@ jobs:
         env:
           SSH_HOST: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.PROD_USERNAME || secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_BRANCH: main
         run: |
-          echo "==> Preflight: validate SSH connectivity to $SSH_HOST:$SSH_PORT"
+          set -euo pipefail
+
+          echo "==> Preflight: validating SSH target and required secrets"
+          echo "SSH_TARGET=${SSH_HOST:-<unset>}:${SSH_PORT:-<unset>}"
+          echo "SSH_USER=${SSH_USER:-<unset>}"
+          echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
+          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
+
+          if [[ -z "${SSH_HOST}" || -z "${SSH_PORT}" || -z "${SSH_USER}" || -z "${SSH_KEY}" ]]; then
+            echo "::error::Missing one or more required SSH settings: SSH_HOST, SSH_PORT, SSH_USER, or SSH_PRIVATE_KEY."
+            exit 1
+          fi
+
           for i in 1 2 3; do
             echo "Attempt $i: testing TCP connect to $SSH_HOST:$SSH_PORT"
             if timeout 8 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
@@ -45,12 +59,9 @@ jobs:
           done
 
           if ! timeout 2 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
-            echo "::error::SSH host $SSH_HOST:$SSH_PORT unreachable after retries. Aborting deploy step."
+            echo "::error::SSH host $SSH_HOST:$SSH_PORT unreachable after retries. Verify the VPS firewall/NAT/port forwarding and GitHub secrets."
             exit 1
           fi
-
-          echo "DEPLOY_PATH=${DEPLOY_PATH:-(unset)}"
-          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-(unset)}"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -66,7 +77,9 @@ jobs:
           port: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
           envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script_stop: true
-          timeout: 120
+          timeout: 30s
+          command_timeout: 15m
+          debug: true
           script: |
             set -euo pipefail
 

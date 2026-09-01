@@ -27,13 +27,30 @@ jobs:
         env:
           SSH_HOST: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
         run: |
+          set -euo pipefail
+
+          echo "==> Validating staging SSH target"
+          echo "SSH_TARGET=${SSH_HOST:-<unset>}:${SSH_PORT:-<unset>}"
+          echo "SSH_USER=${SSH_USER:-<unset>}"
+          echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH }}"
+
           if [[ -z "$SSH_HOST" ]]; then
             echo "::error::Missing staging SSH host. Configure STAGING_HOST or SSH_HOST in the staging environment."
             exit 1
           fi
           if [[ -z "$SSH_PORT" ]]; then
             echo "::error::Missing staging SSH port. Configure STAGING_PORT or SSH_PORT in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_USER" ]]; then
+            echo "::error::Missing staging SSH username. Configure STAGING_USERNAME or SSH_USER in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_KEY" ]]; then
+            echo "::error::Missing staging SSH private key. Configure STAGING_SSH_KEY or SSH_PRIVATE_KEY in the staging environment."
             exit 1
           fi
           if [[ -z "${{ vars.DEPLOY_PATH }}" ]]; then
@@ -60,7 +77,9 @@ jobs:
 
           script_stop: true
 
-          timeout: 120s
+          timeout: 30s
+          command_timeout: 15m
+          debug: true
 
           script: |
             set -euo pipefail

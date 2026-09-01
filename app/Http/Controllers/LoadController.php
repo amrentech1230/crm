@@ -1504,14 +1504,20 @@ for ($i = 1; $i <= 15; $i++) {
 
         $invoice_credit = $oldinvoicechargestotal - $invoicechargestotal;
 
-        $oldShipperLoadFinalRate = (float) ($request->old_shipper_load_final_rate ?? 0);
+        // Use DB value for old rate — never trust a hidden form field for financial calculations
+        $oldShipperLoadFinalRate = (float) ($loaddata->shipper_load_final_rate ?? 0);
         $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
 
-        $oldRemainingUsed = $oldShipperLoadFinalRate - (float) $oldinvoicechargestotal;
-        $newRemainingUsed = $newShipperLoadFinalRate - (float) $invoicechargestotal;
+        // Old invoice charges already calculated above as $oldinvoicechargestotal
+        // New invoice charges already calculated above as $invoicechargestotal
 
+        // remaining_credit delta: positive = credit freed, negative = more credit used
+        $oldRemainingUsed = max(0.0, $oldShipperLoadFinalRate - $oldinvoicechargestotal);
+        $newRemainingUsed = max(0.0, $newShipperLoadFinalRate - $invoicechargestotal);
         $remainingCreditDelta = $oldRemainingUsed - $newRemainingUsed;
-        $invoiceCreditDelta = $invoice_credit;
+
+        // invoice_credit_limit delta: positive = limit freed, negative = more invoice credit used
+        $invoiceCreditDelta = $oldinvoicechargestotal - $invoicechargestotal;
 
         if (!$isCancelling) {
             $oldCustomerId = (int) ($loaddata->customer_id ?? 0);
@@ -1540,34 +1546,41 @@ for ($i = 1; $i <= 15; $i++) {
 
                 // Deduct credit from new customer using NEW load rate
                 if ($customerdata) {
-                    $newRemaining     = (float) $customerdata->remaining_credit - $newRemainingAmt;
-                    $newInvoiceLimit  = (float) $customerdata->invoice_credit_limit - $newInvoiceAmt;
+                    $newAvailable    = $this->creditService->getAvailableCreditLimit($customerdata);
+                    $newInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
 
-                    if ($newRemaining < 0) {
-                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
+                    if ($newAvailable - $newRemainingAmt < 0) {
+                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $newAvailable);
                     }
-                    if ($newInvoiceAmt > 0 && $newInvoiceLimit < 0) {
-                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
+                    if ($newInvoiceAmt > 0 && $newInvoiceLimit - $newInvoiceAmt < 0) {
+                        return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $newInvoiceLimit);
                     }
 
-                    $customerdata->remaining_credit       = round(max(0.0, $newRemaining), 2);
+                    $customerdata->remaining_credit       = round(max(0.0, $newAvailable - $newRemainingAmt), 2);
                     $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                    $customerdata->invoice_credit_limit   = round(max(0.0, $newInvoiceLimit), 2);
+                    $customerdata->invoice_credit_limit   = round(max(0.0, $newInvoiceLimit - $newInvoiceAmt), 2);
                     $customerdata->save();
                 }
             } elseif ($customerdata) {
                 // Same customer, only rate/invoice changed — apply delta
-                if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
-                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
+                $currentRemaining = max(0.0, (float) $this->creditService->getAvailableCreditLimit($customerdata));
+                $currentInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
+
+                // remainingCreditDelta > 0 means credit is freed (rate decreased)
+                // remainingCreditDelta < 0 means more credit is consumed (rate increased)
+                if ($currentRemaining + $remainingCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $currentRemaining);
                 }
 
-                if ($customerdata->invoice_credit_limit + $invoiceCreditDelta < 0) {
-                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
+                // invoiceCreditDelta > 0 means invoice limit freed (charges removed)
+                // invoiceCreditDelta < 0 means more invoice limit consumed (charges added)
+                if ($currentInvoiceLimit + $invoiceCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $currentInvoiceLimit);
                 }
 
-                $customerdata->remaining_credit       = round($customerdata->remaining_credit + $remainingCreditDelta, 2);
+                $customerdata->remaining_credit       = round(max(0.0, $currentRemaining + $remainingCreditDelta), 2);
                 $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                $customerdata->invoice_credit_limit   = round($customerdata->invoice_credit_limit + $invoiceCreditDelta, 2);
+                $customerdata->invoice_credit_limit   = round(max(0.0, $currentInvoiceLimit + $invoiceCreditDelta), 2);
                 $customerdata->save();
             }
         }
