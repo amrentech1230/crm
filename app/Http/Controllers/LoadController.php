@@ -1518,39 +1518,45 @@ for ($i = 1; $i <= 15; $i++) {
             $newCustomerId = (int) ($customerId ?? 0);
 
             if ($oldCustomerId > 0 && $newCustomerId > 0 && $oldCustomerId !== $newCustomerId) {
-                // Customer changed: release old customer's credit using OLD rate, deduct new customer using NEW rate
-                $oldInvoiceCharges = $oldinvoicechargestotal;
-                $oldRemainingUsed = max(0.0, (float) $loaddata->shipper_load_final_rate - $oldInvoiceCharges);
+                // Customer changed:
+                // 1. Release OLD rate back to old customer
+                // 2. Deduct NEW rate from new customer
 
-                // Release credit back to old customer
+                $oldRate         = (float) ($loaddata->shipper_load_final_rate ?? 0);
+                $oldInvoiceAmt   = (float) $oldinvoicechargestotal;
+                $oldRemainingAmt = max(0.0, $oldRate - $oldInvoiceAmt);
+
+                $newRate         = (float) $newShipperLoadFinalRate;
+                $newInvoiceAmt   = (float) $invoicechargestotal;
+                $newRemainingAmt = max(0.0, $newRate - $newInvoiceAmt);
+
+                // Release credit to old customer using OLD load rate
                 if ($oldCustomer) {
-                    $oldCustomer = Customer::whereKey($oldCustomer->id)->lockForUpdate()->first() ?? $oldCustomer;
-                    $oldCustomer->remaining_credit = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingUsed, 2);
+                    $oldCustomer->remaining_credit       = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingAmt, 2);
                     $oldCustomer->remaining_credit_amount = $oldCustomer->remaining_credit;
-                    $oldCustomer->invoice_credit_limit = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceCharges, 2);
+                    $oldCustomer->invoice_credit_limit   = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceAmt, 2);
                     $oldCustomer->save();
                 }
 
-                // Deduct credit from new customer using new rate
-                $newRemainingUsed = max(0.0, $newShipperLoadFinalRate - $invoicechargestotal);
+                // Deduct credit from new customer using NEW load rate
                 if ($customerdata) {
-                    $customerdata = Customer::whereKey($customerdata->id)->lockForUpdate()->first() ?? $customerdata;
-                    $newRemaining = (float) $customerdata->remaining_credit - $newRemainingUsed;
-                    $newInvoiceLimit = (float) $customerdata->invoice_credit_limit - $invoicechargestotal;
+                    $newRemaining     = (float) $customerdata->remaining_credit - $newRemainingAmt;
+                    $newInvoiceLimit  = (float) $customerdata->invoice_credit_limit - $newInvoiceAmt;
 
                     if ($newRemaining < 0) {
                         return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
                     }
-                    if ($invoicechargestotal > 0 && $newInvoiceLimit < 0) {
+                    if ($newInvoiceAmt > 0 && $newInvoiceLimit < 0) {
                         return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
                     }
 
-                    $customerdata->remaining_credit = round(max(0.0, $newRemaining), 2);
+                    $customerdata->remaining_credit       = round(max(0.0, $newRemaining), 2);
                     $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                    $customerdata->invoice_credit_limit = round(max(0.0, $newInvoiceLimit), 2);
+                    $customerdata->invoice_credit_limit   = round(max(0.0, $newInvoiceLimit), 2);
                     $customerdata->save();
                 }
             } elseif ($customerdata) {
+                // Same customer, only rate/invoice changed — apply delta
                 if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
                     return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
                 }
@@ -1559,9 +1565,9 @@ for ($i = 1; $i <= 15; $i++) {
                     return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
                 }
 
-                $customerdata->remaining_credit = round($customerdata->remaining_credit + $remainingCreditDelta, 2);
+                $customerdata->remaining_credit       = round($customerdata->remaining_credit + $remainingCreditDelta, 2);
                 $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                $customerdata->invoice_credit_limit = round($customerdata->invoice_credit_limit + $invoiceCreditDelta, 2);
+                $customerdata->invoice_credit_limit   = round($customerdata->invoice_credit_limit + $invoiceCreditDelta, 2);
                 $customerdata->save();
             }
         }
