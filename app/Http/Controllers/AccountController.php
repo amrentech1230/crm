@@ -5614,7 +5614,7 @@ public function customerDetailsReportingExcell()
             $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
             $sheet->setCellValue($col . $row, number_format($margin, 2));
             $col++;
-            $shipperLoadFinalRate = floatval($shipperLoadFinalRate);
+            $shipperLoadFinalRate = floatval($shipperLoadFinalRate); 
             $carrierFee = floatval($loadFinalCarrierFee);
             $margin = $shipperLoadFinalRate - $carrierFee;
 
