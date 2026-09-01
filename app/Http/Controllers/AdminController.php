@@ -42,6 +42,12 @@ use App\Services\CreditService;
 
 class AdminController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
 
    public function correct_data(){
 	   $allload = Load::get('load_mc_no');
@@ -2029,6 +2035,10 @@ public function all_search(Request $request)
             ->get();
 		$allcustomer= Customer::get();
         $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
+
+        $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
+        $post->load_bill_to = $currentCustomerName ?: ($post->load_bill_to ?? '');
+        $post->customer_id = $post->customer_id ?: ($post->customer?->id ?? null);
     //   echo "<pre>"; print_r($alllogs); die;
         return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users','alllogs'));
     }
@@ -2066,6 +2076,23 @@ public function all_search(Request $request)
             if ($newTotalLoadAmount > $assignedCreditLimit) {
                 $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
                 return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
+            }
+        }
+
+        $originalCustomerId = (int) ($load->customer_id ?? 0);
+        $newCustomerId = (int) ($request->input('customer_id') ?? 0);
+        $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
+
+        if ($originalCustomerId > 0 && $newCustomerId > 0 && $originalCustomerId !== $newCustomerId && $targetCustomer) {
+            $transferResult = $this->creditService->transferLoadCreditBetweenCustomers(
+                Customer::find($originalCustomerId),
+                $targetCustomer,
+                (float) ($request->input('shipper_load_final_rate') ?? $load->shipper_load_final_rate ?? 0),
+                (float) ($request->input('invoice_amount') ?? 0)
+            );
+
+            if (!$transferResult['allowed']) {
+                return back()->with('error', $transferResult['message']);
             }
         }
    

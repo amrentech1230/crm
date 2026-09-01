@@ -1506,6 +1506,7 @@ for ($i = 1; $i <= 15; $i++) {
      
         // Lock the customer row to prevent race conditions on credit updates
         $customerdata = Customer::where('id', $customerId)->lockForUpdate()->first();
+        $oldCustomer = $loaddata->customer_id ? Customer::where('id', $loaddata->customer_id)->lockForUpdate()->first() : null;
 
         $old_shipper_load_other_charge = json_decode($loaddata->shipper_load_other_charge, true);
         
@@ -1541,19 +1542,30 @@ for ($i = 1; $i <= 15; $i++) {
         $remainingCreditDelta = $oldRemainingUsed - $newRemainingUsed;
         $invoiceCreditDelta = $invoice_credit;
 
-        if (!$isCancelling && $customerdata) {
-            if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
-                return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
-            }
+        if (!$isCancelling) {
+            $oldCustomerId = (int) ($loaddata->customer_id ?? 0);
+            $newCustomerId = (int) ($customerId ?? 0);
 
-            if ($customerdata->invoice_credit_limit + $invoiceCreditDelta < 0) {
-                return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
-            }
+            if ($oldCustomerId > 0 && $newCustomerId > 0 && $oldCustomerId !== $newCustomerId) {
+                $transferResult = $this->creditService->transferLoadCreditBetweenCustomers($oldCustomer, $customerdata, $newShipperLoadFinalRate, $invoicechargestotal);
 
-            $customerdata->remaining_credit += $remainingCreditDelta;
-            $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-            $customerdata->invoice_credit_limit += $invoiceCreditDelta;
-            $customerdata->save();
+                if (!$transferResult['allowed']) {
+                    return redirect()->back()->with('error', $transferResult['message']);
+                }
+            } elseif ($customerdata) {
+                if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
+                }
+
+                if ($customerdata->invoice_credit_limit + $invoiceCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
+                }
+
+                $customerdata->remaining_credit += $remainingCreditDelta;
+                $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
+                $customerdata->invoice_credit_limit += $invoiceCreditDelta;
+                $customerdata->save();
+            }
         }
 
         if ($isCancelling) {

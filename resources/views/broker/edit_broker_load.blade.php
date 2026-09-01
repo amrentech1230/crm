@@ -119,12 +119,40 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <input type="text" id="load_bill_to" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to }}" readonly autocomplete="off" placeholder="Customer name">
+                                        <select id="load_bill_to" name="load_bill_to" class="form-control mySelect2" data-placeholder="Select Customer" required>
+                                            <option value="">Select Customer</option>
+                                            @foreach($allCustomers as $customerOption)
+                                                <option value="{{ $customerOption->customer_name }}" data-id="{{ $customerOption->id }}"
+                                                    {{ $post->load_bill_to == $customerOption->customer_name ? 'selected' : '' }}>
+                                                    {{ $customerOption->customer_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
 
                                 <input type="hidden" id="customer_id" name="customer_id" class="form-control" value="{{ $post->customer_id }}">
                                 <input type="hidden" id="customer_name" name="customer_name" class="form-control" value="{{ $post->load_bill_to }}">
+
+                                <script>
+                                    $(document).ready(function () {
+                                        if ($.fn.select2) {
+                                            $('#load_bill_to').select2({
+                                                placeholder: 'Select Customer',
+                                                allowClear: true
+                                            });
+                                        }
+
+                                        $('#load_bill_to').on('change', function () {
+                                            var selectedCustomer = $(this).find('option:selected');
+                                            var customerId = selectedCustomer.data('id');
+                                            var customerName = selectedCustomer.val();
+
+                                            $('#customer_id').val(customerId || '');
+                                            $('#customer_name').val(customerName || '');
+                                        });
+                                    });
+                                </script>
 
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
@@ -2173,7 +2201,7 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
-                            customer_id: "{{$post->customer_id }}",
+                            customer_id: $('#customer_id').val() || "{{$post->customer_id }}",
                             finalrate: remainingIncrease + invoiceIncrease,
                             invoice_amount: invoiceIncrease,
                             remaining_amount: remainingIncrease,

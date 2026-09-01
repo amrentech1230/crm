@@ -1778,11 +1778,20 @@ public function updateInvoiceStatus(Request $request, $id)
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $this->applyPaymentAmounts($load, floatval($request->receiving_amount));
-            $load->save();
+            $receivingAmount = floatval($request->receiving_amount);
+            $previousReceivingAmount = round(floatval($load->receiving_amount), 2);
+            $previousRemainingAmount = round(floatval($load->remaining_amount), 2);
 
-            $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
-            addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            $this->applyPaymentAmounts($load, $receivingAmount);
+            $amountsChanged = $previousReceivingAmount !== round(floatval($load->receiving_amount), 2)
+                || $previousRemainingAmount !== round(floatval($load->remaining_amount), 2);
+
+            if ($amountsChanged) {
+                $load->save();
+
+                $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
+                addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            }
     
             return response()->json([
                 'success' => true,
@@ -1905,7 +1914,7 @@ public function updateInvoiceStatus(Request $request, $id)
 
        
         if (!$invoice) {
-            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found
+            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found 
         }
         
         // Clean up the address data
@@ -2372,10 +2381,8 @@ $searchTerms = array_filter(
             $dashboard = Load::with('user')->paginate(50);
   
         }
-        
         return view('accounts.reporting.load', compact('dashboard'))->render();
     }
-
     public function report_sales_rep_search(Request $request){
         $q = $request->input('query');
         if (!empty($q)) {
@@ -2403,10 +2410,10 @@ $searchTerms = array_filter(
                     })->paginate(50);
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
-                $totalRevenueBroker = collect();
+                $totalRevenueBroker = collect(); 
             }
         } else {
-            // If query is empty, return a paginated result without any filter
+            // If query is empty, return a paginated result without any filter 
             $totalRevenueBroker = Load::join('users', 'loads.user_id', '=', 'users.id')
                     ->select('users.name')
                     ->selectRaw('SUM(loads.load_shipper_rate) AS total_revenue')
@@ -2657,7 +2664,24 @@ public function deleteCarrierFile(Request $request)
     public function viewLoadDetail($id)
     {
         $load = Load::findOrFail($id);
-        $alllogs = activity_log::where('load_id', $id)->orderBy('created_at', 'desc')->get();
+        $logs = activity_log::where('load_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $seenMailMessages = [];
+        $alllogs = $logs->reject(function ($log) use (&$seenMailMessages) {
+            $message = (string) $log->message;
+            if (!str_starts_with($message, 'mail send to customer ')) {
+                return false;
+            }
+
+            if (isset($seenMailMessages[$message])) {
+                return true;
+            }
+
+            $seenMailMessages[$message] = true;
+            return false;
+        })->values();
 
         return view('accounts.view_loads_detail', compact('load', 'alllogs'));
     }

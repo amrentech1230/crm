@@ -647,20 +647,18 @@ function markAsBackDeliveredRecord(loadId) {
         }
     }
 
-    $(document).on('input change', '.receiving_amount', function () {
+    $(document).off('input.accountingReceivingAmount', '.receiving_amount').on('input.accountingReceivingAmount', '.receiving_amount', function () {
         var invoiceId = $(this).data('invoice-id');
         var receiving_amount = $(this).val();
         $(this).data('manual-edited', true).data('auto-filled', false);
         updateRemainingAmount(invoiceId, receiving_amount);
-        saveReceivingAmount(invoiceId, receiving_amount);
     });
 
-    $(document).on('change', '.receiving_amount', function () {
-         var invoiceId = $(this).data('invoice-id');
-          var receiving_amount = $(this).val();
-         updateRemainingAmount(invoiceId, receiving_amount);
-         saveReceivingAmount(invoiceId, receiving_amount);
-     });
+    $(document).off('change.accountingReceivingAmount', '.receiving_amount').on('change.accountingReceivingAmount', '.receiving_amount', function () {
+        var invoiceId = $(this).data('invoice-id');
+        var receiving_amount = $(this).val();
+        saveReceivingAmount(invoiceId, receiving_amount);
+    });
 
     $(document).on('change', '.use-final-rate-checkbox', function () {
         var invoiceId = $(this).data('invoice-id');

@@ -124,6 +124,35 @@ class CreditServiceTest extends TestCase
         $this->assertSame(15100.0, $release['to_remaining']);
     }
 
+    public function test_customer_reassignment_transfers_credit_between_customers(): void
+    {
+        $service = new CreditService();
+
+        $oldCustomer = new Customer();
+        $oldCustomer->customer_name = 'Old Customer';
+        $oldCustomer->status = 'Approved';
+        $oldCustomer->remaining_credit = 1000.0;
+        $oldCustomer->invoice_credit_limit = 500.0;
+        $oldCustomer->save();
+
+        $newCustomer = new Customer();
+        $newCustomer->customer_name = 'New Customer';
+        $newCustomer->status = 'Approved';
+        $newCustomer->remaining_credit = 800.0;
+        $newCustomer->invoice_credit_limit = 250.0;
+        $newCustomer->save();
+
+        $result = $service->transferLoadCreditBetweenCustomers($oldCustomer, $newCustomer, 600.0, 100.0);
+
+        $this->assertTrue($result['allowed']);
+        $oldCustomer->refresh();
+        $newCustomer->refresh();
+        $this->assertSame(1500.0, (float) $oldCustomer->remaining_credit);
+        $this->assertSame(600.0, (float) $oldCustomer->invoice_credit_limit);
+        $this->assertSame(300.0, (float) $newCustomer->remaining_credit);
+        $this->assertSame(150.0, (float) $newCustomer->invoice_credit_limit);
+    }
+
     public function test_customer_credit_values_are_never_negative(): void
     {
         $this->assertSame(0.0, normalize_customer_credit_value(-25.50));
