@@ -2059,23 +2059,30 @@ public function all_search(Request $request)
         $oldFinalRate = (float) $load->shipper_load_final_rate;
         $rateDifference = $newFinalRate - $oldFinalRate;
         
-        $customer = Customer::find($load->customer_id);
-        if ($customer && $rateDifference > 0) {
-            $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
-            $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
-                ->where('load_status', '!=', 'Cancelled')
-                ->where('id', '!=', $load->id)
-                ->where(function ($query) {
-                    $query->where('invoice_status', '!=', 'Paid Record')
-                        ->orWhereNull('invoice_status');
-                })
-                ->sum('shipper_load_final_rate');
+        $requestedCustomerId = (int) $request->input('customer_id');
+        $customerIsChanging = $requestedCustomerId > 0 && $requestedCustomerId !== (int) $load->customer_id;
 
-            $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
+        // Only run credit check when the customer is NOT changing.
+        // When customer changes, transferLoadCreditBetweenCustomers handles the validation.
+        if (!$customerIsChanging) {
+            $customer = Customer::find($load->customer_id);
+            if ($customer && $rateDifference > 0) {
+                $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
+                $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
+                    ->where('load_status', '!=', 'Cancelled')
+                    ->where('id', '!=', $load->id)
+                    ->where(function ($query) {
+                        $query->where('invoice_status', '!=', 'Paid Record')
+                            ->orWhereNull('invoice_status');
+                    })
+                    ->sum('shipper_load_final_rate');
 
-            if ($newTotalLoadAmount > $assignedCreditLimit) {
-                $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
-                return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
+                $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
+
+                if ($newTotalLoadAmount > $assignedCreditLimit) {
+                    $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
+                    return back()->with('error', "Cannot update load. Assigned credit limit is {$assignedCreditLimit}. Load amount already counted: {$eligibleLoadAmount}. Available credit: {$availableCredit}. New load amount: {$newFinalRate}.");
+                }
             }
         }
 
