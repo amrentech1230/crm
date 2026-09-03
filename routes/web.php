@@ -300,6 +300,7 @@ Route::post('account/load/update-remaining-amount', [AccountController::class, '
 		Route::get('account/loadsDetailsReportingExcell', [AccountController::class, 'loadsDetailsReportingExcell'])->name('loadsDetailsReportingExcell');
 		Route::get('account/salesReportingExcell', [AccountController::class, 'salesReportingExcell'])->name('salesReportingExcell');
 		Route::get('account/loadCompleteReportingExcel', [AccountController::class, 'loadCompleteReportingExcel'])->name('loadCompleteReportingExcel');
+        Route::get('account/vendor-system/excel', [AccountController::class, 'vendorSystemExcel'])->name('vendorSystemExcel');
 		Route::get('account/CarrierReportingExcel', [AccountController::class, 'CarrierReportingExcel'])->name('CarrierReportingExcel');
 		Route::get('account/agingReportingExcel', [AccountController::class, 'agingReportingExcel'])->name('agingReportingExcel');
 		Route::get('account/limitReportingExcel', [AccountController::class, 'limitReportingExcel'])->name('limitReportingExcel');

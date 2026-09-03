@@ -30,6 +30,36 @@
     z-index: 9999;
     top: 10px;
 }
+
+.vendor-select + .select2-container,
+.vendor-select + .select2-container .select2-selection--single,
+.vendor-select + .select2-container > .selection,
+.vendor-select + .select2-container > .dropdown-wrapper {
+    height: 32px;
+    line-height: normal;
+    padding: 0;
+}
+
+.vendor-select + .select2-container .select2-selection--single {
+    padding: 6px 32px 6px 12px;
+    display: flex;
+    align-items: center;
+}
+
+.vendor-select + .select2-container .select2-selection__rendered {
+    line-height: normal;
+    padding: 0;
+}
+
+.vendor-select + .select2-container .select2-selection__arrow {
+    height: 30px;
+    width: 30px;
+}
+
+.vendor-select + .select2-container .select2-selection__clear {
+    line-height: normal;
+    padding: 0;
+}
 .row-open {
     background-color: #f9e79f !important;
 }
@@ -202,6 +232,11 @@
 </div>
         
 <div style="overflow-x: auto; overflow-y: auto; max-height: 600px; border: 1px solid #ddd; border-radius: 8px;">
+    <span>
+        <a href="{{ route('vendorSystemExcel') }}">
+            <button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">Vendor System Excel</button>
+        </a>
+    </span>
     <table
         class="table table-striped table-bordered"
         style="border-collapse: collapse; border-spacing: 0; width: 100%;">

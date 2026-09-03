@@ -73,7 +73,7 @@ $rowClass = 'row-completed';
         </span>
     </td>
         <td class="dynamic-data">
-        <select style="width: 100%;" class="form-control ready_to_pay" name="ready_to_pay" class="ready_to_pay"
+        <select style="width: 100%;" class="form-control vendor-select ready_to_pay" name="ready_to_pay"
             data-id="{{ $vendor->id }}">
             <option value="">Please Select Ready to Pay</option>
             <option value="Yes" @if($vendor->ready_to_pay == 'Yes') selected @endif style="background-color: green;
@@ -91,7 +91,7 @@ $rowClass = 'row-completed';
             : $vendor->invoice_through;
     @endphp
 
-    <select class="form-control load_priority"
+    <select class="form-control vendor-select load_priority"
             name="load_priority"
             data-id="{{ $vendor->id }}">
 
@@ -116,7 +116,7 @@ $rowClass = 'row-completed';
 </td>
     <td class="dynamic-data">
         <select
-            class="form-control carrier_documents"
+            class="form-control vendor-select carrier_documents"
             name="carrier_documents"
             data-id="{{ $vendor->id }}"
         >
@@ -139,7 +139,7 @@ $rowClass = 'row-completed';
         </select>
     </td>
     <td class="dynamic-data">
-        <select name="quick_pay" class="form-control quick_pay" class="quick_pay"
+        <select name="quick_pay" class="form-control vendor-select quick_pay"
             data-id="{{ $vendor->id }}">
             <option value="">Please Select Quick Pay</option>
             <option value="1%" @if($vendor->quick_pay == '1%') selected @endif>1%</option>
@@ -253,7 +253,7 @@ $rowClass = 'row-completed';
     @endif
 
     <td class="dynamic-data">
-        <select class="form-control payment_method" name="payment_method" class="payment_method"
+        <select class="form-control vendor-select payment_method" name="payment_method"
             data-id="{{ $vendor->id }}">
             <option value="">Please Select Payment Method</option>
             <option value="ACH" @if($vendor->payment_method == 'ACH') selected @endif>ACH</option>

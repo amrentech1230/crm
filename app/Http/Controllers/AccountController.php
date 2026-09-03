@@ -695,6 +695,88 @@ public function carrier_block(Request $request)
         return view('accounts.vendor_system', compact('vendormanagement'));
     }
 
+    public function vendorSystemExcel()
+    {
+        $loads = Load::with(['user', 'customer'])
+            ->orderByDesc('loads.id')
+            ->get();
+
+        $formatDate = static function ($value): string {
+            if (empty($value) || $value === '0000-00-00') {
+                return '';
+            }
+
+            try {
+                return Carbon::parse($value)->format('m/d/Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $headers = [
+            'Sr No.', 'Load#', 'W/O #', 'Carrier', 'Carrier Invoice Date',
+            'Carrier Due Date', 'Ready to Pay', 'Processed By', 'Documents',
+            'Quick Pay %', 'Carrier Files Upload', 'Carrier Files View',
+            'Payment Method', 'Carrier Payment Status', 'Carrier Payment Date',
+            'Customer Invoice Date', 'Logs Check', 'Vendor Internal Notes',
+        ];
+
+        $rows = [$headers];
+        foreach ($loads as $index => $load) {
+            $carrierFiles = json_decode($load->carrierDoc ?? '', true);
+            $hasCarrierFiles = is_array($carrierFiles) && $carrierFiles !== [];
+            $processedBy = $load->customer?->invoice_through ?: $load->invoice_through;
+            $dueDate = $load->load_carrier_due_date;
+            if (empty($dueDate) && !empty($load->carrier_invoice_date)) {
+                try {
+                    $dueDate = Carbon::parse($load->carrier_invoice_date)->addDays(25);
+                } catch (\Throwable) {
+                    $dueDate = null;
+                }
+            }
+
+            $rows[] = [
+                $index + 1,
+                $load->load_number ?? '',
+                $load->load_workorder ?? '',
+                $load->load_carrier ?? '',
+                $formatDate($load->carrier_invoice_date),
+                $formatDate($dueDate),
+                $load->ready_to_pay ?? '',
+                $processedBy ?? '',
+                $load->carrier_documents ?? '',
+                $load->quick_pay ?? '',
+                $hasCarrierFiles ? 'Yes' : 'No',
+                $hasCarrierFiles ? 'Available' : 'Not available',
+                $load->payment_method ?? '',
+                $load->carrier_mark_as_paid ?? '',
+                $formatDate($load->load_carrier_due_date_on),
+                $formatDate($load->invoice_date ?: $load->invoice_status_date),
+                $load->cpr_check ?? '',
+                $load->vendorInternalNotes ?? '',
+            ];
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Vendor System');
+        $sheet->fromArray($rows, null, 'A1');
+        $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:R1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach (range('A', 'R') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'vendor-system-' . date('Y-m-d') . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
     public function vendor_search(Request $request){
 
         $q = $request->input('query');
