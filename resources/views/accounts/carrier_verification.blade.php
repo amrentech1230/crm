@@ -46,21 +46,37 @@
     .loader-container.hide {
         display: none;
     }
-    /* Make Select2 same height as Bootstrap input */
-.select2-container .select2-selection--single {
-    height: 38px !important;
-    padding: 5px 10px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+#compliance-mc-search .select2-container,
+#compliance-mc-search .select2-container > .selection,
+#compliance-mc-search .select2-container > .dropdown-wrapper,
+#compliance-mc-search .select2-container .select2-selection--single {
+    height: 32px;
+    line-height: normal;
+    padding: 0;
 }
 
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 26px;
+#compliance-mc-search .select2-container .select2-selection--single {
+    padding: 6px 32px 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+#compliance-mc-search .select2-container .select2-selection__rendered {
+    line-height: normal;
+    padding: 0;
     font-size: 14px;
 }
 
-.select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 36px;
+#compliance-mc-search .select2-container .select2-selection__arrow {
+    height: 30px;
+    width: 30px;
+}
+
+#compliance-mc-search .select2-container .select2-selection__clear {
+    line-height: normal;
+    padding: 0;
 }
 
 /* Focus effect */
