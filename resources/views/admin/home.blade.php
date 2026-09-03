@@ -628,7 +628,7 @@
             resultContainer = '#delivered-search';
             tableSelector = '#datatable-buttons-delivered';
         } else if (activeTab === '#completed') {
-            resultContainer = '#shipper-search';
+            resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
         } else if (activeTab === '#invoiced') {
             resultContainer = '#invoiced-search';
@@ -753,7 +753,7 @@ $(document).on('click', '.custom-pagination a', function (e) {
     } else if (activeTab === '#delivered') {
         resultContainer = '#delivered-search'; tableSelector = '#datatable-buttons-delivered'; pageName = 'delivered';
     } else if (activeTab === '#completed') {
-        resultContainer = '#shipper-search'; tableSelector = '#datatable-buttons-completed'; pageName = 'completed';
+        resultContainer = '#completed-search'; tableSelector = '#datatable-buttons-completed'; pageName = 'completed';
     } else if (activeTab === '#invoiced') {
         resultContainer = '#invoiced-search'; tableSelector = '#datatable-buttons-invoiced'; pageName = 'invoiced';
     } else if (activeTab === '#invoiced_paid') {
@@ -837,7 +837,7 @@ $(document).on('click', '.custom-pagination a', function (e) {
                 $('form.app-search .position-relative').attr('id', 'completeds');
                 inputSelector = '#completeds input[name="query"]';
                 ajaxUrl = '/admin/complete_search';
-                resultContainer = '#shipper-search';
+                resultContainer = '#completed-search';
                 tableSelector = '#datatable-buttons-completed';
             } else if (target === '#invoiced') {
                 $('form.app-search .position-relative').attr('id', 'invoiceds');
@@ -923,7 +923,7 @@ $(document).on('click', '.custom-pagination a', function (e) {
                 $('form.app-search .position-relative').attr('id', 'completeds');
                 inputSelector = '#completeds input[name="query"]';
                 ajaxUrl = '/admin/complete_search';
-                resultContainer = '#shipper-search';
+                resultContainer = '#completed-search';
                 tableSelector = '#datatable-buttons-completed';
             } else if (target === '#invoiced') {
                 $('form.app-search .position-relative').attr('id', 'invoiceds');

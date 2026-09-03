@@ -39,9 +39,6 @@
 .row-delivered-paid-record {
    background-color: #82e0aa !important;
 } 
-ul.pagination {
-    display: none;
-}
  .load-row {
         transition: background-color 0.3s ease, color 0.3s ease;
     }
@@ -239,7 +236,7 @@ ul.pagination {
 </div>
 
 <div class="custom-pagination mt-3">
-    {{ $vendormanagement->links('pagination::bootstrap-5') }}
+    {!! render_pagination_links($vendormanagement) !!}
 </div>
 
         <div id="modals-container">
@@ -659,33 +656,29 @@ ul.pagination {
                 });
             }
         }
-     // $(document).on('click', '.custom-pagination a', function(e) {
-		initDataTable();
-        // e.preventDefault();
-        // let url = $(this).attr('href');
+     $(document).on('click', '.custom-pagination a', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        if (!url) return;
 
-        // $.ajax({
-            // url: url,
-            // type: 'GET',
-            // success: function(data) {
-			 // if ($.fn.DataTable.isDataTable('#datatable-buttons-vendor')) {
-					// $('#datatable-buttons-vendor').DataTable().destroy();
-				// }
-				// $('#vendor-search').html(data.rows);
-				// $('#modals-container').html(data.modals);
-				// $('#datatable-buttons-vendor').DataTable({
-                    // responsive: true,
-                    // dom: 'rtip',  // added "B" so buttons show properly
-                    // buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    // searching: false,
-                    // paging: true,                     // ✅ enable pagination
-                    // pageLength: 10,                   // ✅ default 50 rows
-				// });
-                
-                // window.history.pushState("", "", url); // optional: update URL
-            // }
-        // });
-    // });
+        $('.loader-container').removeClass('hide');
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $('#vendor-search').html(response.html);
+                $('#modals-container').html(response.modals);
+                $('.custom-pagination').html(response.pagination || '').show();
+                window.history.pushState({}, '', url);
+                $('.loader-container').addClass('hide');
+            },
+            error: function(xhr) {
+                console.error('Pagination AJAX error:', xhr.responseText);
+                $('.loader-container').addClass('hide');
+            }
+        });
+    });
 </script>
 <script>
 $(document).ready(function() {
@@ -704,20 +697,9 @@ $(document).ready(function() {
                     type: 'GET',
                     data: { query: query },
                     success: function(response) {
-                        if ($.fn.DataTable.isDataTable('#datatable-buttons-vendor')) {
-                            $('#datatable-buttons-vendor').DataTable().destroy();
-                        }
                         $('#vendor-search').html(response.rows); // Inject result HTML
 						$('#modals-container').html(response.modals);
-                       
-                            $('#datatable-buttons-vendor').DataTable({
-                                responsive: true,
-                                dom: 'rtip',  // added "B" so buttons show properly
-                                buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                                searching: false,
-                                paging: true,                     // ✅ enable pagination
-                                pageLength: 10,
-                            });
+                        $('.custom-pagination').html(response.pagination || '').show();
 
 
                         $('.loader-container').addClass('hide');

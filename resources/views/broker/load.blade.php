@@ -696,7 +696,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             @foreach($customer as $cust)
                                             <option value="{{$cust->customer_name}}"
                                                 data-customer-id="{{$cust->id}}"
-                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                data-available-credit="{{ (float) ($availableCredits[$cust->id] ?? 0) }}"
                                                 data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
                                                 data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
                                                 {{$cust->customer_name}}
@@ -1367,39 +1367,46 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
    $(document).on('click', '.custom-pagination a', function(e) {
     e.preventDefault();
 
-    let url = $(this).attr('href');
+    let href = $(this).attr('href');
+    if (!href) return;
 
     // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
         let resultContainer = '';
         let tableSelector = '';
+        let pageName = '';
 
         if (activeTab === '#all') {
-            resultContainer = '#all_search';
+            resultContainer = '#all_search'; pageName = 'all_loads';
             tableSelector = '#datatable-buttons-all';
         } else if (activeTab === '#open') {
-            resultContainer = '#open_search';
+            resultContainer = '#open_search'; pageName = 'open';
             tableSelector = '#datatable-buttons-open';
         } else if (activeTab === '#delivered') {
-            resultContainer = '#delivered_search';
+            resultContainer = '#delivered_search'; pageName = 'delivered';
             tableSelector = '#datatable-buttons-delivered';
         } else if (activeTab === '#complete') {
-            resultContainer = '#complete_search';
+            resultContainer = '#complete_search'; pageName = 'complete';
             tableSelector = '#datatable-buttons-complete';
         } else if (activeTab === '#invoice') {
-            resultContainer = '#invoice_search';
+            resultContainer = '#invoice_search'; pageName = 'invoice';
             tableSelector = '#datatable-buttons-invoice';
         } else if (activeTab === '#paid') {
-            resultContainer = '#paid_search';
+            resultContainer = '#paid_search'; pageName = 'invoice_paid';
             tableSelector = '#datatable-buttons-paid';
         } else {
             return; // Exit if it's not one of the expected tabs
         }
+    let pageUrl = new URL(href, window.location.origin);
+    let pageNumber = pageUrl.searchParams.get(pageName) || '1';
+
     $.ajax({
-        url: url,
+        url: '/broker/load',
         type: 'GET',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            page: pageNumber,
+            [pageName]: pageNumber
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
@@ -1423,11 +1430,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         ]
             });
 
-            // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            window.history.replaceState({}, '', '/broker/load');
         }
     });
-});
 </script>
     <script>
       

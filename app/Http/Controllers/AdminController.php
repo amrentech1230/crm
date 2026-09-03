@@ -144,22 +144,19 @@ class AdminController extends Controller
 
     $broker_status = $this->filteredLoadsQuery(Load::with('user'), $filters)
         ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('all_load');
+            ->paginate(50, ['*'], 'all_load');
 
     $open = $this->filteredLoadsQuery(
             Load::with('user')->where('load_status', 'Open'),
             $filters)
         ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('open');
+            ->paginate(50, ['*'], 'open');
 
     $deliverd = $this->filteredLoadsQuery(
             Load::with('user')->where('load_status', 'Delivered'),
             $filters)
         ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('delivered');
+            ->paginate(50, ['*'], 'delivered');
 
     $complete = $this->filteredLoadsQuery(
             Load::with(['user', 'customer', 'carrier'])
@@ -169,22 +166,19 @@ class AdminController extends Controller
                 }),
             $filters)
         ->orderBy('loads.id', 'desc')
-        ->paginate(50)
-        ->setPageName('completed');
+            ->paginate(50, ['*'], 'completed');
 
     $invoice_paid = $this->filteredLoadsQuery(
             Load::with('user')->where('invoice_status', 'Paid'),
             $filters)
         ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('invoiced');
+            ->paginate(50, ['*'], 'invoiced');
 
     $paid_record = $this->filteredLoadsQuery(
             Load::with('user')->where('invoice_status', 'Paid Record'),
             $filters)
         ->orderBy('id', 'desc')
-        ->paginate(50)
-        ->setPageName('invoiced_paid');
+            ->paginate(50, ['*'], 'invoiced_paid');
 
     $allagent = User::where('status', 'active')->pluck('name');
     $manager  = Manger::get();
@@ -249,21 +243,10 @@ class AdminController extends Controller
 	}
 
     public function home(Request $request){
-		
-		$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
-
-		foreach ($tabs as $tab) {
-			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
-				});
-				break; // Stop after finding the matching tab
-			}
-		}
-        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50)->setPageName('all_load'); 
+        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50, ['*'], 'all_load');
         $allagent = User::pluck('name');
-        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50)->setPageName('open'); 
-        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50)->setPageName('delivered'); 
+        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50, ['*'], 'open');
+        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50, ['*'], 'delivered');
         $complete = Load::where('load_status', 'Completed')
                     ->where(function ($query) {
                         $query->where('invoice_status', '')
@@ -271,9 +254,9 @@ class AdminController extends Controller
                     })
                     ->with(['user', 'customer', 'carrier'])
                     ->orderBy("loads.id", "desc")
-                    ->paginate(50)->setPageName('completed');
-        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced'); 
-        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced_paid'); 
+                    ->paginate(50, ['*'], 'completed');
+        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50, ['*'], 'invoiced');
+        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50, ['*'], 'invoiced_paid');
         $manager = Manger::get();
         $teamlead = TeamLeader::get();
         $office = Office::get();
@@ -302,6 +285,13 @@ class AdminController extends Controller
     }
 
     public function all_data(Request $request){
+        $activeTab = match (true) {
+            $request->filled('carrier') => 'carrier',
+            $request->filled('consignee') => 'consignee',
+            $request->filled('shipper') => 'shipper',
+            $request->filled('loads') => 'load',
+            default => 'customer',
+        };
 		
 			if ($request->has('loads')) {
 				Paginator::currentPageResolver(function () use ($request) {
@@ -339,7 +329,7 @@ class AdminController extends Controller
 
             $approvedCustomers = $customers->where('status', 'Approved');
 
-            $external = External::orderBy("id", "desc")->paginate(50)->setPageName('carrier');
+            $external = External::orderBy("id", "desc")->paginate(50, ['*'], 'carrier');
 
             $shipper = Shipper::select(
                             'shippers.*', 
@@ -349,11 +339,11 @@ class AdminController extends Controller
                         )
                         ->join('users', 'shippers.user_id', '=', 'users.id')
                         ->orderBy('shippers.id', 'DESC')
-                        ->paginate(50)->setPageName('shipper'); 
+                        ->paginate(50, ['*'], 'shipper');
 
-            $consignee = Consignee::orderBy("id", "desc")->paginate(50)->setPageName('consignee');
+            $consignee = Consignee::orderBy("id", "desc")->paginate(50, ['*'], 'consignee');
 
-            $loads = Load::orderBy("id", "desc")->paginate(50)->setPageName('loads');
+            $loads = Load::orderBy("id", "desc")->paginate(50, ['*'], 'loads');
 
             $manager = Manger::get();
 
@@ -364,25 +354,24 @@ class AdminController extends Controller
 
             $sortedCustomers = Customer::orderByRaw("CASE WHEN status = 'Not Approved' THEN 0 ELSE 1 END")
                         ->orderBy('id', 'DESC')  // Optional: further ordering by ID
-                        ->paginate(100)->setPageName('customer');
+                        ->paginate(100, ['*'], 'customer');
 
 
 			if ($request->ajax()) {
 			
-				if($request->input('tab') == '#customer'){
-					return view('admin.all_data.customer', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#carrier'){
-					return view('admin.all_data.carrier', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#consignee'){
-					return view('admin.all_data.consignee', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#shipper'){
-					return view('admin.all_data.shipper', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#load'){
-					return view('admin.all_data.loads', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}
+                $tabConfig = [
+                    '#customer' => ['view' => 'admin.all_data.customer', 'paginator' => $sortedCustomers],
+                    '#carrier' => ['view' => 'admin.all_data.carrier', 'paginator' => $external],
+                    '#consignee' => ['view' => 'admin.all_data.consignee', 'paginator' => $consignee],
+                    '#shipper' => ['view' => 'admin.all_data.shipper', 'paginator' => $shipper],
+                    '#load' => ['view' => 'admin.all_data.loads', 'paginator' => $loads],
+                ];
+                $config = $tabConfig[$request->input('tab')] ?? $tabConfig['#customer'];
+                $html = view($config['view'], compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
+                return response()->json(['html' => $html, 'pagination' => render_pagination_links($config['paginator'])]);
 			}						
 
-         return view('admin.all_data', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'));
+         return view('admin.all_data', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office', 'activeTab'));
 
     }
      /**

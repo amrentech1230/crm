@@ -1,4 +1,4 @@
-@foreach($carriers as $carrier)
+@foreach($carrier_blocked as $carrier)
 <tr>
     <td>{{$carrier->carrier_mc_ff_input}}</td>
     <td>{{$carrier->carrier_dot}}</td>

@@ -112,28 +112,28 @@ table.dataTable tbody > tr.selected td p {
 
                         <ul class="nav nav-tabs nav-tabs-custom nav-justified" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link active" data-bs-toggle="tab" href="#open" role="tab"
+                                <a class="nav-link {{ $activeTab === 'open' ? 'active' : '' }}" data-bs-toggle="tab" href="#open" role="tab"
                                     aria-selected="true">
                                     <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
                                     <span class="d-none d-sm-block">Open</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#completed" role="tab"
+                                <a class="nav-link {{ $activeTab === 'completed' ? 'active' : '' }}" data-bs-toggle="tab" href="#completed" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
                                     <span class="d-none d-sm-block">Completed</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#invoiced" role="tab"
+                                <a class="nav-link {{ $activeTab === 'invoiced' ? 'active' : '' }}" data-bs-toggle="tab" href="#invoiced" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-envelope"></i></span>
                                     <span class="d-none d-sm-block">Invoiced</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#invoiced_paid" role="tab"
+                                <a class="nav-link {{ $activeTab === 'invoiced_paid' ? 'active' : '' }}" data-bs-toggle="tab" href="#invoiced_paid" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="fas fa-cog"></i></span>
                                     <span class="d-none d-sm-block">Invoiced / Paid</span>
@@ -142,7 +142,7 @@ table.dataTable tbody > tr.selected td p {
                         </ul>
 
                         <div class="tab-content p-3 text-muted">
-                            <div class="tab-pane active" id="open" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'open' ? 'active show' : '' }}" id="open" role="tabpanel">
 
                             <button type="button" class="btn btn-primary waves-effect waves-light mb-3" data-bs-toggle="modal" data-bs-target="#exampleModal">Multiple Load PI</button>
 
@@ -190,10 +190,10 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {!! render_pagination_links($open) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="completed" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'completed' ? 'active show' : '' }}" id="completed" role="tabpanel">
                                 <table id="datatable-buttons-completed" class="table table-striped table-bordered dt-responsive nowrap accounts-table"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                     <thead>
@@ -229,10 +229,10 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination" id="completed-search">
-                                    {{ $complete->setPageName('complete')->links() }}
+                                    {!! render_pagination_links($complete) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="invoiced" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'invoiced' ? 'active show' : '' }}" id="invoiced" role="tabpanel">
                                
                                <!-- <button type="button" class="btn btn-primary waves-effect waves-light mb-3 custome-search" data-bs-toggle="modal" data-bs-target="#exampleModalinvoice">Multiple Invoice</button> -->
                                 <!-- <form id="loadSearchForm">
@@ -308,10 +308,10 @@ table.dataTable tbody > tr.selected td p {
                                     
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $invoiced->setPageName('invoiced')->links() }}
+                                    {!! render_pagination_links($invoiced) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="invoiced_paid" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'invoiced_paid' ? 'active show' : '' }}" id="invoiced_paid" role="tabpanel">
                                 <button type="button" class="btn btn-primary waves-effect waves-light mb-3">Multiple Invoice</button>
                                 <table id="datatable-buttons-invoiced_paid" class="table table-striped table-bordered dt-responsive nowrap accounts-table"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -348,7 +348,7 @@ table.dataTable tbody > tr.selected td p {
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination pagination-container">
-                                    {{ $paid->setPageName('paid')->links() }}
+                                    {!! render_pagination_links($paid) !!}
                                 </div>
                             </div>
                         </div>
@@ -366,44 +366,54 @@ table.dataTable tbody > tr.selected td p {
    $(document).on('click', '.custom-pagination a', function(e) {
     e.preventDefault();
 
-    let url = $(this).attr('href');
+    let href = $(this).attr('href');
+    if (!href) return;
 
     // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
         let resultContainer = '';
         let tableSelector = '';
+        let pageName = '';
 
         if (activeTab === '#open') {
-            resultContainer = '#open-search';
+            resultContainer = '#open-search'; pageName = 'open';
             tableSelector = '#datatable-buttons-open';
 
         } else if (activeTab === '#completed') {
-            resultContainer = '#completed-search';
+            resultContainer = '#completed-search'; pageName = 'complete';
             tableSelector = '#datatable-buttons-completed';
 
         } else if (activeTab === '#invoiced') {
-            resultContainer = '#invoiced-search';
+            resultContainer = '#invoiced-search'; pageName = 'invoiced';
             tableSelector = '#datatable-buttons-invoiced';
 
         } else if (activeTab === '#invoiced_paid') {
-            resultContainer = '#invoiced_paid-search';
+            resultContainer = '#invoiced_paid-search'; pageName = 'paid';
             tableSelector = '#datatable-buttons-invoiced_paid';
 
         } else {
             return; // Exit if it's not one of the expected tabs
         }
+    let pageUrl = new URL(href, window.location.origin);
+    let pageNumber = pageUrl.searchParams.get(pageName) || '1';
+
     $.ajax({
-        url: url,
+        url: '/account/accounting',
         type: 'GET',
+        dataType: 'json',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            page: pageNumber,
+            [pageName]: pageNumber
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
 
-            $(resultContainer).html(data);
+            $(resultContainer).html(data.html);
+            $(resultContainer).closest('.tab-pane').find('.custom-pagination')
+                .html(data.pagination || '').show();
 
             $(tableSelector).DataTable({
                 responsive: true,
@@ -413,8 +423,12 @@ table.dataTable tbody > tr.selected td p {
                 buttons: [ 'colvis' ],
             });
 
-            // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            const urlParams = new URLSearchParams();
+            urlParams.set(pageName, pageNumber);
+            window.history.pushState({}, '', '/account/accounting?' + urlParams.toString());
+        },
+        error: function(xhr) {
+            console.error("Pagination AJAX error:", xhr.status, xhr.responseText);
         }
     });
 });
@@ -565,80 +579,6 @@ $(document).ready(function() {
         });
         tables[activeTab].initialized = true;
     }
-});
-
-$(document).ready(function() {
-$('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-        const target = $(e.target).attr("href");
-        let inputSelector = '';
-        let ajaxUrl = '';
-        let resultContainer = '';
-        let tableSelector = '';
-
-        if (target === '#open') {
-            $('form.app-search .position-relative').attr('id', 'opens');
-            inputSelector = '#opens input[name="query"]';
-            ajaxUrl = '/account/accounting_open_search';
-            resultContainer = '#open-search';
-            tableSelector = '#datatable-buttons-open'; 
-
-        } else if (target === '#completed') {
-            $('form.app-search .position-relative').attr('id', 'completeds');
-            inputSelector = '#completeds input[name="query"]';
-            ajaxUrl = '/account/accounting_completed_search';
-            resultContainer = '#completed-search';
-            tableSelector = '#datatable-buttons-completed';
-
-        } else if (target === '#invoiced') {
-            $('form.app-search .position-relative').attr('id', 'invoiceds');
-            inputSelector = '#invoiceds input[name="query"]';
-            ajaxUrl = '/account/accounting_invoiced_search';
-            resultContainer = '#invoiced-search';
-            tableSelector = '#datatable-buttons-invoiced';
-
-        } else if (target === '#invoiced_paid') {
-            $('form.app-search .position-relative').attr('id', 'invoiced_paids');
-            inputSelector = '#invoiced_paids input[name="query"]';
-            ajaxUrl = '/account/accounting_invoiced_paid_search';
-            resultContainer = '#invoiced_paid-search';
-            tableSelector = '#datatable-buttons-invoiced_paid';
-
-        } else {
-            return;
-        }
-        
-        $.ajax({
-            url: ajaxUrl,
-            type: 'GET',
-            data: {
-				query: ''
-			},
-            success: function (response) {
-                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                    $(tableSelector).DataTable().destroy();
-                }
-
-                $(resultContainer).html(response);
-
-                $(tableSelector).DataTable({
-                    responsive: true,
-                    dom: 'Bfrtip',
-					pageLength: 100, 
-                    buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    searching: false,
-                    paging: false,
-                   
-                });
-
-                $('.loader-container').addClass('hide');
-            },
-            // error: function (xhr) {
-                // console.error("AJAX error:", xhr.responseText);
-                // $('.loader-container').addClass('hide');
-            // }
-        });
-            
-    });
 });
 
 $('input[name="loadquery"]').on('keyup', function () {

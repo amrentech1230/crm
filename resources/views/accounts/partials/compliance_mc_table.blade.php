@@ -7,14 +7,14 @@
     <td>{{$carrier->user?->name}}</td>
     <td>{{$carrier->created_at}}</td>
      <td>
-        <select name="mc_check" onchange="mc_check(this)" id="mc_check-{{ $carrier->id }}" class="form-control" width="100%">
+        <select name="mc_check" onchange="mc_check(this)" id="mc_check-{{ $carrier->id }}" class="form-control compliance-select" width="100%">
             <option value="" data-carrier-id="{{ $carrier->id }}">Please Select MC</option>
             <option value="Approved"  data-carrier-id="{{ $carrier->id }}" {{ $carrier->mc_check == 'Approved' ? 'selected' : '' }}>Approved</option>
             <option value="Not Approved"  data-carrier-id="{{ $carrier->id }}" {{ $carrier->mc_check == 'Not Approved' ? 'selected' : '' }}>Not Approved</option>
         </select>
     </td>
 	<td>
-		<select id="mc_setup-{{ $carrier->id }}" onchange="mc_setup(this)" name="setup" class="form-control" >
+        <select id="mc_setup-{{ $carrier->id }}" onchange="mc_setup(this)" name="setup" class="form-control compliance-select" >
 			<option value="" data-setup-id="{{ $carrier->id }}">Please Select Setup</option>
 			<option value="Online Setup" data-setup-id="{{ $carrier->id }}" {{ $carrier->setup == 'Online Setup' ? 'selected' : '' }}>Online Setup</option>
 			<option value="Manual Setup" data-setup-id="{{ $carrier->id }}" {{ $carrier->setup == 'Manual Setup' ? 'selected' : '' }}>Manual Setup</option>

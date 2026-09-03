@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Request;
 use App\Models\Log;
 use App\Models\Customer;
+use App\Models\Load;
 use Symfony\Component\Process\Process;
 
 if (!function_exists('getmacaddress')) {
@@ -130,10 +131,6 @@ if (!function_exists('get_customer_available_credit_limit')) {
 		}
 
 		$loadAmount = $customer->loads()
-			->where(function ($query) use ($customer) {
-				$query->where('customer_id', $customer->id)
-					  ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
-			})
 			->get(['shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
 			->sum(function ($load) {
 				$createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
@@ -158,6 +155,41 @@ if (!function_exists('get_customer_available_credit_limit')) {
 			});
 
 		return normalize_customer_credit_value((float) $assignedCredit - $loadAmount);
+	}
+}
+
+if (!function_exists('get_customers_available_credit_limits')) {
+	function get_customers_available_credit_limits($customers)
+	{
+		$customers = collect($customers);
+		$loadAmounts = Load::whereIn('customer_id', $customers->pluck('id')->filter())
+			->get(['customer_id', 'shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+			->groupBy('customer_id')
+			->map(function ($loads) {
+				return $loads->sum(function ($load) {
+					$createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+					$charges = json_decode($load->shipper_load_other_charge ?? '', true) ?: [];
+					$hasInvoiceFlags = collect($charges)->contains(fn ($charge) => array_key_exists('for_invoice', $charge));
+					$invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+						if ($hasInvoiceFlags && ($charge['for_invoice'] ?? 'off') !== 'on') {
+							return 0;
+						}
+						return !$hasInvoiceFlags && strtolower(trim($charge['type'] ?? '')) !== 'tyre'
+							? 0 : (float) ($charge['amount'] ?? 0);
+					});
+					return max(0.0, $createdAmount - $invoiceCharges);
+				});
+			});
+
+		return $customers->mapWithKeys(function ($customer) use ($loadAmounts) {
+			$creditLogs = json_decode($customer->remaining_credit_logs ?? '', true);
+			if (!is_array($creditLogs) || count($creditLogs) === 0) {
+				$creditLogs = json_decode($customer->credit_limit_log ?? '', true);
+			}
+			$assignedCredit = is_array($creditLogs) ? array_sum(array_column($creditLogs, 'credit_limit')) : 0;
+			$assignedCredit = $assignedCredit ?: ($customer->adv_customer_credit_limit ?: $customer->invoice_credit_limit);
+			return [$customer->id => normalize_customer_credit_value($assignedCredit - ($loadAmounts[$customer->id] ?? 0))];
+		})->all();
 	}
 }
 

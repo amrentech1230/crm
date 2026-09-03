@@ -45,8 +45,8 @@ class LoadController extends Controller
 
 		foreach ($tabs as $tab) {
 			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
+                Paginator::currentPageResolver(function ($pageName = null) use ($request, $tab) {
+                    return (int) $request->input($pageName ?: $tab, 1);
 				});
 				break; // Stop after finding the matching tab
 			}
@@ -90,28 +90,28 @@ class LoadController extends Controller
         
         $role_ids = [1, 2 ,3];
         if(in_array($role_id, $role_ids)){
-            $all_load = Load::orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->paginate(50)->setPageName('delivered');
-            $invoice = Load::where('invoice_status', 'Paid')->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->paginate(50)->setPageName('invoice_paid');
+                })->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->paginate(50, ['*'], 'delivered');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('status', 'Approved')->get();
 
         }else{
-            $all_load = Load::where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('delivered');
+                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'delivered');
             
-            $invoice = Load::where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice_paid');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('user_id', Auth::id())
                 ->where('status', 'Approved')
                 ->where(function($q) {
@@ -125,6 +125,7 @@ class LoadController extends Controller
        
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
+		$availableCredits = get_customers_available_credit_limits($customer);
 		
 		if ($request->ajax()) {
 			
@@ -144,7 +145,7 @@ class LoadController extends Controller
 				
 		}
 		
-        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType'));
+        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType', 'availableCredits'));
     }
 
     public function broker_all_load(Request $request){
