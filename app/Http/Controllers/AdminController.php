@@ -2046,25 +2046,68 @@ public function all_search(Request $request)
     public function loadUpdate(Request $request, $id)
     {
 
-    $validator = Validator::make($request->all(), [
+     $validator = Validator::make($request->all(), [
         'load_carrier_due_date_on' => 'required_if:carrier_mark_as_paid,Paid',
     ], [
         'load_carrier_due_date_on.required_if' => 'Carrier due date is required when the carrier is marked as Paid.',
     ]);
 
-    if ($validator->fails()) {
+       if ($validator->fails()) {
         return redirect()->back()
             ->withErrors($validator)   // fills $errors bag
             ->withInput()              // keeps old input
             ->with('error', $validator->errors()->first()); // also fills session('error')
     }
+        return DB::transaction(function () use ($request, $id) {
 
-// dd($request->all());
+        // dd($request->all());
         $load = Load::findOrFail($id);
 
-         if(empty($request->input('shipper_load_final_rate'))){
+        if(empty($request->input('shipper_load_final_rate'))){
             return redirect()->back()->with('error', 'please enter the Customer Final Rate');
-         }
+        }
+   
+        // ✅ VALIDATION: Check if total load creation amount would exceed the customer's effective credit limit
+        $newFinalRate = (float) $request->input('shipper_load_final_rate');
+        $oldFinalRate = (float) $load->shipper_load_final_rate;
+        $rateDifference = $newFinalRate - $oldFinalRate;
+        
+        $customer = Customer::find($load->customer_id);
+        if ($customer && $rateDifference > 0) {
+            $assignedCreditLimit = (float) ($customer->adv_customer_credit_limit ?? 0);
+            $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
+                ->where('load_status', '!=', 'Cancelled')
+                ->where('id', '!=', $load->id)
+                ->where(function ($query) {
+                    $query->where('invoice_status', '!=', 'Paid Record')
+                        ->orWhereNull('invoice_status');
+                })
+                ->sum('shipper_load_final_rate');
+
+            $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
+
+            if ($newTotalLoadAmount > $assignedCreditLimit) {
+                $availableCredit = $assignedCreditLimit - $eligibleLoadAmount;
+                return back()->with('error', "Cannot update load. Assigned credit limit is $\$assignedCreditLimit}. Load amount already counted: $\{$eligibleLoadAmount}. Available credit: $\{$availableCredit}. New load amount: $\{$newFinalRate}.");
+            }
+        }
+
+        $originalCustomerId = (int) ($load->customer_id ?? 0);
+        $newCustomerId = (int) ($request->input('customer_id') ?? 0);
+        $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
+
+        if ($originalCustomerId > 0 && $newCustomerId > 0 && $originalCustomerId !== $newCustomerId && $targetCustomer) {
+            $transferResult = $this->creditService->transferLoadCreditBetweenCustomers(
+                Customer::find($originalCustomerId),
+                $targetCustomer,
+                (float) ($request->input('shipper_load_final_rate') ?? $load->shipper_load_final_rate ?? 0),
+                (float) ($request->input('invoice_amount') ?? 0)
+            );
+
+            if (!$transferResult['allowed']) {
+                return back()->with('error', $transferResult['message']);
+            }
+        }
    
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
         ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
@@ -2074,6 +2117,8 @@ public function all_search(Request $request)
         }
 
         $oldData = json_encode($load);
+        $originalLoad = clone $load;
+        $newStatus = $request->input('load_status');
 
         // $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
             // ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
@@ -2218,7 +2263,6 @@ public function all_search(Request $request)
 				];
 			}
 		
-			
         }
 
         // Loop through the request to extract shipper data
@@ -2552,21 +2596,22 @@ public function all_search(Request $request)
         $load->carrier_mark_as_paid = $status;
 
         if ($status === 'Paid') {
-            $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on');
+            $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on') ?? ''; // or now()->format('d-m-Y') if TEXT column
         } else {
             $load->load_carrier_due_date_on = null;
         }
         $currentDateTime = Carbon::now();  // Get the current timestamp
-        if ($request->input('load_status') === 'Delivered') {
+        
+        if ($newStatus === 'Delivered') {
             // When the load status is 'Delivered', add the actual delivery date
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 'load_actual_delivery_date' => $currentDateTime,  // Current timestamp
             ];
         } else {
             // Otherwise, just update the load status
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 // Include other fields if necessary
             ];
         }
@@ -2627,20 +2672,43 @@ public function all_search(Request $request)
         }
         
         $customerId = $request->customer_id;
-        $newShipperLoadFinalRate = $request->shipper_load_final_rate;
-        $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate;
-    
+        $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
+        $oldShipperLoadFinalRate = (float) ($load->shipper_load_final_rate ?? 0);
+
         // Calculate the difference between old and new rates
         $rateDifference = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
 
-        $customer = Customer::find($customerId);
+        $customer = Customer::where('id', $customerId)->lockForUpdate()->first();
 
         if ($customer) {
-            $customer->remaining_credit -= $rateDifference;
-            $customer->remaining_credit_amount = $rateDifference; // Update remaining credit
+            $loadCreationAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('load_status', '!=', 'Cancelled')
+                ->where(function ($query) {
+                    $query->where('invoice_status', '!=', 'Paid Record')
+                        ->orWhereNull('invoice_status');
+                })
+                ->sum('shipper_load_final_rate');
+
+            $paymentReceivedAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('invoice_status', 'Paid Record')
+                ->sum('receiving_amount');
+
+            $creditSummary = app(CreditService::class)->calculateCustomerCreditSummary(
+                $customer,
+                (float) ($customer->adv_customer_credit_limit ?? 0),
+                $loadCreationAmount,
+                $paymentReceivedAmount
+            );
+
+            $customer->remaining_credit = $creditSummary['remaining_credit'];
+            $customer->remaining_credit_amount = $creditSummary['remaining_credit'];
             $customer->save();
         }
         
+        if (strcasecmp((string) $newStatus, 'Cancelled') === 0 && strcasecmp((string) $originalLoad->load_status, 'Cancelled') !== 0) {
+            $this->applyCancelledLoadAccounting($originalLoad, $load);
+        }
+
         $load->save();
 
         $newData = json_encode($load);
@@ -2650,6 +2718,7 @@ public function all_search(Request $request)
 
         return back()->with('success', 'Load updated successfully');
         
+    }); // end DB::transaction
     }
 	
 	
