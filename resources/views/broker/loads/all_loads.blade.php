@@ -132,11 +132,25 @@
 
 
 <td class="dynamic-data">
-    @if(
-        $loads->cpr_check == 'Not Approved' ||
-        $loads->cpr_check == 'Not Verified' ||
-        $loads->cpr_check == 'Not Received'
-    )
+    @php
+        $statusOptions = [
+            'Cancelled'  => '#ff4d4f',
+            'Open'       => '#74d1f0',
+            'Covered'    => 'rgb(69 7 172 / 72%)',
+            'On Route'   => 'green',
+            'Delivered'  => '#7C2B1A',
+            'Unloading'  => 'gray',
+            'Completed'  => '#3597dc',
+        ];
+
+        $cprBlocked = in_array($loads->cpr_check, ['Not Approved', 'Not Verified', 'Not Received']);
+
+        // Terminal states must always be shown, even if CPR is not approved
+        $isTerminal = in_array($loads->load_status, ['Completed', 'Cancelled']);
+    @endphp
+
+    @if($cprBlocked && !$isTerminal)
+        {{-- CPR not approved AND load is not already finished/cancelled --}}
         <select disabled>
             <option value="Open">Open</option>
         </select>
@@ -147,18 +161,8 @@
         </div>
     @else
         @php
-            $statusOptions = [
-                'Cancelled'  => '#ff4d4f',
-                'Open'       => '#74d1f0',
-                'Covered'    => 'rgb(69 7 172 / 72%)',
-                'On Route'   => 'green',
-                'Delivered'  => '#7C2B1A',
-                'Unloading'  => 'gray',
-                'Completed'  => '#3597dc',
-            ];
-
             // Disable whole dropdown if already Completed or Cancelled
-            $disableDropdown = in_array($loads->load_status, ['Completed','Cancelled']);
+            $disableDropdown = $isTerminal;
         @endphp
 
         <select
@@ -170,10 +174,9 @@
             @foreach($statusOptions as $status => $color)
 
                 @if($status === 'Completed')
-                    <option value="Completed" 
+                    <option value="Completed"
                         @if($loads->load_status === 'Completed') selected @endif
-                        @if($loads->load_status !== 'Delivered') disabled title="Please mark Delivered first" 
-                        @endif
+                        @if($loads->load_status !== 'Delivered') disabled title="Please mark Delivered first" @endif
                     >
                         Completed
                     </option>
@@ -190,7 +193,6 @@
         </select>
     @endif
 </td>
-
 
 
 

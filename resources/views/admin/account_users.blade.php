@@ -261,7 +261,7 @@ $(document).ready(function () {
 
             $(this).data('timer', wait);
         });
-    }
+    } 
 
     initializeTab();
 });
