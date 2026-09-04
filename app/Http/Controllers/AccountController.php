@@ -5510,7 +5510,7 @@ public function customerDetailsReportingExcell()
                 $headers[] = "Unloading Location $i";
             }
         
-         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Currency' ]);
+         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Payment Status','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Margin %','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Currency' ]);
 
         $outputPath = storage_path('app/load-complete-report-' . uniqid('', true) . '.csv');
         $output = fopen($outputPath, 'w');
@@ -5637,6 +5637,8 @@ public function customerDetailsReportingExcell()
 
             $sheet->setCellValue($col.$row, $formatted);
             $col++;
+            $sheet->setCellValue($col . $row, $item->carrier_mark_as_paid ?? '');
+            $col++;
             $sheet->setCellValue($col . $row, $item->load_final_carrier_fee ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->shipper_load_final_rate ?? '');
@@ -5707,6 +5709,20 @@ public function customerDetailsReportingExcell()
             $loadFinalCarrierFee = is_numeric($loadFinalCarrierFee) ? $loadFinalCarrierFee : 0;
             $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
             $sheet->setCellValue($col . $row, number_format($margin, 2));
+            $col++;
+            $shipperLoadFinalRate = floatval($shipperLoadFinalRate); 
+            $carrierFee = floatval($loadFinalCarrierFee);
+            $margin = $shipperLoadFinalRate - $carrierFee;
+
+            $marginPercentage = $shipperLoadFinalRate > 0
+                ? ($margin / $shipperLoadFinalRate) * 100
+                : 0;
+
+            $sheet->setCellValue(
+                $col . $row,
+                number_format($marginPercentage, 2) . '%'
+            );
+
             $col++;
             $sheet->setCellValue($col . $row, $item->load_workorder ?? '');
             $col++;
