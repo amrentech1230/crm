@@ -242,7 +242,7 @@ $(document).ready(function () {
                                 responsive: true,
                                 dom: 'rtip',
                                 buttons: [],            // Set to empty array instead of false
-                                pageLength: 10,         // Show 50 rows per page
+                                pageLength: 10,         // Show 10 rows per page
                                 lengthMenu: [10, 25, 50, 100] // Dropdown options
                             });
 

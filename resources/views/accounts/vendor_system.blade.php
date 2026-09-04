@@ -205,9 +205,7 @@ ul.pagination {
 </div>
         
 <div style="overflow-x: auto; overflow-y: auto; max-height: 600px; border: 1px solid #ddd; border-radius: 8px;">
-    <table
-        class="table table-striped table-bordered"
-        style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+    <table class="table table-striped table-bordered" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
         <thead>
             <tr>
                 <th>Sr No.</th>
