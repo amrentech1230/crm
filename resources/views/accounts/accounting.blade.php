@@ -17,6 +17,7 @@
     top: 10px;
 }
 
+
 #search-active .pagination-container{
     display:none !important;
 }
