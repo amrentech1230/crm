@@ -41,6 +41,7 @@ jobs:
           echo "SSH_USER=${SSH_USER:-<unset>}"
           echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
           echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
+          
                     echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
           echo "DEBUG: HOST length = $(echo -n "$SSH_HOST" | wc -c) (expected 13 for 31.97.186.171)"
           echo "DEBUG: PORT length = $(echo -n "$SSH_PORT" | wc -c) (expected 2 for 22)"
