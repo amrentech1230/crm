@@ -16,6 +16,8 @@
     z-index: 9999;
     top: 10px;
 }
+
+
 #search-active .pagination-container{
     display:none !important;
 }
