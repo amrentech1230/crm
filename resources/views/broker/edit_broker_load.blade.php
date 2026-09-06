@@ -8,7 +8,7 @@
 }
 
 #bolDownloadArea {
-    zoom: 0.8;
+    zoom: 0.85;
 }
 
     ul#navTabs,
@@ -100,7 +100,7 @@
                 <div class="card">
                     <div class="card-body">
 
-                        <form method="POST" action="{{ route('broker.load.update', $post->id) }}" id="myFormLoad" enctype="multipart/form-data">
+                        <form method="POST" action="{{ route('broker.load.update', encrypt($post->id)) }}" id="myFormLoad" enctype="multipart/form-data">
                         @csrf
                         <div class="card-header">
                             <h3 class="card-title"
@@ -119,12 +119,92 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <input type="text" id="load_bill_to" name="load_bill_to" class="form-control" value="{{ $post->load_bill_to }}" readonly autocomplete="off" placeholder="Customer name">
+                                        <select id="load_bill_to" name="load_bill_to" class="form-control mySelect2" data-placeholder="Select Customer" required>
+                                            <option value="">Select Customer</option>
+                                            @foreach($allCustomers as $customerOption)
+                                                <option value="{{ $customerOption->customer_name }}" 
+                                                    data-id="{{ $customerOption->id }}"
+                                                    data-available-credit="{{ (float) get_customer_available_credit_limit($customerOption) }}"
+                                                    data-remaining-credit="{{ (float) ($customerOption->remaining_credit ?? 0) }}"
+                                                    data-invoice-credit-limit="{{ (float) ($customerOption->invoice_credit_limit ?? 0) }}"
+                                                    {{ $post->load_bill_to == $customerOption->customer_name ? 'selected' : '' }}>
+                                                    {{ $customerOption->customer_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
 
                                 <input type="hidden" id="customer_id" name="customer_id" class="form-control" value="{{ $post->customer_id }}">
                                 <input type="hidden" id="customer_name" name="customer_name" class="form-control" value="{{ $post->load_bill_to }}">
+
+                                <script>
+                                    $(document).ready(function () {
+                                        var originalCustomerId = '{{ $post->customer_id }}';
+                                        
+                                        if ($.fn.select2) {
+                                            $('#load_bill_to').select2({
+                                                placeholder: 'Select Customer',
+                                                allowClear: true
+                                            });
+                                        }
+
+                                        $('#load_bill_to').on('change', function () {
+                                            var selectedCustomer = $(this).find('option:selected');
+                                            var customerId = selectedCustomer.data('id');
+                                            var customerName = selectedCustomer.val();
+
+                                            $('#customer_id').val(customerId || '');
+                                            $('#customer_name').val(customerName || '');
+                                            
+                                            // Update credit limits for the form validation
+                                            currentInvoiceLimit = parseFloat(selectedCustomer.data('invoice-credit-limit')) || 0;
+                                            currentRemainingLimit = parseFloat(selectedCustomer.data('remaining-credit')) || 0;
+                                            
+                                            // Validate credit when customer changes
+                                            validateBrokerCustomerCredit(customerId, originalCustomerId);
+                                            
+                                            // Revalidate charges with new customer's limits
+                                            validateCustomerChargeLimits(null);
+                                        });
+                                        
+                                        // Validate on page load
+                                        validateBrokerCustomerCredit(originalCustomerId, originalCustomerId);
+                                    });
+                                    
+                                    function validateBrokerCustomerCredit(selectedCustomerId, originalCustomerId) {
+                                        var selectedOption = $('#load_bill_to').find('option:selected');
+                                        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+                                        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+                                        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+                                        var $message = $('#creditlimitcheck');
+
+                                        if (!selectedCustomerId || !finalRate || finalRate <= 0) {
+                                            $message.html('');
+                                            return;
+                                        }
+
+                                        // If customer changed to a NEW one
+                                        if (selectedCustomerId && selectedCustomerId != originalCustomerId) {
+                                            if (finalRate > availableCredit) {
+                                                var shortage = finalRate - availableCredit;
+                                                $message.html('<small style="color: #dc3545; font-weight: 600;">⚠️ New Customer - Insufficient Credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</small>');
+                                            } else {
+                                                var available = availableCredit - finalRate;
+                                                $message.html('<small style="color: #28a745; font-weight: 600;">✓ New Customer - Credit OK! Available after: $' + available.toFixed(2) + '</small>');
+                                            }
+                                        } else if (selectedCustomerId == originalCustomerId) {
+                                            // Same customer - normal validation
+                                            if (finalRate > availableCredit) {
+                                                var shortage = finalRate - availableCredit;
+                                                $message.html('<small style="color: #dc3545; font-weight: 600;">⚠️ Insufficient Credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</small>');
+                                            } else {
+                                                var available = availableCredit - finalRate;
+                                                $message.html('<small style="color: #0c7ce6; font-weight: 600;">✓ Available: $' + available.toFixed(2) + '</small>');
+                                            }
+                                        }
+                                    }
+                                </script>
 
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
@@ -194,7 +274,7 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Shipment Type<code>*</code></label>
-                                        <select class="form-control" required name="load_type" style="width: 100%;">
+                                        <select class="form-control" required name="load_type" id="load_type" style="width: 100%;">
                                             <option value="">Select Shipment Type</option>
                                             @foreach($shipmentType as $shipment)
                                             <option value="{{$shipment->name}}" {{ $post->load_type == $shipment->name ? 'selected' : '' }}>{{$shipment->name}}</option>
@@ -243,8 +323,15 @@
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
-                                            autocomplete="off" id="load_shipper_rate" required style="width: 100%;">
+                                        <input type="number"
+    class="form-control number value"
+    name="load_shipper_rate"
+    value="{{ $post->load_shipper_rate }}"
+    autocomplete="off"
+    id="load_shipper_rate"
+    required
+    {{ $post->cpr_check == 'Verified' ? 'readonly' : '' }}
+    style="width: 100%;">
                                         
                                     </div>
                                 </div>
@@ -450,7 +537,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                         <label>Carrier Rate
                                             <code>*</code></label>
                                         <input type="text" class="form-control" id="load_carrier_fee"
-                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required>
+                                            name="load_carrier_fee" required autocomplete="off"  value="{{ $post->load_carrier_fee }}" required @if($post->cpr_check == 'Verified') readonly @endif>
                                         <span id="error_load_carrier_fee" style="color: red;font-size: 9px !important; display: none;">Only numbers
                                             and decimals allowed</span>
                                     </div>
@@ -459,7 +546,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                     <div class="form-group">
                                         <label>FSC Rate %</label>
                                         <input type="number" name="load_billing_fsc_rate" id="load_billing_fsc_rate"
-                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required>
+                                            class="form-control" autocomplete="off" value="{{ $post->load_billing_fsc_rate }}" style="width: 100%;" required @if($post->cpr_check == 'Verified') readonly @endif>
                                     </div>
                                 </div>
                                 @php
@@ -1206,6 +1293,10 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                         Edit
                     </button>
 
+                    <button type="button" class="btn btn-success d-none" id="saveBolBtn" onclick="saveBOL()">
+                        Save
+                    </button>
+
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
@@ -1221,10 +1312,16 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
 
 <div class="col-md-8">
 
-    @php
-        $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-        $logoBase64 = base64_encode(file_get_contents($logoUrl));
-    @endphp
+                               @php
+                                    $logoPath = public_path('images/cargo.png');
+
+                                    if (file_exists($logoPath)) {
+                                        $logoBase64 = base64_encode(file_get_contents($logoPath));
+                                    } else {
+                                        $logoBase64 = '';
+                                        // Optional: dd($logoPath); // Check the resolved path
+                                    }
+                                @endphp
 
     <div style="
         display:flex;
@@ -1238,18 +1335,18 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                 src="data:image/png;base64,{{ $logoBase64 }}"
                 alt="logo"
                 style="
-                    width:150px;
+                    width:80px;
                     display:block;
                 "
             >
         </div>
 
         <!-- Content -->
-        <div style="line-height:1.3;">
+        <div style="line-height:1.5;">
 
             <h3 style="
-                margin:0 0 6px 0;
-                font-size:32px;
+                margin:0 0 4px 0;
+                font-size:24px;
                 font-weight:700;
                 letter-spacing:0.5px;
             ">
@@ -1257,7 +1354,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </h3>
 
             <div style="
-                font-size:18px;
+                font-size:13px;
                 color:#333;
             ">
                 7119 PENNSYLVANIA AVE,<br>
@@ -1265,11 +1362,11 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
             </div>
 
             <div style="
-                margin-top:6px;
-                font-size:18px;
+                margin-top:4px;
+                font-size:13px;
                 font-weight:500;
             ">
-                Phone: 267-513-0420
+                Phone: +1 (267) 513-0604
             </div>
 
         </div>
@@ -1284,7 +1381,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>Load Number</th>
                                     <td>
-                                        <input name="load_number" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
+                                            data-field="load_number"
                                             value="{{ $post->load_number }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1293,7 +1391,8 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                 <tr>
                                     <th>BOL Number</th>
                                     <td>
-                                        <input name="load_workorder" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
+                                            data-field="bol_number"
                                             value="{{ $post->load_workorder ?? '' }}" style="font-weight: 900; color: #555;"
                                             readonly>
                                     </td>
@@ -1306,7 +1405,7 @@ $readonly = ($post->cpr_check == 'Verified') ? 'readonly' : '';
                                             json_decode($post->load_shipper_appointment,true);
                                         @endphp
                                     <td>
-                                        <input name="ship_date" class="editable-field border-0 w-100"
+                                        <input class="editable-field border-0 w-100"
                                             value="{{ isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '' }}"
                                             readonly style="font-weight: 900; color: #555;">
                                     </td>
@@ -1335,7 +1434,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 }
 @endphp
 
-<input name="delivery_date" class="editable-field border-0 w-100"
+<input class="editable-field border-0 w-100"
     value="{{ $formattedDate }}" style="font-weight: 900; color: #555;"
     readonly>
                                     </td>
@@ -1373,7 +1472,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 @endphp
 
 <textarea class="form-control editable-field border-0"
-<textarea name="shipper_info" class="form-control editable-field border-0"
+    data-field="shipper"
     rows="6"
     readonly>{{ trim($shipperText) }}</textarea>
                             </div>
@@ -1401,7 +1500,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
         }
     }
 @endphp
-                                <textarea name="consignee_info" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
+                                    data-field="consignee"
                                     rows="5"
                                     readonly>{{ trim($consigneeText) }}</textarea>
                             </div>
@@ -1416,7 +1516,7 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                             <div class="border p-3 h-100">
                                 <h6 class="fw-bold">3rd Party Billing</h6>
 
-                                <textarea name="third_party_billing" class="form-control editable-field border-0"
+                                <textarea class="form-control editable-field border-0"
                                     rows="5"
                                     readonly></textarea>
                             </div>
@@ -1427,8 +1527,8 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                                 <h6 class="fw-bold">Transportation Company</h6>
 
                                 <textarea class="form-control editable-field border-0"
-                                <textarea name="transportation_company" class="form-control editable-field border-0"
                                 rows="5"
+                                data-field="carrier_name"
                                 readonly>{{ "MC #: " . ($post->load_mc_no ?? '') . "\n\nCarrier Name: " . ($post->load_carrier ?? '') }}</textarea>
                             </div>
                         </div>
@@ -1458,21 +1558,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <td>
                 <input type="text"
-                <input name="freight[0][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit 1">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][description]" type="text"
                     class="form-control editable-field"
                     placeholder="Description">
             </td>
 
             <td>
                 <input type="number"
-                <input name="freight[0][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
                     onkeyup="updateTotals()"
@@ -1481,21 +1578,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
             <td>
                 <input type="text"
-                <input name="freight[0][type]" type="text"
                     class="form-control editable-field"
                     placeholder="Type">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][nmfc]" type="text"
                     class="form-control editable-field"
                     placeholder="NMFC">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[0][hm]" type="text"
                     class="form-control editable-field"
                     placeholder="HM">
             </td>
@@ -1505,7 +1599,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <div class="d-flex gap-2">
 
                     <input type="text"
-                    <input name="freight[0][class]" type="text"
                         class="form-control editable-field"
                         placeholder="Class">
 
@@ -1576,7 +1669,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
             <h6 class="fw-bold mb-2">Notes:</h6>
 
             <textarea class="form-control editable-field border-0"
-            <textarea name="notes" class="form-control editable-field border-0"
                 rows="7"
                 readonly>{{ $post->notes ?? '' }}</textarea>
 
@@ -1590,7 +1682,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Amount:</strong> <input type="text"
-                        <strong>C.O.D. Amount:</strong> <input name="cod_amount" type="text"
                 class="form-control editable-field border-0" value="$0.00"
                 readonly>
                     </td>
@@ -1599,7 +1690,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>C.O.D. Fee:</strong> <input type="text"
-                        <strong>C.O.D. Fee:</strong> <input name="cod_fee" type="text"
                 class="form-control editable-field border-0" value="Collect"
                 readonly>
                     </td>
@@ -1608,7 +1698,6 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
                 <tr>
                     <td>
                         <strong>Declared Value:</strong> <input type="text"
-                        <strong>Declared Value:</strong> <input name="declared_value" type="text"
                 class="form-control editable-field border-0" value=" $0.00"
                 readonly>
                     </td>
@@ -1657,21 +1746,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         <td>
             <input type="text"
-            <input name="shipper_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="carrier_signature" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="signature_date" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
@@ -1700,21 +1786,18 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 
         <td>
             <input type="text"
-            <input name="shipper_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="carrier_per" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
 
         <td>
             <input type="text"
-            <input name="signature_time" type="text"
                 class="form-control editable-field border-0"
                 readonly>
         </td>
@@ -1735,25 +1818,21 @@ if ($consignee_appointment && isset($consignee_appointment[0]['appointment'])) {
 <tr>
     <td>
         <input type="text"
-        <input name="consignee_name_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_date_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_signature" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
         <td>
         <input type="text"
-        <input name="consignee_pieces_received" type="text"
             class="form-control editable-field border-0"
             readonly>
     </td>
@@ -2026,9 +2105,91 @@ $(document).ready(function () {
 </script>
 <script>
 
+let currentInvoiceLimit = {{ (float) ($loadCustomer->invoice_credit_limit ?? 0) }};
+let currentRemainingLimit = {{ (float) ($loadCustomer->remaining_credit ?? 0) }};
+const oldInvoiceChargeTotal = {{ (float) $invoicechargestotal }};
+const oldFinalRate = {{ (float) ($post->shipper_load_final_rate ?? 0) }};
+const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
+
     $(document).ready(function () {
-        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-            e.preventDefault();
+        function showCreditLimitError(message) {
+            $('#mc-error-message').text(message).stop(true, true).fadeIn();
+            $('#creditlimitcheck').html('<small style="color: #dc3545; font-weight: 600;">' + message + '</small>');
+        }
+
+        function clearCreditLimitError() {
+            $('#mc-error-message').text('').stop(true, true).fadeOut();
+        }
+
+        function validateCustomerChargeLimits(source) {
+            let invoiceTotal = 0;
+            let totalCharges = 0;
+
+            $('.shipperchargeAmount').each(function () {
+                const amount = parseFloat($(this).val()) || 0;
+                totalCharges += amount;
+                if ($(this).closest('.row').find('.for_invoice').is(':checked')) {
+                    invoiceTotal += amount;
+                }
+            });
+
+            const availableForEditedLoad = Math.max(0, currentInvoiceLimit + oldInvoiceChargeTotal);
+            const availableRemainingForEditedLoad = Math.max(0, currentRemainingLimit + oldRemainingUsed);
+            const loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            const loadFscAmount = (parseFloat($('#load_fsc_rate').val()) || 0) * loadShipperRate / 100;
+            const newRemainingUsed = loadShipperRate + loadFscAmount + totalCharges - invoiceTotal;
+
+            if (invoiceTotal > availableForEditedLoad + 0.001) {
+                const $source = $(source);
+                if ($source.hasClass('for_invoice')) {
+                    $source.prop('checked', false);
+                    $source.closest('.row').find('.shipperchargeAmount').val('0').trigger('input');
+                } else if ($source.hasClass('shipperchargeAmount')) {
+                    $source.val('0');
+                    $source.trigger('input');
+                }
+
+                showCreditLimitError(
+                    'Insufficient invoice credit limit. Available invoice limit: $' + availableForEditedLoad.toFixed(2)
+                );
+                return false;
+            }
+
+            if (newRemainingUsed > availableRemainingForEditedLoad + 0.001) {
+                const $source = $(source);
+                if ($source.hasClass('shipperchargeAmount') && !$source.closest('.row').find('.for_invoice').is(':checked')) {
+                    $source.val('0');
+                    $source.trigger('input');
+                }
+
+                showCreditLimitError(
+                    'Insufficient remaining credit limit. Available remaining limit: $' + availableRemainingForEditedLoad.toFixed(2)
+                );
+                return false;
+            }
+
+            clearCreditLimitError();
+            return true;
+        }
+
+        $(document).on('input change', '.shipperchargeAmount, .for_invoice', function () {
+            validateCustomerChargeLimits(this);
+        });
+
+        $('#myFormLoad').on('submit', function (event) {
+            if (!validateCustomerChargeLimits(null)) {
+                event.preventDefault();
+            }
+        });
+
+        $('#shipper_load_final_rate').on('keydown paste input change', function (e) {
+            if (e.type === 'keydown' || e.type === 'paste') {
+                e.preventDefault();
+            }
+            // Validate credit when rate changes
+            var originalCustomerId = '{{ $post->customer_id }}';
+            var selectedCustomerId = $('#load_bill_to').find('option:selected').data('id');
+            validateBrokerCustomerCredit(selectedCustomerId, originalCustomerId);
         });
     });
 
@@ -2078,33 +2239,37 @@ $(document).ready(function () {
                 total += loadShipperRate;
 
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
-                total += (loadFscRate / 100) * loadShipperRate;
+                var fscAmount = (loadFscRate / 100) * loadShipperRate;
+                total += fscAmount;
 
                 $('#shipper_load_final_rate').val(total.toFixed(2));
 
-                var final_total_rate = parseFloat(total) - parseFloat($('#old_shipper_load_final_rate').val());
+                // Display credit deduction breakdown
+                displayCreditDeduction(loadShipperRate, fscAmount, total);
 
                 var customer_id = $('#customer_id').val();
 
                 var checkedtotal = checkedvalueshipper();
-
-                var finalrate = final_total_rate - checkedtotal;
+                var newRemainingUsed = total - checkedtotal;
+                var invoiceIncrease = Math.max(0, checkedtotal - oldInvoiceChargeTotal);
+                var remainingIncrease = Math.max(0, newRemainingUsed - oldRemainingUsed);
                 
                  $.ajax({
                         url: '{{ route('edit.check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
-                            customer_id: "{{$post->customer_id }}",
-                            finalrate: finalrate,
-                            checkedtotal:checkedtotal,
+                            customer_id: $('#customer_id').val() || "{{$post->customer_id }}",
+                            finalrate: remainingIncrease + invoiceIncrease,
+                            invoice_amount: invoiceIncrease,
+                            remaining_amount: remainingIncrease,
                             _token: '{{ csrf_token() }}'
                         },  
                         success: function(response) {
                           
-                            if (response.success) {
+                               if (response.success) {
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
+                                   showInvoiceLimitError(response.message);
 
                                 // Hide after 10 seconds
                                 setTimeout(function() {
@@ -2118,6 +2283,42 @@ $(document).ready(function () {
                         
                     });
 
+            }
+
+            function displayCreditDeduction(baseRate, fscAmount, totalDeduction) {
+                var $creditDisplay = $('#creditlimitcheck');
+                if (!$creditDisplay.length) return;
+
+                // Calculate Non-Invoice Charges (For Invoice unchecked)
+                var nonInvoiceCharges = 0;
+                $('.shipperchargeAmount').each(function (index) {
+                    var amount = parseFloat($(this).val()) || 0;
+                    var isInvoice = $('[name="for_invoice[' + index + ']"]').is(':checked');
+                    if (!isInvoice && amount > 0) {
+                        nonInvoiceCharges += amount;
+                    }
+                });
+
+                var deductionBreakdown = 'Base: $' + parseFloat(baseRate || 0).toFixed(2);
+                if (fscAmount > 0) {
+                    deductionBreakdown += ' + F.S.C: $' + parseFloat(fscAmount || 0).toFixed(2);
+                }
+                if (nonInvoiceCharges > 0) {
+                    deductionBreakdown += ' + Charges: $' + parseFloat(nonInvoiceCharges || 0).toFixed(2);
+                }
+                // var displayText = 'Final Deduction: $' + parseFloat(totalDeduction || 0).toFixed(2) + ' (' + deductionBreakdown + ')';
+
+                $creditDisplay.html('<small style="color: #0066cc; font-weight: 500;">' + displayText + '</small>');
+
+                // Log detailed calculations to console for background tracking
+                var fscRate = parseFloat($('#load_fsc_rate').val() || 0);
+                console.log('Credit Deduction Breakdown:', {
+                    'Base Rate': '$' + parseFloat(baseRate || 0).toFixed(2),
+                    'FSC Rate %': fscRate + '%',
+                    'FSC Amount': '$' + parseFloat(fscAmount || 0).toFixed(2),
+                    'Non-Invoice Charges': '$' + parseFloat(nonInvoiceCharges || 0).toFixed(2),
+                    'Total Final Rate': '$' + parseFloat(totalDeduction || 0).toFixed(2)
+                });
             }
 
             $(document).on('input', '.shipperchargeAmount, #load_shipper_rate, #load_fsc_rate',
@@ -2194,36 +2395,67 @@ $(document).ready(function () {
 
 $(document).ready(function () {
     const $loadType = $('#load_type_two');
+    const $shippmentloadType = $('#load_type');
 
     function RestrictionOTR() {
        
         if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
+            // $('#load_shipper_rate').removeAttr('readonly');
+            // $('#load_fsc_rate').removeAttr('readonly');
+            // $('#load_carrier_fee').removeAttr('readonly');
+            // $('#load_billing_fsc_rate').removeAttr('readonly');
         }
     }
+
+    // function RestrictionOTRonload() {
+    //     const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+
+    //     if ($loadType.val() === "OTR") {
+    //         $('#load_shipper_rate').removeAttr('readonly');
+    //         $('#load_fsc_rate').removeAttr('readonly');
+    //         $('#load_carrier_fee').removeAttr('readonly');
+    //         $('#load_billing_fsc_rate').removeAttr('readonly');
+    //     } else if ($loadType.val() === "DRAYAGE") {
+    //         if (shipperRate > 0) {
+    //             $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+
+	// 			$('#load_shipper_rate').attr('readonly', true);
+	// 			$('#load_fsc_rate').attr('readonly', true);
+	// 			$('#load_carrier_fee').attr('readonly', true);
+	// 			$('#load_billing_fsc_rate').attr('readonly', true);
+    //         }
+    //     }
+    // }
 
     function RestrictionOTRonload() {
-        const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const shipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
+    const loadTypeVal = $loadType.val();
+    const shippmentloadTypeVal = $shippmentloadType.val();
 
-        if ($loadType.val() === "OTR") {
-            $('#load_shipper_rate').removeAttr('readonly');
-            $('#load_fsc_rate').removeAttr('readonly');
-            $('#load_carrier_fee').removeAttr('readonly');
-            $('#load_billing_fsc_rate').removeAttr('readonly');
-        } else if ($loadType.val() === "DRAYAGE") {
-            if (shipperRate > 0) {
-                $loadType.attr('readonly', true).css('pointer-events', 'none').css('background-color', '#e9ecef');
+    if (loadTypeVal === "OTR") {
+        // $('#load_shipper_rate').removeAttr('readonly');
+        // $('#load_fsc_rate').removeAttr('readonly');
+        // $('#load_carrier_fee').removeAttr('readonly');
+        // $('#load_billing_fsc_rate').removeAttr('readonly');
 
-				$('#load_shipper_rate').attr('readonly', true);
-				$('#load_fsc_rate').attr('readonly', true);
-				$('#load_carrier_fee').attr('readonly', true);
-				$('#load_billing_fsc_rate').attr('readonly', true);
-            }
+    } else if (shippmentloadTypeVal === "TONU") {
+        // Allow editing shipper rate for TONU
+        $('#load_shipper_rate').removeAttr('readonly');
+
+    } else if (loadTypeVal === "DRAYAGE") {
+        if (shipperRate > 0) {
+            $loadType
+                .attr('readonly', true)
+                .css('pointer-events', 'none')
+                .css('background-color', '#e9ecef');
+
+            // $('#load_shipper_rate').attr('readonly', true);
+            // $('#load_fsc_rate').attr('readonly', true);
+            // $('#load_carrier_fee').attr('readonly', true);
+            // $('#load_billing_fsc_rate').attr('readonly', true);
         }
     }
+}
 
     RestrictionOTRonload();
 
@@ -2489,7 +2721,7 @@ $(document).ready(function() {
 $(document).on('change', 'input[name^="load_consignee_appointment_"]', function () {
 
     let deliveryInput = $(this);
-    let row = deliveryInput.closest('.row'); 
+    let row = deliveryInput.closest('.row');
 
     let pickupInput = row.find('input[name^="load_shipper_appointment_"]');
 
@@ -2501,8 +2733,9 @@ $(document).on('change', 'input[name^="load_consignee_appointment_"]', function 
         let pickupDate = new Date(pickupValue);
         let deliveryDate = new Date(deliveryValue);
 
-        if (deliveryDate < pickupDate) {
-            alert("Delivery date & time cannot be earlier than Pickup date & time.");
+        // Delivery must be greater than pickup
+        if (deliveryDate <= pickupDate) {
+            alert("Delivery date & time must be later than Pickup date & time.");
             deliveryInput.val('');
         }
     }
@@ -2524,7 +2757,7 @@ $(document).on('change', 'input[name^="load_shipper_appointment_"]', function ()
 </script>
 
 <!-- html2pdf -->
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 
@@ -2539,12 +2772,52 @@ function enableEdit() {
 
     });
 
+    // Show the Save button (saves to session for PDF download)
+    document.getElementById('saveBolBtn').classList.remove('d-none');
+
 }
 
 </script>
 
 <script>
 
+function saveBOL() {
+    var bolData = {};
+    
+    document.querySelectorAll('.editable-field').forEach(function(el) {
+        var fieldName = el.getAttribute('data-field') || el.getAttribute('name') || el.id || ('field_' + Math.random());
+        if (fieldName) {
+            bolData[fieldName] = el.value;
+        }
+    });
+
+    // Store in session via AJAX (not in DB)
+    $.ajax({
+        url: '/broker/load/{{ $post->id }}/bol/save',
+        method: 'POST',
+        data: {
+            bol_data: bolData,
+            _token: '{{ csrf_token() }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                alert('BOL data saved for PDF download!');
+                document.getElementById('saveBolBtn').classList.add('d-none');
+                document.querySelectorAll('.editable-field').forEach(function(el) {
+                    el.setAttribute('readonly', true);
+                    el.style.border = 'none';
+                });
+            }
+        },
+        error: function(xhr) {
+            alert('Error saving BOL data. Please try again.');
+        }
+    });
+}
+
+</script>
+
+<script>
 function addFreightRow() {
 
     let tableBody = document.getElementById('freightTableBody');
@@ -2556,21 +2829,18 @@ function addFreightRow() {
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][pieces]" type="text"
                     class="form-control editable-field unit-number"
                     value="#Unit ${rowCount}">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][description]" type="text"
                     class="form-control editable-field"
                     placeholder="Description">
             </td>
 
             <td>
                 <input type="number"
-                <input name="freight[${rowCount-1}][weight]" type="number"
                     class="form-control editable-field weight-field"
                     placeholder="Weight"
                     onkeyup="updateTotals()"
@@ -2579,21 +2849,18 @@ function addFreightRow() {
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][type]" type="text"
                     class="form-control editable-field"
                     placeholder="Type">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][nmfc]" type="text"
                     class="form-control editable-field"
                     placeholder="NMFC">
             </td>
 
             <td>
                 <input type="text"
-                <input name="freight[${rowCount-1}][hm]" type="text"
                     class="form-control editable-field"
                     placeholder="HM">
             </td>
@@ -2603,7 +2870,6 @@ function addFreightRow() {
                 <div class="d-flex gap-2">
 
                     <input type="text"
-                    <input name="freight[${rowCount-1}][class]" type="text"
                         class="form-control editable-field"
                         placeholder="Class">
 
@@ -2686,42 +2952,64 @@ updateTotals();
 
 async function downloadBOL() {
 
-    const bolArea = document.getElementById('bolDownloadArea');
-    const fields = bolArea.querySelectorAll('input, textarea');
+    // Hide buttons/elements that shouldn't appear in PDF
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = 'none');
 
-    // Create a new hidden form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = "{{ route('broker.load.bol.pdf', $post->id) }}";
-    form.style.display = 'none'; // Hide the form
-
-    // Add CSRF token
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = '{{ csrf_token() }}';
-    form.appendChild(csrfToken);
-
-    // Append all input/textarea values from the modal to the form
-    fields.forEach(field => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = field.name;
-        input.value = field.value;
-        form.appendChild(input);
+    var element = document.getElementById('bolDownloadArea');
+    
+    // Temporarily override styles for clean PDF output
+    element.style.zoom = '1';
+    element.style.padding = '0';
+    element.style.margin = '0';
+    
+    // Replace input/textarea values with plain text for clean PDF
+    var inputs = element.querySelectorAll('input.editable-field, textarea.editable-field');
+    var originals = [];
+    inputs.forEach(function(input) {
+        var span = document.createElement('span');
+        span.className = 'pdf-temp-value';
+        span.style.display = 'block';
+        span.style.minHeight = '20px';
+        span.style.padding = '2px 4px';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = '600';
+        span.style.color = '#333';
+        span.style.whiteSpace = 'pre-wrap';
+        span.style.wordBreak = 'break-word';
+        span.textContent = input.value || '';
+        originals.push({ input: input, parent: input.parentNode, next: input.nextSibling });
+        input.parentNode.replaceChild(span, input);
     });
 
-    // Append the form to the body and submit it
-    document.body.appendChild(form);
-    form.submit();
+    var opt = {
+        margin:       [5, 8, 5, 8],
+        filename:     'BOL-{{ $post->load_number }}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
-    // Clean up: remove the form after submission
-    document.body.removeChild(form);
+    await html2pdf().set(opt).from(element).save();
+
+    // Restore original inputs
+    originals.forEach(function(item) {
+        var spans = item.parent ? item.parent.querySelectorAll('.pdf-temp-value') : [];
+        spans.forEach(function(span) {
+            span.parentNode.replaceChild(item.input, span);
+        });
+    });
+
+    // Restore styles
+    element.style.zoom = '0.8';
+    element.style.padding = '20px';
+    
+    // Restore hidden elements
+    document.querySelectorAll('.pdf-hide').forEach(el => el.style.display = '');
 
 }
 
 </script>
-
 
 <style>
 
@@ -2730,38 +3018,44 @@ async function downloadBOL() {
     background:#fff;
     color:#222;
     font-family:Arial, sans-serif;
-    padding:20px;
+    padding:15px;
+    font-size:12px;
+    line-height:1.4;
 }
 
 #bolDownloadArea table{
     width:100%;
     border-collapse:collapse;
+    margin-bottom:10px;
 }
 
 #bolDownloadArea th{
     background:#f3f3f3;
     font-weight:700;
-    font-size:13px;
+    font-size:11px;
     text-transform:uppercase;
-    letter-spacing:.5px;
+    letter-spacing:.3px;
+    padding:6px 8px;
 }
 
 #bolDownloadArea th,
 #bolDownloadArea td{
     border:1px solid #000 !important;
-    padding:8px;
+    padding:6px 8px;
     vertical-align:top;
-    font-size:13px;
+    font-size:12px;
 }
 
 #bolDownloadArea h3{
     color:#111;
     font-weight:800;
+    font-size:22px;
+    margin:0 0 4px 0;
 }
 
 #bolDownloadArea h6{
-    font-size:15px;
-    margin-bottom:10px;
+    font-size:13px;
+    margin-bottom:6px;
     font-weight:700;
 }
 
@@ -2769,12 +3063,25 @@ async function downloadBOL() {
 #bolDownloadArea input{
     background:transparent !important;
     box-shadow:none !important;
-    font-size:13px;
+    font-size:12px;
     color:#333;
+    border:none !important;
+    padding:2px 4px;
+    font-weight:600;
 }
 
 #bolDownloadArea .border{
     border:1px solid #000 !important;
+}
+
+#bolDownloadArea .row{
+    margin-bottom:8px;
+}
+
+#bolDownloadArea .col-md-6,
+#bolDownloadArea .col-md-8,
+#bolDownloadArea .col-md-4{
+    padding:4px 8px;
 }
 
 .table-grey th{

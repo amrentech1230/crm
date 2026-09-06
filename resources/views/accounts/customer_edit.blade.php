@@ -86,7 +86,15 @@
                                     name="customer_mc_ff_input"
                                     value="{{ $customer->customer_mc_ff }} {{ $customer->customer_mc_ff_input }}"
                                     >
-                                
+                                 <!-- <label for="customer_mc_ff">MC# / FF#</label>
+                                 <div class="d-flex">
+                                    <select class="form-control select2 mr-2" id="customer_mc_ff" name="customer_mc_ff">
+                                       <option value="NA" {{ $customer->customer_mc_ff == 'NA' || $customer->customer_mc_ff == '' ? 'selected' : '' }}>NA</option>
+                                       <option value="MC" {{ $customer->customer_mc_ff == 'MC' ? 'selected' : '' }}>MC</option>
+                                       <option value="FF" {{ $customer->customer_mc_ff == 'FF' ? 'selected' : '' }}>FF</option>
+                                    </select>
+                                    <input type="text" class="form-control select2" id="customer_mc_ff_input" name="customer_mc_ff_input" value="{{ $customer->customer_mc_ff_input }}">
+                                 </div> -->
                               </div>
                            </div>
                            <div class="col-md-3">
@@ -187,7 +195,7 @@
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
                                  <label>Approved Credit Limits (OTR)</label>
-                                 <input class="form-control" type="number" value="{{ $customer->approved_limit }}" name="approved_limit" style="width: 100%;height:30px !important;padding: 0px 0 0 10px;">
+                                 <input class="form-control" type="number" value="{{ $customer->approved_limit }}" name="approved_limit" style="width: 100%;height:30px !important;padding: 0px 0 0 10px;" readonly>
                                    
                                 </div>
                            </div>
@@ -203,10 +211,8 @@
                            </div>
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
-                                 <label for="used_amount">Total Exhausted Limit
-                                 
-                              </label>
-                                 <input type="text" class="form-control" id="used_amount" name="used_amount" value="{{ $pendingpayment }}" required readonly>
+                                 <label for="used_amount">Total Exhausted Limit</label>
+                                 <input type="text" class="form-control" id="total_exhausted_limit" name="used_amount" value="{{ number_format((float) ($totalExhaustedLimit ?? $usedAmount ?? 0), 2, '.', '') }}" required readonly>
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -214,8 +220,8 @@
                                  <label for="remaining_credit">Remaining Credit Limit
                                  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#assigned-credit-remaing"></i>
                               </label>
-                                 <input type="text" class="form-control" id="remaining_credit" name="remaining_credit" value="{{ $customer->remaining_credit }}" required readonly>
-                                 <input type="hidden" class="form-control" id="remaining_credit_new" name="remaining_credit_new" value="{{ $customer->remaining_credit }}" required readonly>
+                                 <input type="text" class="form-control" id="remaining_credit" name="remaining_credit" value="{{ $remainingCredit }}" required readonly>
+                                 <input type="hidden" class="form-control" id="remaining_credit_new" name="remaining_credit_new" value="{{ $remainingCredit }}" required readonly>
                              
                              </div>
                            </div>
@@ -257,7 +263,7 @@
                               <div class="form-group">
                                  <label>Total load Creation Amount<code>*</code></label>
 
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ $loadcreateamount }}">
+                                 <input type="text" class="form-control" readonly id="total_load_creation_amount" value="{{ number_format((float) $loadcreateamount, 2, '.', '') }}">
                               </div>
                            </div>
                            <div class="col-md-3 mt-2">
@@ -265,33 +271,63 @@
                                  <label>Total Payment Received<code>*</code>
                                  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#paymentmarkedlist"></i>
                               </label>
-                                 <input type="text" class="form-control" readonly id="total_load_create_amount" value="{{ $receiving_amount }}">
+                                 <input type="text" class="form-control" readonly id="total_payment_received" value="{{ number_format((float) $receiving_amount, 2, '.', '') }}">
                               </div>
                            </div>
 
                            <div class="col-md-3 mt-2">
                               <div class="form-group">
-                                 <label for="invoice_credit_limit">Assigned Invoice Credit Limit</label>
+                                 <label for="invoice_credit_limit">Remaining Invoice Credit Limit</label>
 								  <i class="fa fa-plus" data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#invoice-credit-limit"></i>
-                                 <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}">
+                                 <input type="text" class="form-control" id="invoice_credit_limit" name="invoice_credit_limit"  value="{{ $customer->invoice_credit_limit }}" readonly>
                               </div>
                            </div>
                             @php
-                                $logs = json_decode($customer->remaining_credit_logs, true);
+                                $logs = json_decode($customer->remaining_credit_logs, true) ?? [];
                                 $finalTotalCredit = 0;
 
-                                if (!empty($logs)) {
+                                if (is_array($logs)) {
                                     foreach ($logs as $log) {
-                                        $finalTotalCredit += (int) ($log['credit_limit'] ?? 0);
+                                        $finalTotalCredit += (float) ($log['credit_limit'] ?? 0);
                                     }
                                 }
+
+                                // Sum of every entry logged behind the invoice credit limit modal
+                                $invoiceCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+                                $totalInvoiceCreditLimit = 0;
+
+                                if (is_array($invoiceCreditLogs)) {
+                                    foreach ($invoiceCreditLogs as $invoiceLog) {
+                                        $totalInvoiceCreditLimit += (float) ($invoiceLog['credit_limit'] ?? 0);
+                                    }
+                                }
+
+                                $combinedCreditLimit = $totalInvoiceCreditLimit + $finalTotalCredit;
                             @endphp
 
                             <div class="col-md-3 mt-2">
                                 <div class="form-group">
-                                    <label for="remaining_credit">Total Credit Limit</label>
-                                    <input type="text" class="form-control"
-                                        value="{{ $finalTotalCredit }}"
+                                    <label for="total_credit_limit">Total Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_credit_limit"
+                                        value="{{ number_format($finalTotalCredit, 2, '.', '') }}"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 mt-2">
+                                <div class="form-group">
+                                    <label for="total_invoice_credit_limit">Total Invoice Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_invoice_credit_limit"
+                                        value="{{ number_format($totalInvoiceCreditLimit, 2, '.', '') }}"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3 mt-2">
+                                <div class="form-group">
+                                    <label for="total_combined_credit_limit">Total Invoice Credit Limit + Total Credit Limit</label>
+                                    <input type="text" class="form-control" id="total_combined_credit_limit"
+                                        value="{{ number_format($combinedCreditLimit, 2, '.', '') }}"
                                         readonly>
                                 </div>
                             </div>
@@ -777,7 +813,7 @@
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header" style="padding-left: 14px;">
-            <h4 class="modal-title">Add Remaining Credit Limit</h4>
+            <h4 class="modal-title">Set Remaining Credit Limit</h4>
             <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
             </div>
 
@@ -936,8 +972,8 @@ $('#reciving-payment').DataTable({
 <script>
 $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {
@@ -1095,19 +1131,6 @@ document.addEventListener('DOMContentLoaded', function () {
          // Update Assigned Credit Limit
          $('#adv_customer_credit_limit').val(totalCreditLimit.toFixed(2));
 
-         // Get the last entered credit value from the last .credit-limit input
-         let lastEntered = parseFloat($('.credit-limit').last().val());
-
-         // Get remaining credit from server-side variable (make sure this renders correctly)
-         let existingRemainingCredit = parseFloat('{{ $customer->remaining_credit ?? 0 }}') || 0;
-
-         // Calculate remaining credit
-         let remainingCredit = !isNaN(lastEntered) ? lastEntered + existingRemainingCredit : existingRemainingCredit;
-
-         // Update remaining credit field
-         $('#remaining_credit').val(remainingCredit.toFixed(2));
-         $('#remaining_credit_new').val(remainingCredit.toFixed(2));
-         
       }
 
      
@@ -1115,19 +1138,12 @@ document.addEventListener('DOMContentLoaded', function () {
          // Function to update calculations
          function updateremaingCreditCalculations() {
             const currentValue = parseFloat($(this).val());
-            //const existingRemainingCredit = parseFloat('{{ $customer->remaining_credit ?? 0 }}') || 0;
-            const existingRemainingCredit = parseFloat($('#remaining_credit_new').val());
-			
-            let totalCreditLimit = 0;
 
+            // This field sets the remaining balance. It must not be added to
+            // the currently displayed remaining credit.
             if (!isNaN(currentValue)) {
-               totalCreditLimit = existingRemainingCredit + currentValue;
-            } else {
-               totalCreditLimit = existingRemainingCredit;
+               $('#remaining_credit').val(Math.max(0, currentValue).toFixed(2));
             }
-
-            // Update the remaining credit field
-            $('#remaining_credit').val(totalCreditLimit.toFixed(2));
          }
 		 
 		 
@@ -1353,8 +1369,7 @@ function deleteRemittanceFile(filePath, customerId) {
 
 function showRemittanceFiles(customerId) {
     $('#remittanceAccordion').html('<div class="text-center p-3">Loading...</div>');
-
-    // Get selected range and date
+   
     const range = document.getElementById('filterRange')?.value || 'all';
     const specificDate = document.getElementById('filterDate')?.value || '';
 

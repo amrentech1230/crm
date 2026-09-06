@@ -1,6 +1,17 @@
 @extends('layout.compact.app')
 @section('content')
 <style>
+    #submitLoadButton.disabled,
+    #submitLoadButton:disabled,
+    input[type="submit"].disabled,
+    input[type="submit"]:disabled {
+        background-color: #b8b8b8 !important;
+        border-color: #b8b8b8 !important;
+        color: #ffffff !important;
+        cursor: not-allowed !important;
+        opacity: 1 !important;
+    }
+
     ul#navTabs,
     ul#navTabs1 {
         background: #a6ce3a;
@@ -15,8 +26,19 @@
         border-radius: 10px;
         padding: 0px 10px;
     }
+
+    /* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+       .modal-backdrop. Dim the overlay on the modal element itself instead. */
+    #myModal,
+    #otherChargesModal {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
     #shipperForms {
         padding: 0;
+    }
+    #load_shipper_commodity.field-error,
+    #load_consignee_commodity.field-error {
+        border: 1px solid red !important;
     }
 
 #mc-success-message{
@@ -45,6 +67,43 @@
     right: 10px;
     z-index: 9999;
     top: 10px;
+}
+
+/* Pinned below the fixed topbar so it stays in view while the load form scrolls.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
+#credit-limit-message {
+    position: fixed;
+    top: 82px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+#credit-limit-message.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+body.vertical-collpsed #credit-limit-message {
+    left: 50%;
+}
+@media (max-width: 991.98px) {
+    #credit-limit-message {
+        width: min(96vw, 1180px);
+        left: 50%;
+    }
 }
 </style>
 
@@ -87,8 +146,9 @@
                     <div class="card-body">
 
                         <form method="POST" action="{{ route('load.create') }}" id="myFormLoad"
-                        enctype="multipart/form-data">
+                        enctype="multipart/form-data" novalidate>
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-warning d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Add Load</h3>
@@ -106,24 +166,38 @@
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to">
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
-                                            <option value="{{$cust->id}}">{{$cust->customer_name}}</option>
+                                            <option value="{{$cust->id}}"
+                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
+                                                {{$cust->customer_name}}
+                                            </option>
                                             @endforeach
                                         </select>
+                                        <input type="hidden" id="customer_id" name="customer_id" value="" >
                                     </div>
                                 </div>
-
-
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Dispatcher <code>*</code></label>
                                         
-                                        <input class="form-control" name="load_dispatcher" required readonly
-                                            style="width: 100%;" value="{{Auth::user()->name}}">
+                                            <!-- Show select normally -->
+                                            <select class="form-control mySelect2" id="load_dispatcher" name="load_dispatcher" required style="width: 100%;">
+                                                <option value="">Select a Broker</option>
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->name }}" >
+                                                        {{ $user->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <input type="hidden" id="dispatcher_user_id" name="dispatcher_user_id" value="{{ $user->user_id }}">
+
                                     </div>
                                 </div>
+
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Status</label>
@@ -202,12 +276,23 @@
                                         <label>Equipment Type
                                             <code>*</code></label>
                                         <select class="form-control mySelect2" name="load_equipment_type"
-                                            id="load_equipment_type" style="width: 100%;" required>
+                                            id="load_equipment_type" style="width: 100%;" required data-placeholder="Select Equipment">
 
                                             <option value="">Select Equipment </option>
                                             @foreach($equipmentType as $equipment)
                                             <option value="{{$equipment->id}}">{{$equipment->name}}</option>
                                             @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                                                <div class="col-md-2 mb-2">
+                                    <div class="form-group">
+                                        <label>CMT Agent</label>
+                                        <select class="form-control" name="cmt_agent" required readonly
+                                            style="width: 100%;">
+                                            <option value="None">None</option>
+                                            <option value="Rachel">Rachel</option>
+                                            <option value="Amelia">Amelia</option>
                                         </select>
                                     </div>
                                 </div>
@@ -265,7 +350,7 @@
                                                 <div class="modal-body pt-0">
                                                     <div class="container">
                                                         <div class="row">
-                                                            <div class="col-md-6">
+                                                            <div class="col-md-4">
                                                                 <div class="form-group">
                                                                     <label for="shipperchargeType"> Charge Type:</label>
                                                                     <input type="text" class="form-control"
@@ -273,7 +358,16 @@
                                                                         placeholder="Enter Charge Type">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-5">
+                                                            <div class="col-md-2 for-invoice-field" style="display: none;">
+                                                                <div class="form-group mt-3">
+                                                                    <label>For Invoice:</label><br>
+                                                                    <input type="checkbox"
+                                                                        class="form-check-input for_invoice">
+                                                                    <input type="hidden" class="for_invoice_flag"
+                                                                        name="for_invoice[]" value="off">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
                                                                 <div class="form-group">
                                                                     <label> Amount:</label>
                                                                     <input type="number" class="form-control shipperchargeAmount"
@@ -281,7 +375,7 @@
                                                                         placeholder="Enter Amount">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-1" style="margin-top: 27px;">
+                                                            <div class="col-md-2" style="margin-top: 27px;">
                                                                 <a type="button" class="remove-charge"
                                                                     name="shipperchargeAmountdelete[]">
                                                                     <i class="fa fa-trash"
@@ -292,21 +386,29 @@
                                                         </div>
 
                                                         <div class="row" id="chargeRowTemplate" style="display: none;">
-                                                            <div class="col-md-6" style="margin-top:20px;">
+                                                            <div class="col-md-4" style="margin-top:20px;">
                                                                 <div class="form-group">
                                                                     <input type="text" class="form-control"
                                                                         name="shipperchargeType[]"
                                                                         placeholder="Enter Charge Type">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-5" style="margin-top:20px;">
+                                                            <div class="col-md-2 for-invoice-field" style="display: none; margin-top:20px;">
+                                                                <div class="form-group">
+                                                                    <input type="checkbox"
+                                                                        class="form-check-input for_invoice">
+                                                                    <input type="hidden" class="for_invoice_flag"
+                                                                        name="for_invoice[]" value="off">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4" style="margin-top:20px;">
                                                                 <div class="form-group">
                                                                     <input type="number" class="form-control shipper_other_charge"
                                                                         name="shipperchargeAmount[]"
                                                                         placeholder="Enter Amount">
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-1" style="margin-top: 17px;">
+                                                            <div class="col-md-2" style="margin-top: 17px;">
                                                                 <a type="button" class="remove-charge"
                                                                     name="shipperchargeAmountdelete[]">
                                                                     <i class="fa fa-trash"
@@ -546,7 +648,8 @@
                                                 <label>Commodity Name <code>*</code></label>
                                                 <input class="form-control load_shipper_commodity" id="load_shipper_commodity"
                                                     name="load_shipper_commodity" autocomplete="off" type="text"
-                                                     style="width: 100%;">
+                                                    required style="width: 100%;">
+                                                <div id="error_load_shipper_commodity" style="color:red; font-size:11px; display:none;">Please fill Commodity Name *</div>
                                             </div>
                                         </div>
                                         <div class="col-md-2 mb-2">
@@ -667,7 +770,8 @@
                                                 <div class="form-group">
                                                     <label>Commodity Name <code>*</code></label>
                                                     <input class="form-control load_consignee_commodity" name="load_consignee_commodity"
-                                                        id="load_consignee_commodity" autocomplete="off" type="text" style="width: 100%;">
+                                                        id="load_consignee_commodity" autocomplete="off" type="text" required style="width: 100%;">
+                                                    <div id="error_load_consignee_commodity" style="color:red; font-size:11px; display:none;">Please fill Commodity Name *</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -725,7 +829,7 @@
 
                         </div>
                         <div class="modal-footer">
-                            <input type="submit" class="btn btn-info" value="Save">
+                            <input type="submit" class="btn btn-info" value="Save" id="submitLoadButton" title="Save">
                             <input type="button" style="font-size:14px !important;" class="btn btn-warning"
                                 id="clearFormButton" Value="Clear Form">
                             <input type="button" class="btn btn-danger" data-dismiss="modal" value="Cancel">
@@ -740,13 +844,293 @@
         @endsection
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    function formatCreditAmount(value) {
+        var numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '$0.00';
+        }
+        return '$' + numericValue.toFixed(2);
+    }
+
+    // Note: customer other charges are deliberately left alone here. A charge marked
+    // For Invoice is drawn from the invoicing limit, so a credit failure must not wipe
+    // what the user typed - the message and the disabled Save button are the feedback.
+    function zeroRateFields() {
+        $('#shipper_load_final_rate').val(0);
+        $('#load_shipper_rate').val(0);
+        $('#load_fsc_rate').val(0);
+        $('#load_final_carrier_fee').val(0);
+        $('#totalShipperOtherChgarges').val(0);
+    }
+
+    function getSelectedCustomerCreditLimit() {
+        var $select = $('#load_bill_to');
+        if (!$select.length) {
+            return { remaining: 0, invoice: 0 };
+        }
+
+        var selectedOption = $select.find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+
+        var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
+
+        return { remaining: remaining, invoice: invoiceCreditLimit };
+    }
+
+    function showCustomerLimitSummary() {
+        var $message = $('#credit-limit-message');
+        var $select = $('#load_bill_to');
+
+        if (!$message.length || !$select.length || !$select.val()) {
+            return;
+        }
+
+        var credits = getSelectedCustomerCreditLimit();
+        var availableLimit = Number(credits.remaining) || 0;
+        var invoiceLimit = Number(credits.invoice) || 0;
+
+        $message
+            .removeClass('alert-danger')
+            .addClass('alert-warning')
+            .text('Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + '.')
+            .removeClass('d-none');
+    }
+
+    function getInvoiceChargesTotal() {
+        var total = 0;
+        var $invoiceChecks = $('.for_invoice');
+
+        if (!$invoiceChecks.length) {
+            return 0;
+        }
+
+        $invoiceChecks.each(function (index) {
+            var amount = parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+            if ($(this).is(':checked')) {
+                total += amount;
+            }
+        });
+
+        return total;
+    }
+
+    function getNonInvoiceChargesTotal() {
+        var total = 0;
+        var $invoiceChecks = $('.for_invoice');
+
+        if (!$invoiceChecks.length) {
+            return 0;
+        }
+
+        $invoiceChecks.each(function (index) {
+            var amount = parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+            if (!$(this).is(':checked')) {
+                total += amount;
+            }
+        });
+
+        return total;
+    }
+
+    function validateCreditForLoad() {
+        var $form = $('#myFormLoad');
+        var $select = $('#load_bill_to');
+        var $rate = $('#shipper_load_final_rate');
+        var $message = $('#credit-limit-message');
+        var $submitButton = $('#submitLoadButton');
+
+        if (!$form.length || !$select.length || !$rate.length) {
+            return true;
+        }
+
+        if (!$select.val()) {
+            $message.text('').addClass('d-none');
+            $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+            $form.data('credit-valid', true);
+            return true;
+        }
+
+        var credits = getSelectedCustomerCreditLimit();
+        var remainingLimit = credits.remaining;
+        var invoiceLimit = credits.invoice;
+        var enteredAmount = parseFloat($rate.val()) || 0;
+        var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+        var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+        var fscAmount = (fscRate / 100) * baseRate;
+        var nonInvoiceCharges = getNonInvoiceChargesTotal();
+        var invoiceCharges = getInvoiceChargesTotal();
+        
+        // Only For Invoice=checked charges are deducted from the invoicing limit.
+        // Base rate, F.S.C and non-invoice charges must fit inside the remaining limit -
+        // the invoicing limit is never used to cover a shortfall there.
+        var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
+        var totalInvoiceUsed = invoiceCharges;
+
+        if (enteredAmount < 0) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Shipper rate cannot be negative.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Shipper rate cannot be negative.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (enteredAmount > 0 && enteredAmount < 200) {
+            var validationMessage = 'Final shipper rate is not less than 200.';
+
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text(validationMessage)
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', validationMessage);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (remainingLimit <= 0 && invoiceLimit <= 0) {
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('You do not have sufficient limit to create this load.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient limit to create this load.');
+            zeroRateFields();
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (remainingUsed > remainingLimit) {
+            var shortageAmount = remainingUsed - remainingLimit;
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds remaining credit limit (' + formatCreditAmount(remainingLimit) + '). You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient remaining limit.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        if (totalInvoiceUsed > invoiceLimit) {
+            var shortageAmount = totalInvoiceUsed - invoiceLimit;
+            $message
+                .removeClass('alert-warning alert-success')
+                .addClass('alert-danger')
+                .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
+                .removeClass('d-none');
+            $submitButton.prop('disabled', true).addClass('disabled').prop('title', 'Insufficient invoicing limit.');
+            $rate.val(0);
+            $form.data('credit-valid', false);
+            return false;
+        }
+
+        // Show only what is left on each limit after this load
+        var deductionSummary = 'Available: ' + formatCreditAmount(remainingLimit - remainingUsed) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
+
+        $message
+            .removeClass('alert-danger')
+            .addClass('alert-warning')
+            .text(deductionSummary)
+            .removeClass('d-none');
+
+        // Log detailed calculations to console for background tracking
+        console.log('Credit Limit Check:', {
+            'Base Rate': formatCreditAmount(baseRate),
+            'FSC Rate %': parseFloat(fscRate || 0).toFixed(1) + '%',
+            'FSC Amount': formatCreditAmount(fscAmount),
+            'Invoice Charges (For Invoice=checked)': formatCreditAmount(invoiceCharges),
+            '  → Deducted from Invoice Limit': formatCreditAmount(invoiceCharges),
+            'Non-Invoice Charges (For Invoice=unchecked)': formatCreditAmount(nonInvoiceCharges),
+            '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceCharges),
+            'Total Used from Remaining': formatCreditAmount(remainingUsed),
+            'Total Used from Invoice Limit': formatCreditAmount(totalInvoiceUsed),
+            'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
+            'Invoice Limit Available': formatCreditAmount(invoiceLimit - totalInvoiceUsed),
+            'Remaining Limit': formatCreditAmount(remainingLimit),
+            'Invoice Limit': formatCreditAmount(invoiceLimit)
+        });
+        $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+        $form.data('credit-valid', true);
+        return true;
+    }
+
     $(document).ready(function () {
         $('#load_bill_to').on('change', function() {
+            $('#customer_id').val($(this).val() || '');
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
+            $('#shipper_load_final_rate').val('');
+            showCustomerLimitSummary();
+            validateCreditForLoad();
+        });
+
+        $('#shipper_load_final_rate').on('input change', function() {
+            validateCreditForLoad();
+        });
+
+        $('#myFormLoad').on('submit', function (e) {
+            var valid = true;
+
+            if (!$('#load_shipper_commodity').val().trim()) {
+                $('#load_shipper_commodity').addClass('field-error');
+                $('#error_load_shipper_commodity').show();
+                valid = false;
+            } else {
+                $('#load_shipper_commodity').removeClass('field-error');
+                $('#error_load_shipper_commodity').hide();
+            }
+
+            if (!$('#load_consignee_commodity').val().trim()) {
+                $('#load_consignee_commodity').addClass('field-error');
+                $('#error_load_consignee_commodity').show();
+                valid = false;
+            } else {
+                $('#load_consignee_commodity').removeClass('field-error');
+                $('#error_load_consignee_commodity').hide();
+            }
+
+            if (!valid || !validateCreditForLoad()) {
+                e.preventDefault();
+            }
+        });
+
+        $(document).on('input', '#load_shipper_commodity', function () {
+            if ($(this).val().trim()) {
+                $(this).removeClass('field-error');
+                $('#error_load_shipper_commodity').hide();
+            }
+        });
+
+        $(document).on('input', '#load_consignee_commodity', function () {
+            if ($(this).val().trim()) {
+                $(this).removeClass('field-error');
+                $('#error_load_consignee_commodity').hide();
+            }
         });
 	});
         $(document).ready(function () {
+
+            function toggleForInvoiceFields() {
+                const shipmentType = $('[name="load_type"] option:selected').text().trim().toUpperCase();
+                const isTonu = shipmentType === 'TONU';
+
+                $('.for-invoice-field').toggle(isTonu);
+                if (!isTonu) {
+                    $('.for_invoice').prop('checked', false);
+                    $('.for_invoice_flag').val('off');
+                }
+            }
+
+            $('[name="load_type"]').on('change', toggleForInvoiceFields);
+            toggleForInvoiceFields();
 
             $('#load_shipper_other_charges').on('click', function () {
                 $('#myModal').show();
@@ -1094,34 +1478,53 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
-                $('#shipper_load_final_rate').val(total.toFixed(2));
+                    $('#shipper_load_final_rate').val(total.toFixed(2));
+                if (!validateCreditForLoad()) {
+                    zeroRateFields();
+                }
 
                 var customer_id = $('#load_bill_to').val();
-                
+                var invoiceAmount = 0;
+                $('.for_invoice').each(function (index) {
+                    if ($(this).is(':checked')) {
+                        invoiceAmount += parseFloat($('[name="shipperchargeAmount[]"]').eq(index).val()) || 0;
+                    }
+                });
+                var remainingAmount = Math.max(0, total - invoiceAmount);
+
                  $.ajax({
                         url: '{{ route('check.remaing.limit') }}',
                         method: 'GET',
                         data: {
                             customer_id: customer_id,
                             finalrate: total,
+                            remaining_amount: remainingAmount,
+                            invoice_amount: invoiceAmount,
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                          
+
                             if (response.success) {
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
+                                zeroRateFields();
 
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
-                                
-                                $('#shipper_load_final_rate').val('');
-                                $('#totalChargeAmount').val('');
-                                $('.shipperchargeAmount').val(''); 
+                                // Show the limit message at the top of the load form
+                                $('#credit-limit-message')
+                                    .removeClass('alert-warning alert-success')
+                                    .addClass('alert-danger')
+                                    .text(response.message)
+                                    .removeClass('d-none');
+
+                                // Block saving but keep what was typed. This check only covers the
+                                // remaining limit; a For Invoice charge is paid out of the invoicing
+                                // limit, so the customer other charges must not be cleared here.
+                                $('#myFormLoad').data('credit-valid', false);
+                                $('#submitLoadButton')
+                                    .prop('disabled', true)
+                                    .addClass('disabled')
+                                    .prop('title', response.message);
                             }
-                               
+
                         },
                         
                     });
@@ -1132,6 +1535,14 @@ $(document).ready(function () {
                 function () {
                     updateTotalshipper();
                 });
+
+            // Keep the submitted hidden flag in sync so the server receives one
+            // on/off value per charge row, in the same order as the amount inputs.
+            $(document).on('change', '.for_invoice', function () {
+                $(this).closest('.row').find('.for_invoice_flag').val(this.checked ? 'on' : 'off');
+                updateTotalshipper();
+                validateCreditForLoad();
+            });
 
         });
 
@@ -1154,7 +1565,9 @@ $(document).ready(function () {
             total += (loadFscRate / 100) * loadShipperRate;
 
             $('#shipper_load_final_rate').val(total.toFixed(2));
-            
+            if (!validateCreditForLoad()) {
+                zeroRateFields();
+            }
 
             //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
 
@@ -1194,8 +1607,6 @@ $(document).ready(function () {
     </script>
     <script>
         $(document).ready(function () {
-
-
             // Function to calculate and update the total amount
             function updateTotalcarrier() {
 
@@ -1229,8 +1640,10 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not graterthe Shipper Final rate").fadeIn();
-                      $('.shipper_other_charge').val(0);
+                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
+                      // Clear the carrier charges by name: the .shipper_other_charge class is also
+                      // on the customer charge rows, and those must not be wiped here.
+                      $('[name="inputBox2[]"], [name="shipper_other_charge[]"]').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);
                         $('#load_final_carrier_fee').val(0);
@@ -1252,46 +1665,6 @@ $(document).ready(function () {
         });
 </script>
 <script>
-    const inputFields = ['load_bill_to', 'load_carrier', 'carrier_mc_ff_input', 'carrier_dot'];
-
-    // Loop through each ID and disable copy, paste, and cut
-    inputFields.forEach(function(id) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('paste', function(event) {
-                event.preventDefault(); // Prevent paste action
-                //alert('Paste is not allowed'); // Display an error message
-				$('#mc-error-message').text('Paste is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('copy', function(event) {
-                event.preventDefault(); // Prevent copy action
-                //alert('Copy is not allowed'); // Display an error message
-				$('#mc-error-message').text('Copy is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('cut', function(event) {
-                event.preventDefault(); // Prevent cut action
-                //alert('Cut is not allowed'); // Display an error message
-				$('#mc-error-message').text('Cut is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-        }
-    });
 	
 	
 	$(document).ready(function () {

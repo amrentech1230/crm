@@ -179,5 +179,22 @@ try {
                                     <td class="dynamic-data">{{ $log->cpr_check }}</td>
                                     <td class="dynamic-data">{{ $log->no_of_macro }}</td>
                                     <td class="dynamic-data">{{ $log->load_advance_rec_amount }}</td>
+                                    <td class="dynamic-data">{{ $log->macro }}</td>
+                                    <td class="dynamic-data">{{ $log->no_of_macro }}</td>
+                                    <td class="dynamic-data">
+@php
+    $invoiceDate = \Carbon\Carbon::parse($log->invoice_date)->addHours(24);
+    $now = \Carbon\Carbon::now();
+
+    $agingDays = 0;
+
+    if ($now->greaterThan($invoiceDate)) {
+        $hours = $invoiceDate->diffInHours($now);
+        $agingDays = ceil($hours / 24);
+    }
+@endphp
+
+{{ $agingDays }} Days
+</td>
                                 </tr>
                                 @endforeach

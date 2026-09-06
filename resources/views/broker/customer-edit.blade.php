@@ -43,8 +43,9 @@
 
                         <h4 class="card-title">Edit Customer</h4>
 
-                        <form method="POST" action="{{ route('customer.update', $customer->id) }}" id="myForm" enctype="multipart/form-data">
-                        @csrf
+                      <form method="POST" action="{{ route('customer.update', encrypt($customer->id)) }}" id="myForm" enctype="multipart/form-data">
+    @csrf
+
 
                         <div class="card-body text-left">
                             <div class="row">
@@ -374,8 +375,8 @@ function showInput(selectElement){
 
 $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {

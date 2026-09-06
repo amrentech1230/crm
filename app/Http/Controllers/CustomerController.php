@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\http\Controllers\LoadController;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ use \App\Models\User;
 use \App\Models\TeamLeader;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Mail\Message;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class CustomerController extends Controller
 {
@@ -74,7 +77,10 @@ class CustomerController extends Controller
         }
 		
 		if ($request->ajax()) {
-				return view('broker.partials.customer_table', compact('userInfos', 'allcountry','customers'))->render();
+				return response()->json([
+					'html' => view('broker.partials.customer_table', compact('userInfos', 'allcountry', 'customers'))->render(),
+					'pagination' => render_pagination_links($customers->setPageName('page')),
+				]);
 			}
 
 if ($request->has('download') && $request->download === 'excel') {
@@ -389,30 +395,47 @@ if ($request->has('download') && $request->download === 'excel') {
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        $customer = Customer::with('user.teamLeaderInfo','user.managerInfo')->where('id', $id)->first();
-        $allcountry = Country::get();
-		$state = State::get();
-        return view('broker.customer-edit', compact('state','allcountry','customer'));
+
+
+public function edit(string $id)
+{
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
     }
+
+    $customer = Customer::with('user.teamLeaderInfo', 'user.managerInfo')
+        ->where('id', $decryptedId)
+        ->firstOrFail();
+
+    $allcountry = Country::get();
+    $state = State::get();
+
+    return view('broker.customer-edit', compact('state', 'allcountry', 'customer'));
+}
+
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
-    {
-		
-        $validator = Validator::make($request->all(), [
-            'customer_name' => 'required|string|max:255',
-        ]);
-	
+public function update(Request $request, string $id)
+{
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
+    }
 
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
+    $validator = Validator::make($request->all(), [
+        'customer_name' => 'required|string|max:255',
+    ]);
 
-        $yourModel = Customer::findOrFail($id);
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
+    }
+
+    $yourModel = Customer::findOrFail($decryptedId);
 
         $oldData = json_encode($yourModel);
 
@@ -441,7 +464,9 @@ if ($request->has('download') && $request->download === 'excel') {
         $yourModel->customer_billing_telephone = $request->input('customer_billing_telephone') ?? '';
         $yourModel->customer_billing_extn = $request->input('customer_billing_extn') ?? '';
         $yourModel->adv_customer_currency_Setting = $request->input('adv_customer_currency_Setting') ?? '';
-        $yourModel->remaining_credit = is_numeric($request->input('remaining_credit')) ? $request->input('remaining_credit') : 0;
+        // SECURITY FIX: Do NOT accept remaining_credit from client input.
+        // The balance is computed server-side from the credit limit and outstanding loads.
+        // $yourModel->remaining_credit is intentionally NOT set here — it stays as-is.
         $yourModel->adv_customer_payment_terms = $request->input('adv_customer_payment_terms') ?? '';
         $yourModel->adv_customer_factoring_company = $request->input('adv_customer_factoring_company') ?? '';
         $yourModel->adv_customer_webiste_url = $request->input('adv_customer_webiste_url') ?? '';
@@ -452,7 +477,7 @@ if ($request->has('download') && $request->download === 'excel') {
         $yourModel->customer_blacklisted = $request->input('customer_blacklisted') ?? '';
         $yourModel->customer_status = $request->input('customer_status') ?? '';
         $yourModel->customer_corporation = $request->input('customer_corporation') ?? '';
-        $yourModel->status = 'Not Approved';
+        // $yourModel->status = 'Not Approved';
         $yourModel->commenter_name = '';
 
         // Handle file uploads (replace old files if needed)
@@ -672,19 +697,6 @@ public function uploadRemittance(Request $request)
         return view('broker.customerapprovalformbroker',compact('customerApprovalFormBroker'));
     }
 
-private function appendToGoogleSheet($data)
-{
-    $url = "https://script.google.com/macros/s/AKfycbzjK0fiMeIYxg8F7B4mK92KVRlCL-UyWIpM1kFqa8ImZ0-QL2I462-ogVmZNaqEt5iWSA/exec";
-
-    $response = \Illuminate\Support\Facades\Http::post($url, $data);
-
-    return $response->body();
-}
-
-
-
-
-
 
 public function storeCustomerApprovalForm(Request $request)
 {
@@ -704,22 +716,203 @@ public function storeCustomerApprovalForm(Request $request)
         'requested_credit_limit' => $request->requested_credit_limit,
     ]);
 
-    // Send to Google Sheet
-    $this->appendToGoogleSheet([
-        "date" => now()->format('m-d-Y H:i:s'),
-        "company_name" => $request->company_name,
-        "address" => $request->address,
-        "city" => $request->city,
-        "state" => $request->state,
-        "zip_code" => $request->zip_code,
-        "contact_name" => $request->dispatcher_first_name . ' ' . $request->dispatcher_last_name,
-        "phone" => $request->phone_number,
-        "email" => $request->customer_email,
-        "credit_limit" => $request->requested_credit_limit,
-        "agent_email" => auth()->user()->email
-    ]);
+    $agentName = $request->agent_name;
+    $customerName = $request->company_name;
 
-    return redirect()->back()->with('success', 'Customer Approval Form submitted + synced to Google Sheet!');
+    $data = $request->all();
+    $data['agent_email'] = auth()->user()->email;
+
+    try {
+
+        Mail::html(
+            $this->buildApprovalEmailHtml($agentName, $data),
+            function ($mail) use ($agentName, $customerName) {
+
+                $mail->from(
+                    config('mail.from.address'),
+                    'Customer Approval Form'
+                )
+                ->to('credit@cargoconvoy.co')
+                ->cc('adam@cargoconvoy.co')
+                ->subject('Client Approval (' . $customerName . ') ' . $agentName);
+            }
+        );
+
+    } catch (\Exception $e) {
+
+        \Log::error('Customer Approval Email Failed: ' . $e->getMessage());
+    }
+
+    return redirect()
+        ->back()
+        ->with('success', 'Client Approval ' . $customerName .$agentName);
+}
+
+
+private function buildApprovalEmailHtml($agentName, $data)
+{
+    return '
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+            }
+
+            .container {
+                max-width: 600px;
+                margin: 20px auto;
+                padding: 20px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+
+            .header {
+                background-color: #1a73e8;
+                color: #ffffff;
+                padding: 20px;
+                text-align: center;
+                border-radius: 8px 8px 0 0;
+            }
+
+            .header h1 {
+                margin: 0;
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .content p {
+                font-size: 15px;
+                color: #333;
+                line-height: 1.6;
+            }
+
+            .details-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }
+
+            .details-table td {
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+                font-size: 14px;
+            }
+
+            .details-table td:first-child {
+                font-weight: bold;
+                color: #555;
+                width: 40%;
+            }
+
+            .footer {
+                text-align: center;
+                padding: 15px;
+                font-size: 12px;
+                color: #999;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <div class="container">
+
+            <div class="header">
+                <h1>New Customer Approval Form</h1>
+            </div>
+
+            <div class="content">
+
+                <p>
+                    A new Customer Approval Form has been submitted by
+                    <strong>' . htmlspecialchars($agentName, ENT_QUOTES, 'UTF-8') . '</strong>.
+                </p>
+
+                <table class="details-table">
+
+                    <tr>
+                        <td>Agent Name</td>
+                        <td>' . htmlspecialchars($data['agent_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Agent Email</td>
+                        <td>' . htmlspecialchars($data['agent_email'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Customer Email</td>
+                        <td>' . htmlspecialchars($data['customer_email'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Company Name</td>
+                        <td>' . htmlspecialchars($data['company_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Address</td>
+                        <td>' . htmlspecialchars($data['address'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Country</td>
+                        <td>' . htmlspecialchars($data['country'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>State</td>
+                        <td>' . htmlspecialchars($data['state'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>City</td>
+                        <td>' . htmlspecialchars($data['city'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Zip Code</td>
+                        <td>' . htmlspecialchars($data['zip_code'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Dispatcher First Name</td>
+                        <td>' . htmlspecialchars($data['dispatcher_first_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Dispatcher Last Name</td>
+                        <td>' . htmlspecialchars($data['dispatcher_last_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Phone Number</td>
+                        <td>' . htmlspecialchars($data['phone_number'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                    <tr>
+                        <td>Requested Credit Limit</td>
+                        <td>$' . htmlspecialchars($data['requested_credit_limit'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>
+                    </tr>
+
+                </table>
+
+            </div>
+
+            <div class="footer">
+                <p>This is an automated notification from Cargo Convoy Inc.</p>
+            </div>
+
+        </div>
+
+    </body>
+    </html>';
 }
 
 

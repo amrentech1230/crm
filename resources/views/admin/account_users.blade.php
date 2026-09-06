@@ -12,9 +12,8 @@
 
 .switch-button {
     /* background color when "off" */
-    background: #FFFFFF;
-
     /* size of switch */
+    background: #FFFFFF;
     width: 43px;
     height: 25px;
     border: 2px solid #E6E6E6;
@@ -131,6 +130,10 @@
     z-index: 9999;
     top: 10px;
 }
+
+.table tbody td .switch-button {
+    padding: 0 !important;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -185,7 +188,7 @@
                                             </tbody>
                                         </table>
 										<div class="custom-pagination"> 
-											{{$accounts->links()}}
+											{{$accounts->links('pagination::bootstrap-5')}}
 										</div>
                                     </div>
                                 </div>
@@ -239,7 +242,7 @@ $(document).ready(function () {
                                 responsive: true,
                                 dom: 'rtip',
                                 buttons: [],            // Set to empty array instead of false
-                                pageLength: 10,         // Show 50 rows per page
+                                pageLength: 10,         // Show 10 rows per page
                                 lengthMenu: [10, 25, 50, 100] // Dropdown options
                             });
 

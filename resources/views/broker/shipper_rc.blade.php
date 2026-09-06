@@ -78,11 +78,14 @@ li{
                         <div class="direction">
                             <div class="logo" style="text-align:center; width: 30%;">
                                 @php
-                                    $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
-                                    $logoBase64 = base64_encode(file_get_contents($logoUrl));
+                                    $logoFile = public_path('images/cargo.png');
+                                    $logoBase64 = file_exists($logoFile) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoFile)) : '';
                                 @endphp
-
-                                <img style="width: 40%;" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">
+                                @if($logoBase64)
+                                    <img style="width: 40%;" src="{{ $logoBase64 }}" alt="logo">
+                                @else
+                                    <p style="color: red;">Logo not found at {{ $logoFile }}</p>
+                                @endif
                             </div>
                             
                         </div>

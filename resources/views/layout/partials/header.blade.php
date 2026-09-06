@@ -7,7 +7,7 @@
     <div class="navbar-header">
         <div class="d-flex">
             <!-- LOGO -->
-            <!-- <div class="navbar-brand-box">
+                   <!-- <div class="navbar-brand-box">
                             <a href="{{ route('home') }}" class="logo logo-dark">
                                 <span class="logo-sm">
                                     <img src="https://stagingcci.in/public/images/only%20logo.png" alt=""  alt="logo-sm" height="50">
@@ -533,7 +533,15 @@
                 </li>
                 @endif
 
-
+                @if(in_array(auth()->id(), [222]))
+                <li>
+                    <a href="{{route('credit')}}" class=" waves-effect">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>AR Credit</span>
+                    </a>
+                </li>
+                @endif
+                
             </ul>
         </div>
         <!-- Sidebar -->

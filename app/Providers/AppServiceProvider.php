@@ -20,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind('files', function () {
             return new Filesystem;
         });
+
+        $this->app->singleton(\App\Services\CreditService::class, function () {
+            return new \App\Services\CreditService();
+        });
     }
 
     /**

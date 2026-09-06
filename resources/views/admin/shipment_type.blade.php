@@ -93,7 +93,7 @@
                                             @endforeach
                                             </tbody>
 											<div class="custom-pagination"> 
-												{{$allShipment->links()}}
+												{{$allShipment->links('pagination::bootstrap-5')}}
 											</div>
                                         </table>
                                     </div>

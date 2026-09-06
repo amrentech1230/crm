@@ -30,6 +30,36 @@
     z-index: 9999;
     top: 10px;
 }
+
+.vendor-select + .select2-container,
+.vendor-select + .select2-container .select2-selection--single,
+.vendor-select + .select2-container > .selection,
+.vendor-select + .select2-container > .dropdown-wrapper {
+    height: 32px;
+    line-height: normal;
+    padding: 0;
+}
+
+.vendor-select + .select2-container .select2-selection--single {
+    padding: 6px 32px 6px 12px;
+    display: flex;
+    align-items: center;
+}
+
+.vendor-select + .select2-container .select2-selection__rendered {
+    line-height: normal;
+    padding: 0;
+}
+
+.vendor-select + .select2-container .select2-selection__arrow {
+    height: 30px;
+    width: 30px;
+}
+
+.vendor-select + .select2-container .select2-selection__clear {
+    line-height: normal;
+    padding: 0;
+}
 .row-open {
     background-color: #f9e79f !important;
 }
@@ -39,9 +69,6 @@
 .row-delivered-paid-record {
    background-color: #82e0aa !important;
 } 
-ul.pagination {
-    display: none;
-}
  .load-row {
         transition: background-color 0.3s ease, color 0.3s ease;
     }
@@ -134,6 +161,26 @@ ul.pagination {
     font-size: 15px;
     color: #333;
 }
+.form-control {
+    display: block;
+    width: unset;
+    padding: .47rem .75rem;
+    font-size: .9rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--bs-body-color);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: var(--bs-secondary-bg);
+    background-clip: padding-box;
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    -webkit-transition: border-color .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out, -webkit-box-shadow .15s ease-in-out;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -185,6 +232,11 @@ ul.pagination {
 </div>
         
 <div style="overflow-x: auto; overflow-y: auto; max-height: 600px; border: 1px solid #ddd; border-radius: 8px;">
+    <span>
+        <a href="{{ route('vendorSystemExcel') }}">
+            <button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">Vendor System Excel</button>
+        </a>
+    </span>
     <table
         class="table table-striped table-bordered"
         style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -193,24 +245,20 @@ ul.pagination {
                 <th>Sr No.</th>
                 <th>Load#</th>
                 <th>W/O #</th>
-                <th>Customer</th>
                 <th>Carrier</th>
-                <th>Due Date</th>
+                <th>Carrier Invoice Date</th>
                 <th>Carrier Due Date</th>
-                <th>Quick Pay %</th>
                 <th>Ready to Pay</th>
+                <th>Proccessed By</th>
+                <th>Documents</th>
+                <th>Quick Pay %</th>
                 <th>Carrier Files Upload</th>
                 <th>Carrier Files View</th>
                 <th>Payment Method</th>
-                <th>Carrier Payment</th>
+                <th>Carrier Payment Status</th>
                 <th>Carrier Payment Date</th></th>
-                <th>Invoice Number</th>
-                <th>Invoice Date</th>
-                <th>Status</th>
-                <th>Load Created</th>
-                <th>Dispatcher</th>
-                <th>Agent Files</th>
-                <th>Buyout Status</th>
+                <th>Customer Invoice Date</th>
+                <!-- <th>Agent Files</th> -->
                 <th>Logs Check</th>
                 <th>Vendor Internal Notes</th>
             </tr>
@@ -223,7 +271,7 @@ ul.pagination {
 </div>
 
 <div class="custom-pagination mt-3">
-    {{ $vendormanagement->links() }}
+    {!! render_pagination_links($vendormanagement) !!}
 </div>
 
         <div id="modals-container">
@@ -643,33 +691,29 @@ ul.pagination {
                 });
             }
         }
-     // $(document).on('click', '.custom-pagination a', function(e) {
-		initDataTable();
-        // e.preventDefault();
-        // let url = $(this).attr('href');
+     $(document).on('click', '.custom-pagination a', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        if (!url) return;
 
-        // $.ajax({
-            // url: url,
-            // type: 'GET',
-            // success: function(data) {
-			 // if ($.fn.DataTable.isDataTable('#datatable-buttons-vendor')) {
-					// $('#datatable-buttons-vendor').DataTable().destroy();
-				// }
-				// $('#vendor-search').html(data.rows);
-				// $('#modals-container').html(data.modals);
-				// $('#datatable-buttons-vendor').DataTable({
-                    // responsive: true,
-                    // dom: 'rtip',  // added "B" so buttons show properly
-                    // buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    // searching: false,
-                    // paging: true,                     // ✅ enable pagination
-                    // pageLength: 10,                   // ✅ default 50 rows
-				// });
-                
-                // window.history.pushState("", "", url); // optional: update URL
-            // }
-        // });
-    // });
+        $('.loader-container').removeClass('hide');
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $('#vendor-search').html(response.html);
+                $('#modals-container').html(response.modals);
+                $('.custom-pagination').html(response.pagination || '').show();
+                window.history.pushState({}, '', url);
+                $('.loader-container').addClass('hide');
+            },
+            error: function(xhr) {
+                console.error('Pagination AJAX error:', xhr.responseText);
+                $('.loader-container').addClass('hide');
+            }
+        });
+    });
 </script>
 <script>
 $(document).ready(function() {
@@ -688,20 +732,9 @@ $(document).ready(function() {
                     type: 'GET',
                     data: { query: query },
                     success: function(response) {
-                        if ($.fn.DataTable.isDataTable('#datatable-buttons-vendor')) {
-                            $('#datatable-buttons-vendor').DataTable().destroy();
-                        }
                         $('#vendor-search').html(response.rows); // Inject result HTML
 						$('#modals-container').html(response.modals);
-                       
-                            $('#datatable-buttons-vendor').DataTable({
-                                responsive: true,
-                                dom: 'rtip',  // added "B" so buttons show properly
-                                buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                                searching: false,
-                                paging: true,                     // ✅ enable pagination
-                                pageLength: 10,
-                            });
+                        $('.custom-pagination').html(response.pagination || '').show();
 
 
                         $('.loader-container').addClass('hide');

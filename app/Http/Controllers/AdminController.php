@@ -37,10 +37,17 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\File;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Services\CreditService;
 
 
 class AdminController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
 
    public function correct_data(){
 	   $allload = Load::get('load_mc_no');
@@ -89,99 +96,126 @@ class AdminController extends Controller
 	}
 
    
-   public function search_by_filter(Request $request){
+  public function search_by_filter(Request $request)
+{
+    $filters = [
+        'office'   => $request->input('office'),
+        'manager'  => $request->input('manager'),
+        'teamlead' => $request->input('teamLeader'),
+        'agent'    => $request->input('agent'),
+    ];
 
-		$filters = [
-			'office' => $request->input('office'),
-			'manager' => $request->input('manager'),
-			'teamlead' => $request->input('teamLeader'),
-			'agent' => $request->input('agent'),
-		];
-		
-		$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
+    // Resolve the current page from the relevant page parameter for the active tab.
+    if ($request->hasAny(['page', 'all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'])) {
+        $activeTab = $request->input('tab');
+        $pageParam = 'page';
 
-		foreach ($tabs as $tab) {
-			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
-				});
-				break; // Stop after finding the matching tab
-			}
-		}
-		
-		$broker_status = $this->filteredLoadsQuery(Load::with('user'), $filters)
-			->orderBy('id', 'desc')
-			->paginate(50)
-			->setPageName('all_load');
+        if ($activeTab === '#all_load') {
+            $pageParam = 'all_load';
+        } elseif ($activeTab === '#open') {
+            $pageParam = 'open';
+        } elseif ($activeTab === '#delivered') {
+            $pageParam = 'delivered';
+        } elseif ($activeTab === '#completed') {
+            $pageParam = 'completed';
+        } elseif ($activeTab === '#invoiced') {
+            $pageParam = 'invoiced';
+        } elseif ($activeTab === '#invoiced_paid') {
+            $pageParam = 'invoiced_paid';
+        }
 
-		$open = $this->filteredLoadsQuery(
-				Load::with('user')->where('load_status', 'Open'), 
-				$filters)
-			->orderBy('id', 'desc')
-			->paginate(50)
-			->setPageName('open');
+        Paginator::currentPageResolver(function ($pageName = null) use ($request, $pageParam) {
+            $pageKey = $pageName ?: $pageParam;
+            $pageValue = $request->input($pageKey);
 
-		$deliverd = $this->filteredLoadsQuery(
-				Load::with('user')->where('load_status', 'Delivered'), 
-				$filters)
-			->orderBy('id', 'desc')
-			->paginate(50)
-			->setPageName('delivered');
+            if ($pageValue !== null) {
+                return (int) $pageValue;
+            }
 
-		$complete = $this->filteredLoadsQuery(
-				Load::with(['user', 'customer', 'carrier'])
-					->where('load_status', 'Completed')
-					->where(function ($query) {
-						$query->whereNull('invoice_status')->orWhere('invoice_status', '');
-					}), 
-				$filters)
-			->orderBy('loads.id', 'desc')
-			->paginate(50)
-			->setPageName('completed');
+            foreach (['page', 'all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'] as $fallbackKey) {
+                if ($request->filled($fallbackKey)) {
+                    return (int) $request->input($fallbackKey);
+                }
+            }
 
-		$invoice_paid = $this->filteredLoadsQuery(
-				Load::with('user')->where('invoice_status', 'Paid'), 
-				$filters)
-			->orderBy('id', 'desc')
-			->paginate(50)
-			->setPageName('invoiced');
-
-		$paid_record = $this->filteredLoadsQuery(
-				Load::with('user')->where('invoice_status', 'Paid Record'), 
-				$filters)
-			->orderBy('id', 'desc')
-			->paginate(50)
-			->setPageName('invoiced_paid');
-        
-		$allagent = User::where('status', 'active')->pluck('name');
-        
-		$manager = Manger::get();
-		
-        $teamlead = TeamLeader::get();
-		
-        $office = Office::get();
-		
-		if ($request->ajax()) {
-			
-			if($request->input('tab') == '#all_load'){
-				return view('admin.home.all_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}else if($request->input('tab') == '#open'){
-				return view('admin.home.open_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}else if($request->input('tab') == '#delivered'){
-				return view('admin.home.delivered', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}else if($request->input('tab') == '#completed'){
-				return view('admin.home.completed', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}else if($request->input('tab') == '#invoiced'){
-				return view('admin.home.invoiced', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}else if($request->input('tab') == '#invoiced_paid'){
-				return view('admin.home.invoiced_paid', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'))->render();
-			}
-				
-		}
-
-         return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'));
-
+            return 1;
+        });
     }
+
+    $broker_status = $this->filteredLoadsQuery(Load::with('user'), $filters)
+        ->orderBy('id', 'desc')
+            ->paginate(50, ['*'], 'all_load');
+
+    $open = $this->filteredLoadsQuery(
+            Load::with('user')->where('load_status', 'Open'),
+            $filters)
+        ->orderBy('id', 'desc')
+            ->paginate(50, ['*'], 'open');
+
+    $deliverd = $this->filteredLoadsQuery(
+            Load::with('user')->where('load_status', 'Delivered'),
+            $filters)
+        ->orderBy('id', 'desc')
+            ->paginate(50, ['*'], 'delivered');
+
+    $complete = $this->filteredLoadsQuery(
+            Load::with(['user', 'customer', 'carrier'])
+                ->where('load_status', 'Completed')
+                ->where(function ($query) {
+                    $query->whereNull('invoice_status')->orWhere('invoice_status', '');
+                }),
+            $filters)
+        ->orderBy('loads.id', 'desc')
+            ->paginate(50, ['*'], 'completed');
+
+    $invoice_paid = $this->filteredLoadsQuery(
+            Load::with('user')->where('invoice_status', 'Paid'),
+            $filters)
+        ->orderBy('id', 'desc')
+            ->paginate(50, ['*'], 'invoiced');
+
+    $paid_record = $this->filteredLoadsQuery(
+            Load::with('user')->where('invoice_status', 'Paid Record'),
+            $filters)
+        ->orderBy('id', 'desc')
+            ->paginate(50, ['*'], 'invoiced_paid');
+
+    $allagent = User::where('status', 'active')->pluck('name');
+    $manager  = Manger::get();
+    $teamlead = TeamLeader::get();
+    $office   = Office::get();
+
+    if ($request->ajax()) {
+
+        // Tab ke hisaab se view aur uska paginator map karo
+        $tabConfig = [
+            '#all_load'      => ['view' => 'admin.home.all_load',      'paginator' => $broker_status],
+            '#open'          => ['view' => 'admin.home.open_load',     'paginator' => $open],
+            '#delivered'     => ['view' => 'admin.home.delivered',     'paginator' => $deliverd],
+            '#completed'     => ['view' => 'admin.home.completed',     'paginator' => $complete],
+            '#invoiced'      => ['view' => 'admin.home.invoiced',      'paginator' => $invoice_paid],
+            '#invoiced_paid' => ['view' => 'admin.home.invoiced_paid', 'paginator' => $paid_record],
+        ];
+
+        $activeTab = $request->input('tab');
+        $config = $tabConfig[$activeTab] ?? $tabConfig['#all_load'];
+
+        $html = view($config['view'], compact(
+            'broker_status', 'allagent', 'open', 'deliverd',
+            'complete', 'invoice_paid', 'paid_record',
+            'manager', 'teamlead', 'office'
+        ))->render();
+
+        $pagination = render_pagination_links($config['paginator']);
+
+        return response()->json([
+            'html'       => $html,
+            'pagination' => $pagination,
+        ]);
+    }
+
+    return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office'));
+}
 	
 	protected function filteredLoadsQuery($baseQuery, $filters)
 	{
@@ -209,21 +243,10 @@ class AdminController extends Controller
 	}
 
     public function home(Request $request){
-		
-		$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
-
-		foreach ($tabs as $tab) {
-			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
-				});
-				break; // Stop after finding the matching tab
-			}
-		}
-        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50)->setPageName('all_load'); 
+        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50, ['*'], 'all_load');
         $allagent = User::pluck('name');
-        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50)->setPageName('open'); 
-        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50)->setPageName('delivered'); 
+        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50, ['*'], 'open');
+        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50, ['*'], 'delivered');
         $complete = Load::where('load_status', 'Completed')
                     ->where(function ($query) {
                         $query->where('invoice_status', '')
@@ -231,9 +254,9 @@ class AdminController extends Controller
                     })
                     ->with(['user', 'customer', 'carrier'])
                     ->orderBy("loads.id", "desc")
-                    ->paginate(50)->setPageName('completed');
-        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced'); 
-        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced_paid'); 
+                    ->paginate(50, ['*'], 'completed');
+        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50, ['*'], 'invoiced');
+        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50, ['*'], 'invoiced_paid');
         $manager = Manger::get();
         $teamlead = TeamLeader::get();
         $office = Office::get();
@@ -262,6 +285,13 @@ class AdminController extends Controller
     }
 
     public function all_data(Request $request){
+        $activeTab = match (true) {
+            $request->filled('carrier') => 'carrier',
+            $request->filled('consignee') => 'consignee',
+            $request->filled('shipper') => 'shipper',
+            $request->filled('loads') => 'load',
+            default => 'customer',
+        };
 		
 			if ($request->has('loads')) {
 				Paginator::currentPageResolver(function () use ($request) {
@@ -299,7 +329,7 @@ class AdminController extends Controller
 
             $approvedCustomers = $customers->where('status', 'Approved');
 
-            $external = External::orderBy("id", "desc")->paginate(50)->setPageName('carrier');
+            $external = External::orderBy("id", "desc")->paginate(50, ['*'], 'carrier');
 
             $shipper = Shipper::select(
                             'shippers.*', 
@@ -309,11 +339,11 @@ class AdminController extends Controller
                         )
                         ->join('users', 'shippers.user_id', '=', 'users.id')
                         ->orderBy('shippers.id', 'DESC')
-                        ->paginate(50)->setPageName('shipper'); 
+                        ->paginate(50, ['*'], 'shipper');
 
-            $consignee = Consignee::orderBy("id", "desc")->paginate(50)->setPageName('consignee');
+            $consignee = Consignee::orderBy("id", "desc")->paginate(50, ['*'], 'consignee');
 
-            $loads = Load::orderBy("id", "desc")->paginate(50)->setPageName('loads');
+            $loads = Load::orderBy("id", "desc")->paginate(50, ['*'], 'loads');
 
             $manager = Manger::get();
 
@@ -324,25 +354,24 @@ class AdminController extends Controller
 
             $sortedCustomers = Customer::orderByRaw("CASE WHEN status = 'Not Approved' THEN 0 ELSE 1 END")
                         ->orderBy('id', 'DESC')  // Optional: further ordering by ID
-                        ->paginate(100)->setPageName('customer');
+                        ->paginate(100, ['*'], 'customer');
 
 
 			if ($request->ajax()) {
 			
-				if($request->input('tab') == '#customer'){
-					return view('admin.all_data.customer', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#carrier'){
-					return view('admin.all_data.carrier', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#consignee'){
-					return view('admin.all_data.consignee', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#shipper'){
-					return view('admin.all_data.shipper', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}else if($request->input('tab') == '#load'){
-					return view('admin.all_data.loads', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
-				}
+                $tabConfig = [
+                    '#customer' => ['view' => 'admin.all_data.customer', 'paginator' => $sortedCustomers],
+                    '#carrier' => ['view' => 'admin.all_data.carrier', 'paginator' => $external],
+                    '#consignee' => ['view' => 'admin.all_data.consignee', 'paginator' => $consignee],
+                    '#shipper' => ['view' => 'admin.all_data.shipper', 'paginator' => $shipper],
+                    '#load' => ['view' => 'admin.all_data.loads', 'paginator' => $loads],
+                ];
+                $config = $tabConfig[$request->input('tab')] ?? $tabConfig['#customer'];
+                $html = view($config['view'], compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'))->render();
+                return response()->json(['html' => $html, 'pagination' => render_pagination_links($config['paginator'])]);
 			}						
 
-         return view('admin.all_data', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office'));
+         return view('admin.all_data', compact('sortedCustomers', 'countries', 'states', 'cities', 'customers', 'approvedCustomers', 'users', 'external', 'shipper', 'consignee', 'loads','manager','teamlead','office', 'activeTab'));
 
     }
      /**
@@ -472,7 +501,8 @@ class AdminController extends Controller
 		$customer = Customer::where('status', 'Approved')->get();
 		$equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
-        return view('admin.create_load', compact('customer','equipmentType','shipmentType'));
+         $users = User::where('role_id', 21)->get();
+        return view('admin.create_load', compact('customer','equipmentType','shipmentType','users'));
     } 
 
     public function createuser(Request $request)
@@ -1493,46 +1523,89 @@ public function update_password(Request $request)
 
     /******************** Home *********************/
 
-    public function all_search(Request $request)
-    {
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
-            });
+    // public function all_search(Request $request)
+    // {
+    //     $q = $request->input('query');
+    //     if (!empty($q)) {
+    //         // Split the query by commas to get multiple terms
+    //         $searchTerms = array_filter(explode(',', $q), function($term) {
+    //             return !empty(trim($term)); // Only keep non-empty terms
+    //         });
 
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-                $broker_status = Load::with(['user'])
-                    ->where(function($query) use ($searchTerms) {
-                        foreach ($searchTerms as $term) {
-                            $query->orWhere('load_number', 'like', "%$term%");
-                            $query->orwhere('load_workorder', 'like', "%$term%");
-                            $query->orwhere('customer_refrence_number', 'like', "%$term%");
-                            $query->orwhere('load_bill_to', 'like', "%$term%");
-                            $query->orwhere('load_dispatcher', 'like', "%$term%");
-                            $query->orwhere('invoice_number', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
-                            $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
-                            $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
-                        }
-                    })
-                    ->orderBy('id', 'desc')
-                    ->paginate(100);
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $broker_status = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-            $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
-        }
+    //         if (count($searchTerms) > 0) {
+    //             // Search for non-empty terms with 'orWhere'
+    //             $broker_status = Load::with(['user'])
+    //                 ->where(function($query) use ($searchTerms) {
+    //                     foreach ($searchTerms as $term) {
+    //                         $query->orWhere('load_number', 'like', "%$term%");
+    //                         // $query->orwhere('load_workorder', 'like', "%$term%");
+    //                         // $query->orwhere('customer_refrence_number', 'like', "%$term%");
+    //                         // $query->orwhere('load_bill_to', 'like', "%$term%");
+    //                         // $query->orwhere('load_dispatcher', 'like', "%$term%");
+    //                         // $query->orwhere('invoice_number', 'like', "%$term%");
+    //                         // $query->orWhere('load_shipper_po_numbers->shipping_po_numbers', 'like', "%$term%");
+    //                         // $query->orWhere('load_shipper_po_numbers->po_number', 'like', "%$term%");
+    //                         // $query->orWhere('load_consigneer_notes->consignee_po_number', 'like', "%$term%");
+    //                     }
+    //                 })
+    //                 ->orderBy('id', 'desc')
+    //                 ->paginate(100);
+    //         } else {
+    //             // If no valid terms, return an empty collection or handle accordingly
+    //             $broker_status = collect();
+    //         }
+    //     } else {
+    //         // If query is empty, return a paginated result without any filter
+    //         $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50); 
+    //     }
         
-        return view('admin.home.all_load', compact('broker_status'))->render();
+    //     return view('admin.home.all_load', compact('broker_status'))->render();
     
+    // }
+public function all_search(Request $request)
+{
+    $q = $request->input('query');
+
+    if (!empty($q)) {
+        // Split the query by commas to get multiple terms
+        $searchTerms = array_filter(explode(',', $q), function ($term) {
+            return !empty(trim($term)); // Only keep non-empty terms
+        });
+
+        if (count($searchTerms) > 0) {
+            $broker_status = Load::with(['user'])
+                ->where(function ($query) use ($searchTerms) {
+                    foreach ($searchTerms as $term) {
+                        $query->orWhere('load_number', 'like', "%$term%");
+                        // $query->orwhere('load_workorder', 'like', "%$term%");
+                        // ...baaki commented fields same rahenge
+                    }
+                })
+                ->orderBy('id', 'desc')
+                ->paginate(100)
+                ->withQueryString();
+        } else {
+            // Koi valid term nahi -> empty paginator banao (crash na ho)
+            $broker_status = Load::with('user')->whereRaw('1 = 0')->paginate(100);
+        }
+    } else {
+        // Query empty -> normal paginated result
+        $broker_status = Load::with('user')
+            ->orderBy('id', 'desc')
+            ->paginate(50)
+            ->withQueryString();
     }
 
+    $html = view('admin.home.all_load', compact('broker_status'))->render();
+    $pagination = $broker_status->setPageName('all_load')
+        ->links('pagination::bootstrap-5')
+        ->render();
+
+    return response()->json([
+        'html' => $html,
+        'pagination' => $pagination,
+    ]);
+}
      public function open_search(Request $request)
     {
 
@@ -1939,26 +2012,105 @@ public function update_password(Request $request)
         $customer = Customer::where('status', 'Approved')->get();
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
-        $customer = Customer::where('status', 'Approved')->get();
-        $equipmentType = EquipmentType::all();
-        $shipmentType = ShipmentType::all();
         $shipperdata = Shipper::orderBy('shipper_name', 'asc')->get();
         $consigneedata = Consignee::orderBy('consignee_name', 'asc')->get();
+        $allowedAuthIds = [227, 226, 218, 312, 221, 222];
+        $alllogs = activity_log::where('load_id', $id)
+            ->whereIn('user_id', $allowedAuthIds)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+        $allcustomer = Customer::where('status', 'Approved')->get();
+        $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
 
-		$allcustomer= Customer::get();
-         $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
-      
-        return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users'));
+        $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
+        $post->load_bill_to = $currentCustomerName ?: ($post->load_bill_to ?? '');
+        $post->customer_id = $post->customer_id ?: ($post->customer?->id ?? null);
+    //   echo "<pre>"; print_r($alllogs); die;
+        return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users','alllogs'));
     }
 
     public function loadUpdate(Request $request, $id)
     {
+        return DB::transaction(function () use ($request, $id) {
 
+        // dd($request->all());
         $load = Load::findOrFail($id);
 
-         if(empty($request->input('shipper_load_final_rate'))){
+        if(empty($request->input('shipper_load_final_rate'))){
             return redirect()->back()->with('error', 'please enter the Customer Final Rate');
-         }
+        }
+   
+        // ✅ VALIDATION: Check if total load creation amount would exceed the customer's effective credit limit
+        $newFinalRate = (float) $request->input('shipper_load_final_rate');
+        $oldFinalRate = (float) $load->shipper_load_final_rate;
+        $rateDifference = $newFinalRate - $oldFinalRate;
+        
+        $requestedCustomerId = (int) $request->input('customer_id');
+        $customerIsChanging = $requestedCustomerId > 0 && $requestedCustomerId !== (int) $load->customer_id;
+
+        // Only run credit check when the customer is NOT changing.
+        // When customer changes, transferLoadCreditBetweenCustomers handles the validation.
+        if (!$customerIsChanging) {
+            $customer = Customer::find($load->customer_id);
+            if ($customer && $rateDifference > 0) {
+                $eligibleLoadAmount = (float) Load::where('customer_id', $load->customer_id)
+                    ->where('load_status', '!=', 'Cancelled')
+                    ->where('id', '!=', $load->id)
+                    ->where(function ($query) {
+                        $query->where('invoice_status', '!=', 'Paid Record')
+                            ->orWhereNull('invoice_status');
+                    })
+                    ->sum('shipper_load_final_rate');
+
+                $availableLimit = (float) get_customer_available_credit_limit($customer);
+                $effectiveAssignedLimit = $eligibleLoadAmount + $availableLimit;
+                $newTotalLoadAmount = $eligibleLoadAmount + $newFinalRate;
+
+                if ($newTotalLoadAmount > $effectiveAssignedLimit) {
+                    $availableCredit = $effectiveAssignedLimit - $eligibleLoadAmount;
+                    return back()->with('error', "Cannot update load. Effective credit limit is {$effectiveAssignedLimit}. Load amount already counted: {$eligibleLoadAmount}. Available credit: {$availableCredit}. New load amount: {$newFinalRate}.");
+                }
+            }
+        }
+
+        $originalCustomerId = (int) ($load->customer_id ?? 0);
+        $requestedCustomerId = $request->filled('customer_id') ? (int) $request->input('customer_id') : 0;
+
+        if ($requestedCustomerId <= 0 && !empty($request->input('load_bill_to'))) {
+            $customerName = trim((string) $request->input('load_bill_to'));
+            if ($customerName !== '') {
+                $requestedCustomerId = (int) Customer::whereRaw('LOWER(TRIM(customer_name)) = ?', [mb_strtolower($customerName)])->value('id');
+            }
+        }
+
+        $request->merge(['customer_id' => $requestedCustomerId > 0 ? $requestedCustomerId : $request->input('customer_id')]);
+
+        $newCustomerId = (int) ($request->input('customer_id') ?? 0);
+        $targetCustomer = $newCustomerId > 0 ? Customer::find($newCustomerId) : null;
+
+        if ($originalCustomerId > 0 && $newCustomerId > 0 && $originalCustomerId !== $newCustomerId && $targetCustomer) {
+            // Calculate invoice amount from shipper_load_other_charge
+            $invoiceAmount = 0;
+            $shipperCharges = json_decode($load->shipper_load_other_charge, true);
+            if (is_array($shipperCharges)) {
+                foreach ($shipperCharges as $charge) {
+                    if (isset($charge['for_invoice']) && $charge['for_invoice'] === 'on') {
+                        $invoiceAmount += (float) ($charge['amount'] ?? 0);
+                    }
+                }
+            }
+            
+            $transferResult = $this->creditService->transferLoadCreditBetweenCustomers(
+                Customer::find($originalCustomerId),
+                $targetCustomer,
+                (float) ($request->input('shipper_load_final_rate') ?? $load->shipper_load_final_rate ?? 0),
+                $invoiceAmount
+            );
+
+            if (!$transferResult['allowed']) {
+                return back()->with('error', $transferResult['message']);
+            }
+        }
    
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
         ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
@@ -1968,6 +2120,8 @@ public function update_password(Request $request)
         }
 
         $oldData = json_encode($load);
+        $originalLoad = clone $load;
+        $newStatus = $request->input('load_status');
 
         // $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
             // ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
@@ -2112,7 +2266,6 @@ public function update_password(Request $request)
 				];
 			}
 		
-			
         }
 
         // Loop through the request to extract shipper data
@@ -2439,17 +2592,29 @@ public function update_password(Request $request)
 		$load->pre_advance = $request->input('pre_advance') ?? '';
         $load->paper_work_date = !empty($request->paper_work_date) ? $request->paper_work_date : null;
         $load->payment_receiving_date = $request->filled('payment_receiving_date') ? $request->payment_receiving_date : null;
+        $load->invoice_status_date = $request->filled('invoice_status_date') ? $request->invoice_status_date : null;
+        // $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on') ?? '';
+        $status = $request->input('carrier_mark_as_paid', 'Not Paid');
+
+        $load->carrier_mark_as_paid = $status;
+
+        if ($status === 'Paid') {
+            $load->load_carrier_due_date_on = $request->input('load_carrier_due_date_on') ?? ''; // or now()->format('d-m-Y') if TEXT column
+        } else {
+            $load->load_carrier_due_date_on = null;
+        }
         $currentDateTime = Carbon::now();  // Get the current timestamp
-        if ($request->input('load_status') === 'Delivered') {
+        
+        if ($newStatus === 'Delivered') {
             // When the load status is 'Delivered', add the actual delivery date
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 'load_actual_delivery_date' => $currentDateTime,  // Current timestamp
             ];
         } else {
             // Otherwise, just update the load status
             $data = [
-                'load_status' => $request->input('load_status'),
+                'load_status' => $newStatus,
                 // Include other fields if necessary
             ];
         }
@@ -2510,20 +2675,43 @@ public function update_password(Request $request)
         }
         
         $customerId = $request->customer_id;
-        $newShipperLoadFinalRate = $request->shipper_load_final_rate;
-        $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate;
-    
+        $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
+        $oldShipperLoadFinalRate = (float) ($load->shipper_load_final_rate ?? 0);
+
         // Calculate the difference between old and new rates
         $rateDifference = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
 
-        $customer = Customer::find($customerId);
+        $customer = Customer::where('id', $customerId)->lockForUpdate()->first();
 
         if ($customer) {
-            $customer->remaining_credit -= $rateDifference;
-            $customer->remaining_credit_amount = $rateDifference; // Update remaining credit
+            $loadCreationAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('load_status', '!=', 'Cancelled')
+                ->where(function ($query) {
+                    $query->where('invoice_status', '!=', 'Paid Record')
+                        ->orWhereNull('invoice_status');
+                })
+                ->sum('shipper_load_final_rate');
+
+            $paymentReceivedAmount = (float) Load::where('customer_id', $customer->id)
+                ->where('invoice_status', 'Paid Record')
+                ->sum('receiving_amount');
+
+            $creditSummary = app(CreditService::class)->calculateCustomerCreditSummary(
+                $customer,
+                (float) ($customer->adv_customer_credit_limit ?? 0),
+                $loadCreationAmount,
+                $paymentReceivedAmount
+            );
+
+            $customer->remaining_credit = $creditSummary['remaining_credit'];
+            $customer->remaining_credit_amount = $creditSummary['remaining_credit'];
             $customer->save();
         }
         
+        if (strcasecmp((string) $newStatus, 'Cancelled') === 0 && strcasecmp((string) $originalLoad->load_status, 'Cancelled') !== 0) {
+            $this->applyCancelledLoadAccounting($originalLoad, $load);
+        }
+
         $load->save();
 
         $newData = json_encode($load);
@@ -2533,9 +2721,78 @@ public function update_password(Request $request)
 
         return back()->with('success', 'Load updated successfully');
         
+    }); // end DB::transaction
     }
 	
 	
+    protected function applyCancelledLoadAccounting(Load $originalLoad, Load $load, ?Customer $customer = null): void
+    {
+        $wasAlreadyCancelled = strcasecmp((string) $originalLoad->load_status, 'Cancelled') === 0;
+
+        if (!$wasAlreadyCancelled) {
+            $customer = $customer ?? Customer::find($originalLoad->customer_id);
+
+            if ($customer) {
+                $release = app(CreditService::class)->splitCreditRelease(
+                    $this->moneyValue($originalLoad->shipper_load_final_rate),
+                    $this->invoiceCreditAmount($originalLoad),
+                    $this->moneyValue($originalLoad->invoice_credit_overflow)
+                );
+
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $release['to_remaining'];
+                $customer->remaining_credit_amount = $customer->remaining_credit; // Update remaining credit amount after refund
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $release['to_invoice_limit'];
+                $customer->save();
+            }
+        }
+
+        $load->invoice_credit_overflow = 0;
+        $load->load_status = 'Cancelled';
+        $load->invoice_status = null;
+        $load->load_shipper_rate = 0;
+        $load->load_fsc_rate = 0;
+        $load->load_billing_fsc_rate = 0;
+        $load->shipper_load_other_charge = json_encode([]);
+        $load->carrier_load_other_charge = json_encode([]);
+        $load->shipper_load_final_rate = 0;
+        $load->load_final_rate = 0;
+        $load->load_carrier_fee = 0;
+        $load->load_final_carrier_fee = 0;
+        $load->receiving_amount = 0;
+        $load->remaining_amount = 0;
+        $load->load_advance_rec_amount = 0;
+        $load->invoice_number = '';
+        $load->invoice_date = null;
+        $load->paper_work_date = null;
+        $load->payment_receiving_date = null;
+        $load->invoice_status_date = null;
+        $load->load_actual_delivery_date = null;
+        $load->load_carrier_due_date = null;
+        $load->load_carrier_due_date_on = null;
+    }
+
+    protected function invoiceCreditAmount(Load $load): float
+    {
+        $charges = json_decode($load->shipper_load_other_charge, true);
+
+        if (!is_array($charges)) {
+            return 0.0;
+        }
+
+        return array_reduce($charges, function ($total, $charge) {
+            if (($charge['for_invoice'] ?? 'off') !== 'on') {
+                return $total;
+            }
+
+            return $total + $this->moneyValue($charge['amount'] ?? 0);
+        }, 0.0);
+    }
+
+    protected function moneyValue($value): float
+    {
+        return (float) preg_replace('/[^0-9.\-]/', '', (string) ($value ?? 0));
+    }
+
 	public function allLogs(Request $request)
     {
         $alllogs = activity_log::orderBy('created_at', 'desc')->paginate(50);

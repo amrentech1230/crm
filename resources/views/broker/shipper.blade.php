@@ -2,7 +2,11 @@
 <!-- This links to the app.blade.php layout -->
 
 @section('content')
-
+<style>
+#search-active .pagination-container{
+    display:none !important;
+}
+</style>
 <div class="page-content">
     <div class="container-fluid">
 
@@ -43,7 +47,7 @@
 
                         <h4 class="card-title">Shipper</h4>
                           <span style="float: left;margin-right: 10px;">Filter By Agents</span>
-                       <span><select style="width:200px;" name="filterusers" class="form-control" id="filterusers">
+                       <span style="display:inline-block;width:200px;"><select style="width:200px;max-width:200px;" name="filterusers" class="no-select2" id="filterusers">
 						<option value="{{Auth::id()}}">{{Auth::user()->name}}</option>
                             @foreach($userInfos as $key => $user)
                                 <option value="{{$key}}">{{$user}}</option>
@@ -76,8 +80,8 @@
                                 @include('broker.partials.shipper_table')
                             </tbody>
                         </table>
-                        <div class="custom-pagination">
-                            {{ $shipper->links() }}
+                        <div class="custom-pagination pagination-container">
+                            {{ $shipper->links('pagination::bootstrap-5') }}
                         </div>
                     </div>
                 </div>
@@ -289,8 +293,8 @@
 <script>
 $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {

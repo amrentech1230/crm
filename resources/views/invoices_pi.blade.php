@@ -307,8 +307,8 @@
 </script>
 
 <body>
-    <div style="text-align:center; font-weight:bold; margin-bottom:20px;">
-        Proforma Invoice {{$loadnumbers}}
+    <div style="text-align:center; font-weight:bold; margin-bottom:20px;font-size:30px; color:#000;text-decoration:underline;">
+    <br> PROFORMA INVOICE
     </div>
     <!-- Invoice 2 start -->
     <div class="invoice-2 invoice-content">
@@ -342,7 +342,7 @@
                                     <div class="col-sm-6">
                                         <div class="invoice-id">
                                             <div class="info">
-                                                <h1 class="inv-header-1">Invoice</h1>
+                                                <!-- <h1 class="inv-header-1">Invoice</h1> -->
                                                 <table class="table table-bordered">
                                                     <tr>
                                                         <td style="width:60%">
@@ -352,10 +352,10 @@
                                                     </tr>
 
                                                     <tr>
-                                                        <td style="width:60%">
+                                                        <!-- <td style="width:60%">
                                                             <p class="mb-1"><b>Invoice Number:</b>
-                                                                <span>{{$loadnumbers}}</span></p>
-                                                        </td>
+                                                                <span>$loadnumbers</span></p>
+                                                        </td> -->
                                                     </tr>
 
                                                 </table>

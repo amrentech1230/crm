@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# SSH deploy keys — NEVER commit these
+deploy_key
+deploy_key.pub
+*.pem

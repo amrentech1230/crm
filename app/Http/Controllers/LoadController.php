@@ -15,15 +15,25 @@ use \App\Models\user;
 use \App\Models\Manger;
 use \App\Models\TeamLeader;
 use \App\Models\ItHardware;
+use App\Services\CreditService;
+use Illuminate\Support\Facades\DB;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Pagination\Paginator;
 use Carbon\Carbon;
 use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class LoadController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -35,8 +45,8 @@ class LoadController extends Controller
 
 		foreach ($tabs as $tab) {
 			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
+                Paginator::currentPageResolver(function ($pageName = null) use ($request, $tab) {
+                    return (int) $request->input($pageName ?: $tab, 1);
 				});
 				break; // Stop after finding the matching tab
 			}
@@ -80,28 +90,28 @@ class LoadController extends Controller
         
         $role_ids = [1, 2 ,3];
         if(in_array($role_id, $role_ids)){
-            $all_load = Load::orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->paginate(50)->setPageName('delivered');
-            $invoice = Load::where('invoice_status', 'Paid')->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->paginate(50)->setPageName('invoice_paid');
+                })->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->paginate(50, ['*'], 'delivered');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('status', 'Approved')->get();
 
         }else{
-            $all_load = Load::where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('delivered');
+                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'delivered');
             
-            $invoice = Load::where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice_paid');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('user_id', Auth::id())
                 ->where('status', 'Approved')
                 ->where(function($q) {
@@ -115,6 +125,7 @@ class LoadController extends Controller
        
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
+		$availableCredits = get_customers_available_credit_limits($customer);
 		
 		if ($request->ajax()) {
 			
@@ -134,7 +145,7 @@ class LoadController extends Controller
 				
 		}
 		
-        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType'));
+        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType', 'availableCredits'));
     }
 
     public function broker_all_load(Request $request){
@@ -239,40 +250,79 @@ if (!empty($term)) {
     public function editload($id)
     {
 
-        $post = Load::find($id);
-
-        if (!$post) {
-            // Record not found, handle the error gracefully
-            return redirect()->back()->withErrors(['msg' => 'Load not found.']);
+                try {
+            $decryptedId = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            abort(404);
         }
-        
-        $user_id = Auth::id();
-        $shipperData = json_decode($post->load_shipper, true); // Assuming 'load_shipper' is where your JSON data is stored
-        $postData = $post->getAttributes();
 
+    $post = Load::find($decryptedId);
 
-        $allCustomers = Customer::where('user_id', $user_id)->get();
-
-        $invoicechargestotal = 0;
-
-        $shipperCharges = json_decode($post->shipper_load_other_charge, true);
-        if(isset($shipperCharges)){
-            foreach ($shipperCharges as $item) {
-                        if (isset($item['for_invoice']) && !is_null($item['for_invoice'])) {
-                            $invoicechargestotal += (float)$item['amount'];
-                        }
-                    }
-        }
-        $customer = Customer::where('status', 'Approved')->get();
-        $equipmentType = EquipmentType::all();
-        $shipmentType = ShipmentType::all();
-
-        $shipperdata= Shipper::where('user_id', $user_id)->orderBy('shipper_name', 'asc')->get();
-        $consigneedata= Consignee::where('user_id', $user_id)->orderBy('consignee_name', 'asc')->get();
-        
-        //$allCustomers = Customer::where('user_id', $user_id)->get();
-        return view('broker.edit_broker_load', compact('shipperdata', 'consigneedata', 'equipmentType', 'customer', 'shipmentType','post', 'shipperData', 'postData', 'allCustomers', 'invoicechargestotal'));
+    if (!$post) {
+        return redirect()->back()->withErrors([
+            'msg' => 'Load not found.'
+        ]);
     }
+
+    $post->refresh();
+
+    $user_id = Auth::id();
+
+    $shipperData = json_decode($post->load_shipperr, true);
+    $postData = $post->getAttributes();
+
+    $allCustomers = Customer::where('user_id', $user_id)
+        ->where('status', 'Approved')
+        ->get();
+
+    $invoicechargestotal = 0;
+
+    $shipperCharges = json_decode(
+        $post->shipper_load_other_charge,
+        true
+    );
+
+    if (isset($shipperCharges)) {
+        foreach ($shipperCharges as $item) {
+            if (($item['for_invoice'] ?? 'off') === 'on') {
+                $invoicechargestotal += (float) $item['amount'];
+            }
+        }
+    }
+
+    $customer = Customer::where('status', 'Approved')->get();
+
+    $loadCustomer = Customer::find($post->customer_id);
+
+    $equipmentType = EquipmentType::all();
+
+    $shipmentType = ShipmentType::all();
+
+    $shipperdata = Shipper::where('user_id', $user_id)
+        ->orderBy('shipper_name', 'asc')
+        ->get();
+
+    $consigneedata = Consignee::where('user_id', $user_id)
+        ->orderBy('consignee_name', 'asc')
+        ->get();
+
+    return view(
+        'broker.edit_broker_load',
+        compact(
+            'shipperdata',
+            'consigneedata',
+            'equipmentType',
+            'customer',
+            'shipmentType',
+            'post',
+            'shipperData',
+            'postData',
+            'allCustomers',
+            'invoicechargestotal',
+            'loadCustomer'
+        )
+    );
+}
 
     public function broker_open_load(Request $request){
         $q = $request->input('query');
@@ -462,10 +512,14 @@ if (!empty($term)) {
         return view('broker.loads.invoice_paid', compact('invoice_paid'))->render();
     }
 
-    public function cloneLoad($id) 
+    public function cloneLoad(string $id)
     {       
-       
-        $originalLoad = Load::findOrFail($id);
+        try {
+            $decryptedId = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            abort(404);
+        }
+        $originalLoad = Load::findOrFail($decryptedId);
         $newLoad = new Load();
         $newLoad->load_dispatcher = Auth::user()->name;
         $newLoad->user_id = Auth::id();
@@ -473,7 +527,7 @@ if (!empty($term)) {
         $newLoad->load_carrier = $originalLoad->load_carrier ?? '';
         $newLoad->load_bill_to = $originalLoad->load_bill_to ?? '';
         $newLoad->load_status = 'Open';
-        $newLoad->load_workorder = $originalLoad->load_workorder ?? '';
+        $newLoad->load_workorder = '';
         $newLoad->load_payment_type = $originalLoad->load_payment_type ?? '';
         $newLoad->load_type = $originalLoad->load_type ?? '';
         $newLoad->load_pds = $originalLoad->load_pds ?? '';
@@ -530,7 +584,7 @@ if (!empty($term)) {
         $newLoad->cpr_check = 'Not Approved';
         $newLoad->carrier_dot = $originalLoad->carrier_dot ??  '';
         $newLoad->carrier_id = $originalLoad->carrier_id ?? '';
-        $newLoad->customer_refrence_number = $originalLoad->customer_refrence_number ?? '';
+        $newLoad->customer_refrence_number = '';
         $newLoad->save();
         $insertedId = $newLoad->id;
         $newLoad->load_number = $insertedId;
@@ -550,12 +604,12 @@ if (!empty($term)) {
         $newLoad->save();
 
         //$newData = json_encode($newLoad);
-        $subject = "Broker Clone the Load, loadid:-".$id;
-        addToLog($customerId ='', $id, $subject, $oldData ='', $newData ='');
+        $subject = "Broker Clone the Load, loadid:-".$decryptedId;
+        addToLog($customerId ='', $decryptedId, $subject, $oldData ='', $newData ='');
 		
 		
         // Redirect with success message
-        return redirect()->route('load.editload', $insertedId)->with('success', 'Load has been cloned successfully');
+        return redirect()->route('load.editload',encrypt($insertedId))->with('success', 'Load has been cloned successfully');
 
     }
 
@@ -564,15 +618,15 @@ if (!empty($term)) {
      */
     public function create(Request $request)
     {
-       
-        
         $request->validate([
             'load_bill_to' => 'required|string',
             'load_delivery_do_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'shipper_load_final_rate' => 'required|numeric|gt:0',
+            'shipper_load_final_rate' => 'required|numeric|min:200',
+            'load_shipper_commodity' => 'required|string',
+            'load_consignee_commodity' => 'required|string',
+        ],[
+            'shipper_load_final_rate.min' => 'Customer final rate must not be less than 200.',
         ]);
-
-
 
             $yourModel = new Load();
 
@@ -722,11 +776,25 @@ if (!empty($term)) {
             $yourModel->load_consignee_contact = json_encode($load_consignee_contact) ?? '';
             $yourModel->load_consigneer_notes = json_encode($load_consignee_notes);
 
-            $customer_data = Customer::where('id', $request->input('load_bill_to'))->first();
+            $customerId = $request->input('customer_id', null);
+            $customerName = $request->input('load_bill_to', null);
+
+            $customer_data = null;
+            if (!empty($customerId)) {
+                $customer_data = Customer::where('id', $customerId)->where('status', 'Approved')->first();
+            }
+
+            if (!$customer_data && !empty($customerName)) {
+                $customer_data = Customer::where('customer_name', $customerName)->where('status', 'Approved')->first();
+            }
+
+            if (!$customer_data) {
+                return redirect()->back()->with('error', 'Selected customer is not approved or not found.');
+            }
 
             $yourModel->user_id = Auth::id();
-            $yourModel->load_bill_to = $request->input('load_bill_to', null);
-            $yourModel->customer_id = $request->input('customer_id', null);
+            $yourModel->load_bill_to = $customer_data->customer_name ?? $request->input('load_bill_to', null);
+            $yourModel->customer_id = $customer_data->id;
             $yourModel->load_dispatcher = Auth::user()->name;
             $yourModel->load_status = $request->input('load_status') ?? '';
             $yourModel->load_workorder = $request->input('load_workorder') ?? '';
@@ -740,12 +808,11 @@ if (!empty($term)) {
 
             $finalRate = (float) $request->input('shipper_load_final_rate');
 
-            // ✅ Validate first
-            if ($finalRate == 0) {
-                return back()->with('error', "Customer load final rate cannot be 0.");
+            // Validate first
+            if ($finalRate < 200) {
+                return back()->with('error', "Customer final rate must not be less than 200.");
             }
-
-            // ✅ Then assign
+            // Then assign
             $yourModel->shipper_load_final_rate = $finalRate;
             
             $yourModel->load_carrier = $request->input('load_carrier') ?? '';
@@ -792,12 +859,22 @@ if (!empty($term)) {
             }
 
             $shipperCharges = [];
+            $invoiceChargeTotal = 0.0;
             foreach ($request->shipperchargeType as $index => $chargeType) {
-                $chargeAmount = $request->shipperchargeAmount[$index];
+                $chargeAmount = (float) ($request->shipperchargeAmount[$index] ?? 0);
+                // for_invoice[] is submitted as a dense hidden field per charge row (on/off),
+                // so it stays index-aligned with shipperchargeType[]/shipperchargeAmount[].
+                $forInvoice = (($request->input("for_invoice.{$index}") ?? 'off') === 'on') ? 'on' : 'off';
+
                 $shipperCharges[] = [
                     'type' => $chargeType,
+                    'for_invoice' => $forInvoice,
                     'amount' => $chargeAmount,
                 ];
+
+                if ($forInvoice === 'on') {
+                    $invoiceChargeTotal += $chargeAmount;
+                }
             }
 
             $carrierCharges = [];
@@ -812,7 +889,17 @@ if (!empty($term)) {
 
             $yourModel->shipper_load_other_charge = json_encode($shipperCharges);
             
-            // echo "<pre>"; print_r   ($yourModel); die();  
+            // ✅ VALIDATION + RESERVATION: Atomically check credit and deduct within a DB transaction
+            // with row locking to prevent race conditions (two loads created simultaneously).
+            $customer = Customer::find($yourModel->customer_id);
+            if ($customer) {
+                $loadAmount = (float) $finalRate;
+                $creditResult = $this->creditService->reserveCreditForLoad($customer, $loadAmount, $invoiceChargeTotal);
+
+                if (!$creditResult['allowed']) {
+                    return back()->with('error', $creditResult['message']);
+                }
+            }
 
             $yourModel->save();
             
@@ -820,13 +907,6 @@ if (!empty($term)) {
             $yourModel->load_number = $insertedId;
 
             $yourModel->save();
-
-            $customer = Customer::find($yourModel->customer_id);
-            if ($customer) {
-                $customer->remaining_credit -= $yourModel->shipper_load_final_rate;
-                $customer->remaining_credit_amount = $customer->adv_customer_credit_limit; // Update remaining credit
-                $customer->save();
-            }
 
 
             $subject = "Broker Create the Load, loadid:-".$insertedId;
@@ -839,7 +919,13 @@ if (!empty($term)) {
 
     public function BrokerLoadUpdate(Request $request, $id)
     {
+    try {
+        $decryptedId = Crypt::decrypt($id);
+    } catch (DecryptException $e) {
+        abort(404);
+    }
 
+return \DB::transaction(function () use ($request, $decryptedId) {
 
 for ($i = 1; $i <= 15; $i++) {
 
@@ -871,18 +957,23 @@ for ($i = 1; $i <= 15; $i++) {
     }
 }
       
-        $load = Load::findOrFail($id);
+        $load = Load::findOrFail($decryptedId);
+        
+        // Capture original load data BEFORE any form processing
+        $loaddata = clone $load;
 
         $oldData = json_encode($load);
 
         $exsistcarrier = External::where('carrier_name', $request->input('load_carrier'))
             ->where('carrier_mc_ff_input', $request->input('load_mc_no'))
             ->first();
-        if (empty($exsistcarrier)) {
+        $isCancelling = strcasecmp((string) $request->input('load_status'), 'Cancelled') === 0;
+
+        if (!$isCancelling && empty($exsistcarrier)) {
             return redirect()->back()->with('error', 'Carrier Not Found');
         }
 
-        if ($request->input('load_final_carrier_fee') > $request->input('shipper_load_final_rate')) {
+        if (!$isCancelling && $request->input('load_final_carrier_fee') > $request->input('shipper_load_final_rate')) {
             return redirect()->back()->with('error', 'Carrier rate cannot exceed the Customer Final Rate');
         }
 
@@ -1327,7 +1418,10 @@ for ($i = 1; $i <= 15; $i++) {
         $load->load_other_charge = $request->input('load_other_charge') ?? '';
         $load->shipper_load_final_rate = $request->input('shipper_load_final_rate') ?? 0;
         $load->load_fsc_rate = $request->input('load_fsc_rate') ?? '';
-        $load->customer_id = $request->input('customer_id') ?? '';
+        $customerId = $request->filled('customer_id')
+            ? $request->input('customer_id')
+            : $load->customer_id;
+        $load->customer_id = $customerId;
         $load->comment = $request->input('comment') ?? '';
 
         $load->customer_refrence_number = $request->input('customer_refrence_number') ?? '';
@@ -1411,11 +1505,9 @@ for ($i = 1; $i <= 15; $i++) {
 
          
      
-        $customerId = $request->customer_id;
-
-        $customerdata = customer::where('id', $customerId)->first();
-
-        $loaddata = Load::findOrFail($id);
+        // Lock the customer row to prevent race conditions on credit updates
+        $customerdata = Customer::where('id', $customerId)->lockForUpdate()->first();
+        $oldCustomer = $loaddata->customer_id ? Customer::where('id', $loaddata->customer_id)->lockForUpdate()->first() : null;
 
         $old_shipper_load_other_charge = json_decode($loaddata->shipper_load_other_charge, true);
         
@@ -1442,67 +1534,130 @@ for ($i = 1; $i <= 15; $i++) {
 
         $invoice_credit = $oldinvoicechargestotal - $invoicechargestotal;
 
-        $newShipperLoadFinalRate = $request->load_shipper_rate + $invoicechargestotaloff ?? 0;
-        $oldShipperLoadFinalRate = $request->old_shipper_load_final_rate ?? 0;
-	
-        $checkrate = $newShipperLoadFinalRate - $oldShipperLoadFinalRate;
-		
+        // Use DB value for old rate — never trust a hidden form field for financial calculations
+        $oldShipperLoadFinalRate = (float) ($loaddata->shipper_load_final_rate ?? 0);
+        $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
 
-        $checkfinalrate = $invoicechargestotaloff - $oldinvoicechargestotaloff;
-		
-        $rateDifference = $request->shipper_load_final_rate - $oldShipperLoadFinalRate;
-        $finalcredit = $checkinvoice_credit - $rateDifference;
+        // Old invoice charges already calculated above as $oldinvoicechargestotal
+        // New invoice charges already calculated above as $invoicechargestotal
 
-        $finalcreditdiff = $rateDifference - $checkinvoice_credit;
-      
-      
-        if ($customerdata && (int) $customerdata->remaining_credit < $finalcreditdiff) {
-              
-            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaing credit Limit, your credit limit is ' . $customerdata->remaining_credit);
-        } else if ($customerdata && (int) $customerdata->invoice_credit_limit < $checkinvoice_credit) {
-            return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit Limit, your invoice credit limit is ' . $customerdata->invoice_credit_limit);
-        } else {
-  
-       
-            // Calculate the difference between old and new rates
-            $rateDifference = $oldShipperLoadFinalRate - $request->shipper_load_final_rate;
-           
-            $finalrate = $rateDifference;
+        // remaining_credit delta: positive = credit freed, negative = more credit used
+        $oldRemainingUsed = max(0.0, $oldShipperLoadFinalRate - $oldinvoicechargestotal);
+        $newRemainingUsed = max(0.0, $newShipperLoadFinalRate - $invoicechargestotal);
+        $remainingCreditDelta = $oldRemainingUsed - $newRemainingUsed;
 
-           // $finalremaing = $checkrate - $invoice_credit;
+        // invoice_credit_limit delta: positive = limit freed, negative = more invoice credit used
+        $invoiceCreditDelta = $oldinvoicechargestotal - $invoicechargestotal;
 
+        if (!$isCancelling) {
+            $oldCustomerId = (int) ($loaddata->customer_id ?? 0);
+            $newCustomerId = (int) ($customerId ?? 0);
 
-            $customerId = $request->customer_id;
-          
-            
-            if($finalcredit != 0){
-                Customer::where('id', $customerId)->update([
-                    'remaining_credit' => \DB::raw("remaining_credit + " . (float) $finalcredit),
-                ]);
-            }
+            if ($oldCustomerId > 0 && $newCustomerId > 0 && $oldCustomerId !== $newCustomerId) {
+                // Customer changed:
+                // 1. Release OLD rate back to old customer
+                // 2. Deduct NEW rate from new customer
 
-            if ($invoice_credit !== 0) {
-                Customer::where('id', $customerId)->update([
-                    'invoice_credit_limit' => \DB::raw("invoice_credit_limit + " . (float) $invoice_credit),
-                ]);
-            }
+                $oldRate         = (float) ($loaddata->shipper_load_final_rate ?? 0);
+                $oldInvoiceAmt   = (float) $oldinvoicechargestotal;
+                $oldRemainingAmt = max(0.0, $oldRate - $oldInvoiceAmt);
 
-            if($finalrate !== 0){
-                Customer::where('id', $customerId)->update([
-                    'remaining_credit_amount' => \DB::raw("remaining_credit_amount + $finalrate"),
-                ]);
-            }            
-            
+                $newRate         = (float) $newShipperLoadFinalRate;
+                $newInvoiceAmt   = (float) $invoicechargestotal;
+                $newRemainingAmt = max(0.0, $newRate - $newInvoiceAmt);
+
+        if ($oldCustomer) {
+            $oldCustomer->remaining_credit       = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingAmt, 2);
+            $oldCustomer->remaining_credit_amount = $oldCustomer->remaining_credit;
+            $oldCustomer->invoice_credit_limit   = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceAmt, 2);
+            $oldCustomer->save();
         }
-        
+
+                // Deduct credit from new customer using NEW load rate
+                if ($customerdata) {
+                    // For customer transfer, check against adv_customer_credit_limit (total assigned)
+                    // not remaining_credit, because remaining already accounts for other loads.
+                    // We deduct from remaining_credit directly.
+                    $newAvailable    = $this->creditService->getAvailableCreditLimit($customerdata);
+                    $newInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
+
+                    if ($newAvailable < $newRemainingAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient remaining credit. ' .
+                            'Available: ' . $newAvailable . ', Required: ' . $newRemainingAmt . '.');
+                    }
+                    if ($newInvoiceAmt > 0 && $newInvoiceLimit < $newInvoiceAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient invoice credit limit. ' .
+                            'Available: ' . $newInvoiceLimit . ', Required: ' . $newInvoiceAmt . '.');
+                    }
+
+                    $customerdata->remaining_credit        = round(max(0.0, $newAvailable - $newRemainingAmt), 2);
+                    $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
+                    $customerdata->invoice_credit_limit    = round(max(0.0, $newInvoiceLimit - $newInvoiceAmt), 2);
+                    $customerdata->save();
+                }
+            } elseif ($customerdata) {
+                // Same customer, only rate/invoice changed — apply delta
+                $currentRemaining = max(0.0, (float) $this->creditService->getAvailableCreditLimit($customerdata));
+                $currentInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
+
+                // remainingCreditDelta > 0 means credit is freed (rate decreased)
+                // remainingCreditDelta < 0 means more credit is consumed (rate increased)
+                if ($currentRemaining + $remainingCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $currentRemaining);
+                }
+
+                // invoiceCreditDelta > 0 means invoice limit freed (charges removed)
+                // invoiceCreditDelta < 0 means more invoice limit consumed (charges added)
+                if ($currentInvoiceLimit + $invoiceCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $currentInvoiceLimit);
+                }
+
+                $customerdata->remaining_credit       = round(max(0.0, $currentRemaining + $remainingCreditDelta), 2);
+                $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
+                $customerdata->invoice_credit_limit   = round(max(0.0, $currentInvoiceLimit + $invoiceCreditDelta), 2);
+                $customerdata->save();
+            }
+        }
+
+        if ($isCancelling) {
+            // Set cancelled values on the load object
+            $load->load_status = 'Cancelled';
+            $load->invoice_status = null;
+            $load->load_shipper_rate = 0;
+            $load->load_fsc_rate = 0;
+            $load->load_billing_fsc_rate = 0;
+            $load->shipper_load_other_charge = json_encode([]);
+            $load->carrier_load_other_charge = json_encode([]);
+            $load->shipper_load_final_rate = 0;
+            $load->load_final_rate = 0;
+            $load->load_carrier_fee = 0;
+            $load->load_final_carrier_fee = 0;
+            $load->receiving_amount = 0;
+            $load->remaining_amount = 0;
+            $load->invoice_number = '';
+            $load->invoice_date = null;
+            $load->paper_work_date = null;
+            $load->payment_receiving_date = null;
+            $load->invoice_status_date = null;
+            $load->load_actual_delivery_date = null;
+            $load->load_carrier_due_date = null;
+            $load->load_carrier_due_date_on = null;
+            
+            // Apply accounting changes
+            $this->applyCancelledLoadAccounting($loaddata, $load);
+        }
+
         $load->save();
 
         $newData = json_encode($load);
 
-        $subject = "Broker Update the Load, loadid:-".$id;
-        addToLog($customerId ='', $id, $subject, $oldData, $newData);
+        $subject = "Broker Update the Load, loadid:-".$load->number;
+        addToLog($customerId ='', $load->number, $subject, $oldData, $newData);
 
         return redirect('broker/load')->with('success', 'Load has been updated successfully!');
+    }); // end DB::transaction
     }
 
     public function fetchCarrierSuggestions(Request $request)
@@ -1510,7 +1665,7 @@ for ($i = 1; $i <= 15; $i++) {
         $field = $request->input('field'); // 'carrier_name', 'mcNumber', 'dotNumber'
         $inputValue = $request->input('inputValue'); 
 
-    $query = External::query()
+        $query = External::query()
         ->where('mc_check', 'Approved')
         ->where(function($q) {
             $q->where('carrier_block', 'Unblocked')
@@ -1529,8 +1684,8 @@ for ($i = 1; $i <= 15; $i++) {
         }
 
         $carriers = $query->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber')
-                        ->limit(10)
-                        ->get();
+        ->limit(10)
+        ->get();
         
         return response()->json($carriers);
     }
@@ -1542,9 +1697,9 @@ for ($i = 1; $i <= 15; $i++) {
     
         // Fetch the carrier based on the ID and ensure it's approved
         $carrier = External::where('id', $carrierId)
-                            ->where('mc_check', 'Approved') // Ensure it's an approved carrier
-                            ->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber', 'carrier_telephone as phone')
-                            ->first();
+        ->where('mc_check', 'Approved') // Ensure it's an approved carrier
+        ->select('id', 'carrier_name', 'carrier_mc_ff_input as mcNumber', 'carrier_dot as dotNumber', 'carrier_telephone as phone')
+        ->first();
     
         // Return the carrier details as a JSON response
         return response()->json($carrier);
@@ -1560,9 +1715,9 @@ for ($i = 1; $i <= 15; $i++) {
         
         // Fetch the shipper details based on 'id' and 'user_id'
         $shipper = Shipper::select('id', 'shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
-                          ->where('id', $id)
-                          ->where('user_id', $user)
-                          ->first();
+        ->where('id', $id)
+        ->where('user_id', $user)
+        ->first();
         
         // Check if the shipper was found
         if ($shipper) {
@@ -1573,18 +1728,28 @@ for ($i = 1; $i <= 15; $i++) {
     }
 
      public function fetchShipperDetails(Request $request) {
-        $query = $request->input('query');
+        $query = trim((string) $request->input('query', ''));
         $userId = Auth::id();
+        $roleId = Auth::user()->role_id ?? null;
 
+        $queryBuilder = Shipper::query();
 
-$shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
-    ->where('user_id', $userId)
-    ->select('shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
-    ->orderBy('shipper_name', 'asc') // Sort A to Z
-    ->get();
+        if (!empty($query)) {
+            $queryBuilder->where('shipper_name', 'like', '%' . $query . '%');
+        } else {
+            $queryBuilder->whereRaw('1 = 0');
+        }
 
+        $roleIds = [1, 2, 3];
+        if (!in_array($roleId, $roleIds, true)) {
+            $queryBuilder->where('user_id', $userId);
+        }
 
-        $datashipper = Shipper::get();                       
+        $shippers = $queryBuilder
+            ->select('shipper_name', 'shipper_address', 'shipper_city', 'shipper_state', 'shipper_country', 'shipper_zip')
+            ->orderBy('shipper_name', 'asc')
+            ->get();
+
         return response()->json($shippers);
     }
 
@@ -1594,9 +1759,9 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
 
         $query = $request->input('query');
         $consignees = Consignee::where('consignee_name', 'like', '%' . $query . '%')
-                                ->where('user_id', $userId)
-                                ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
-                                ->get();
+        ->where('user_id', $userId)
+        ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
+        ->get();
         return response()->json($consignees);
     }
     
@@ -1604,51 +1769,131 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
     public function checkRemaingLimit(Request $request){
        
         $customer_id = $request->input('customer_id');
-        $final_rate = $request->input('finalrate');
+        $final_rate = (float) $request->input('finalrate', 0);
+        $invoice_amount = (float) $request->input('invoice_amount', 0);
+        $remaining_amount = (float) $request->input('remaining_amount', max(0.0, $final_rate - $invoice_amount));
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
-        if($final_rate > $remaining_limit){
-            return response()->json([
-                'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
-            ]);
-        }else{
+        $validation = $this->creditService->validateSplitLoadCredit($customerdata, $remaining_amount, $invoice_amount);
+
+        if ($validation['allowed']) {
             return response()->json([
                 'success' => false,
                 'message' => '',
             ]);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => $validation['message'],
+        ]);
 
     }
      public function checkRemaingLimiteditload(Request $request){
        
         $customer_id = $request->input('customer_id');
-        $final_rate = $request->input('finalrate');
+        $final_rate = (float) $request->input('finalrate', 0);
+        $invoice_amount = (float) $request->input('invoice_amount', 0);
+        $remaining_amount = (float) $request->input('remaining_amount', max(0.0, $final_rate - $invoice_amount));
 
         $customerdata = Customer::where('id', $customer_id)->first();
-        $remaining_limit = $customerdata->remaining_credit;
-        if($final_rate > $remaining_limit){
-            return response()->json([
-                'success' => true,
-                'message' => 'You do not have sufficient remaining credit to create the load. Your remaining credit is ' . $remaining_limit
-            ]);
-        }else{
+        $validation = $this->creditService->validateSplitLoadCredit($customerdata, $remaining_amount, $invoice_amount);
+
+        if ($validation['allowed']) {
             return response()->json([
                 'success' => false,
                 'message' => '',
             ]);
         }
 
+        return response()->json([
+            'success' => true,
+            'message' => $validation['message'],
+        ]);
+
+    }
+
+    private function applyCancelledLoadAccounting(Load $originalLoad, Load $load): void
+    {
+        $wasAlreadyCancelled = strcasecmp((string) $originalLoad->load_status, 'Cancelled') === 0;
+
+        if (!$wasAlreadyCancelled) {
+            $customer = Customer::find($originalLoad->customer_id);
+
+            if ($customer) {
+                $release = $this->creditService->splitCreditRelease(
+                    $this->moneyValue($originalLoad->shipper_load_final_rate),
+                    $this->invoiceCreditAmount($originalLoad),
+                    $this->moneyValue($originalLoad->invoice_credit_overflow)
+                );
+
+                $customer->remaining_credit = $this->moneyValue($customer->remaining_credit) + $release['to_remaining'];
+                $customer->invoice_credit_limit = $this->moneyValue($customer->invoice_credit_limit) + $release['to_invoice_limit'];
+                $customer->save();
+            }
+        }
+
+        $load->invoice_credit_overflow = 0;
+        $load->load_status = 'Cancelled';
+        $load->invoice_status = null;
+        $load->load_shipper_rate = 0;
+        $load->load_fsc_rate = 0;
+        $load->load_billing_fsc_rate = 0;
+        $load->shipper_load_other_charge = json_encode([]);
+        $load->shipper_load_final_rate = 0;
+        $load->load_final_rate = 0;
+        $load->receiving_amount = 0;
+        $load->remaining_amount = 0;
+        $load->invoice_number = '';
+        $load->invoice_date = null;
+        $load->paper_work_date = null;
+        $load->payment_receiving_date = null;
+        $load->invoice_status_date = null;
+        $load->load_actual_delivery_date = null;
+        $load->load_carrier_due_date = null;
+        $load->load_carrier_due_date_on = null;
+    }
+
+    private function invoiceCreditAmount(Load $load): float
+    {
+        $charges = json_decode($load->shipper_load_other_charge, true);
+
+        if (!is_array($charges)) {
+            return 0.0;
+        }
+
+        return array_reduce($charges, function ($total, $charge) {
+            if (($charge['for_invoice'] ?? 'off') !== 'on') {
+                return $total;
+            }
+
+            return $total + $this->moneyValue($charge['amount'] ?? 0);
+        }, 0.0);
+    }
+
+    private function moneyValue($value): float
+    {
+        return (float) preg_replace('/[^0-9.\-]/', '', (string) ($value ?? 0));
     }
 
     public function load_status_update(Request $request)
     {
         $load = Load::find($request->input('load_id'));
         $loadid = $request->input('load_id');
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found'
+            ], 404);
+        }
+
+        $oldLoad = clone $load;
         $load->load_status = $request->input('load_status');
         if ($load->load_status == 'Delivered') {
         $load->load_actual_delivery_date = now();
+        }
+        if (strcasecmp((string) $load->load_status, 'Cancelled') === 0) {
+            $this->applyCancelledLoadAccounting($oldLoad, $load);
         }
         $load->save();
         $subject = "Broker change the Load ".$request->input('load_status').", loadid:-".$request->input('load_id');
@@ -1664,8 +1909,8 @@ $shippers = Shipper::where('shipper_name', 'like', '%' . $query . '%')
     /**
      * Store a newly created resource in storage.
      */
-public function raiseTickets()
-{
+    public function raiseTickets()
+    {
     $userId = Auth::id();
 
     $tickets_open = ItHardware::where('user_id', $userId)
@@ -1711,47 +1956,230 @@ public function raiseTicketStore(Request $request)
     return back()->with('success', 'Ticket raised successfully!');
 }
 
-    public function generateBolPdf(Request $request, $id)
+    private function buildPartyInfoText($partyJson, $locationJson): string
     {
-        // Fetch the original load to get base data like load number
+        $parties = json_decode($partyJson ?? '', true) ?: [];
+        $locations = json_decode($locationJson ?? '', true) ?: [];
+
+        $lines = [];
+        foreach ($parties as $index => $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $location = trim((string) ($item['location'] ?? ($locations[$index]['location'] ?? '')));
+
+            if ($name !== '') {
+                $lines[] = $name;
+            }
+            if ($location !== '') {
+                $lines[] = $location;
+            }
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    private function buildPartyInfoFromRequest(Request $request, string $namePrefix, string $locationPrefix): string
+    {
+        $partyNames = [];
+        $partyLocations = [];
+
+        foreach ($request->all() as $key => $value) {
+            if (preg_match('/^' . preg_quote($namePrefix, '/') . '(\d*)$/', $key, $matches)) {
+                $index = $matches[1] ?: 0;
+                $partyNames[$index]['name'] = trim((string) $value);
+            } elseif (preg_match('/^' . preg_quote($locationPrefix, '/') . '(\d*)$/', $key, $matches)) {
+                $index = $matches[1] ?: 0;
+                $partyLocations[$index]['location'] = trim((string) $value);
+            }
+        }
+
+        $lines = [];
+        foreach ($partyNames as $index => $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $location = trim((string) ($partyLocations[$index]['location'] ?? ''));
+
+            if ($name !== '') {
+                $lines[] = $name;
+            }
+            if ($location !== '') {
+                $lines[] = $location;
+            }
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    /**
+     * Save BOL edit data for PDF download (persists for future downloads).
+     */
+    public function saveBolEditData(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+
+        $bolData = [
+            'load_number'            => $request->input('load_number', $load->load_number),
+            'load_workorder'         => $request->input('load_workorder', $load->load_workorder ?? ''),
+            'ship_date'              => $request->input('ship_date', ''),
+            'delivery_date'          => $request->input('delivery_date', ''),
+            'shipper_info'           => $request->input('shipper_info', ''),
+            'consignee_info'         => $request->input('consignee_info', ''),
+            'third_party_billing'    => $request->input('third_party_billing', ''),
+            'transportation_company' => $request->input('transportation_company', ''),
+            'freight_items'          => $request->input('freight', []),
+            'notes'                  => $request->input('notes', ''),
+            'cod_amount'             => $request->input('cod_amount', '$0.00'),
+            'cod_fee'                => $request->input('cod_fee', 'Collect'),
+            'declared_value'         => $request->input('declared_value', '$0.00'),
+            'shipper_signature'      => $request->input('shipper_signature', ''),
+            'carrier_signature'      => $request->input('carrier_signature', ''),
+            'signature_date'         => $request->input('signature_date', ''),
+            'shipper_per'            => $request->input('shipper_per', ''),
+            'carrier_per'            => $request->input('carrier_per', ''),
+            'signature_time'         => $request->input('signature_time', ''),
+            'consignee_name_signature'  => $request->input('consignee_name_signature', ''),
+            'consignee_date_signature'  => $request->input('consignee_date_signature', ''),
+            'consignee_signature'       => $request->input('consignee_signature', ''),
+            'consignee_pieces_received' => $request->input('consignee_pieces_received', ''),
+        ];
+
+        $load->bol_edit_data = json_encode($bolData);
+        $load->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'BOL data saved successfully.',
+        ]);
+    }
+
+    public function generateBolPdf($id)
+    {
         $originalLoad = Load::findOrFail($id);
 
-        // Create a new stdClass object to hold the data for the PDF view.
-        // Using stdClass is cleaner than replicating a model when the data structure is different.
-        $load = new \stdClass();
+        $savedBolEdit = is_array($originalLoad->bol_edit_data)
+            ? $originalLoad->bol_edit_data
+            : (json_decode($originalLoad->bol_edit_data ?? '', true) ?: []);
 
-        // Assign data from the original load
-        $load->load_number = $originalLoad->load_number;
+        $load = $originalLoad;
 
-        // Overwrite with data from the submitted form
-        $load->load_workorder = $request->input('load_workorder');
-        $load->shipper_info = $request->input('shipper_info');
-        $load->consignee_info = $request->input('consignee_info');
-        $load->transportation_company = $request->input('transportation_company');
-        $load->notes = $request->input('notes');
-        $load->freight_items = $request->input('freight', []); // Get freight items
+        // Overlay saved BOL edit data into the model where present
+        if (!empty($savedBolEdit)) {
+            $load->load_number = $savedBolEdit['load_number'] ?? $load->load_number;
+            $load->load_workorder = $savedBolEdit['load_workorder'] ?? $load->load_workorder;
+            $load->ship_date = $savedBolEdit['ship_date'] ?? $load->ship_date;
+            $load->delivery_date = $savedBolEdit['delivery_date'] ?? $load->delivery_date;
+            $load->shipper_info = $savedBolEdit['shipper_info'] ?? $load->shipper_info;
+            $load->consignee_info = $savedBolEdit['consignee_info'] ?? $load->consignee_info;
+            $load->freight_items = is_array($savedBolEdit['freight_items'] ?? null)
+                ? $savedBolEdit['freight_items']
+                : ($load->freight_items ?? []);
+            $load->notes = $savedBolEdit['notes'] ?? $load->notes;
+            $load->third_party_billing = $savedBolEdit['third_party_billing'] ?? $load->third_party_billing;
+            $load->transportation_company = $savedBolEdit['transportation_company'] ?? $load->transportation_company;
+            $load->cod_amount = $savedBolEdit['cod_amount'] ?? $load->cod_amount;
+            $load->cod_fee = $savedBolEdit['cod_fee'] ?? $load->cod_fee;
+            $load->declared_value = $savedBolEdit['declared_value'] ?? $load->declared_value;
+            $load->shipper_signature = $savedBolEdit['shipper_signature'] ?? $load->shipper_signature;
+            $load->carrier_signature = $savedBolEdit['carrier_signature'] ?? $load->carrier_signature;
+            $load->signature_date = $savedBolEdit['signature_date'] ?? $load->signature_date;
+            $load->shipper_per = $savedBolEdit['shipper_per'] ?? $load->shipper_per;
+            $load->carrier_per = $savedBolEdit['carrier_per'] ?? $load->carrier_per;
+            $load->signature_time = $savedBolEdit['signature_time'] ?? $load->signature_time;
+            $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'] ?? $load->consignee_name_signature;
+            $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'] ?? $load->consignee_date_signature;
+            $load->consignee_signature = $savedBolEdit['consignee_signature'] ?? $load->consignee_signature;
+            $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'] ?? $load->consignee_pieces_received;
+        }
 
-        // You can add more fields here as needed
-        $load->ship_date = $request->input('ship_date');
-        $load->delivery_date = $request->input('delivery_date');
+        if (empty($load->shipper_info)) {
+            $load->shipper_info = $this->buildPartyInfoText(
+                $originalLoad->load_shipperr,
+                $originalLoad->load_shipper_location
+            );
+        }
+
+        if (empty($load->consignee_info)) {
+            $load->consignee_info = $this->buildPartyInfoText(
+                $originalLoad->load_consignee,
+                $originalLoad->load_consignee_location
+            );
+        }
+
+        if (!isset($load->freight_items) || !is_array($load->freight_items)) {
+            $load->freight_items = [];
+        }
 
         $options = new Options();
-        $options->set('defaultFont', 'Arial'); // Use a common font
-        $options->set('isRemoteEnabled', true); // Enable remote image loading for logo
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('broker.bol_pdf', compact('load'))->render();
+        $html = view('broker.bol_pdf', compact('load', 'savedBolEdit'))->render();
         $dompdf->loadHtml($html);
 
-        // (Optional) Set paper size and orientation
         $dompdf->setPaper('letter', 'portrait');
-
         $dompdf->render();
 
-        // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
     }
 
+    public function generateBolPdfWithEditedData(Request $request, $id)
+    {
+        return $this->generateBolPdf($id);
+    }
+
+    public function downloadBolPdf(Request $request, $id)
+    {
+        $load = Load::findOrFail($id);
+        $savedBolEdit = is_array($load->bol_edit_data)
+            ? $load->bol_edit_data
+            : (json_decode($load->bol_edit_data ?? '', true) ?: []);
+
+        $incomingData = $request->all();
+        $savedBolEdit = array_merge($savedBolEdit, $incomingData);
+
+        if (isset($savedBolEdit['freight']) && !is_array($savedBolEdit['freight'])) {
+            $savedBolEdit['freight'] = [];
+        }
+
+        $load->load_number = $savedBolEdit['load_number'] ?? $load->load_number;
+        $load->load_workorder = $savedBolEdit['load_workorder'] ?? $load->load_workorder;
+        $load->ship_date = $savedBolEdit['ship_date'] ?? $load->ship_date;
+        $load->delivery_date = $savedBolEdit['delivery_date'] ?? $load->delivery_date;
+        $load->shipper_info = $savedBolEdit['shipper_info'] ?? $load->shipper_info;
+        $load->consignee_info = $savedBolEdit['consignee_info'] ?? $load->consignee_info;
+        $load->freight_items = is_array($savedBolEdit['freight'] ?? null)
+            ? $savedBolEdit['freight']
+            : ($load->freight_items ?? []);
+        $load->notes = $savedBolEdit['notes'] ?? $load->notes;
+        $load->third_party_billing = $savedBolEdit['third_party_billing'] ?? $load->third_party_billing;
+        $load->transportation_company = $savedBolEdit['transportation_company'] ?? $load->transportation_company;
+        $load->cod_amount = $savedBolEdit['cod_amount'] ?? $load->cod_amount;
+        $load->cod_fee = $savedBolEdit['cod_fee'] ?? $load->cod_fee;
+        $load->declared_value = $savedBolEdit['declared_value'] ?? $load->declared_value;
+        $load->shipper_signature = $savedBolEdit['shipper_signature'] ?? $load->shipper_signature;
+        $load->carrier_signature = $savedBolEdit['carrier_signature'] ?? $load->carrier_signature;
+        $load->signature_date = $savedBolEdit['signature_date'] ?? $load->signature_date;
+        $load->shipper_per = $savedBolEdit['shipper_per'] ?? $load->shipper_per;
+        $load->carrier_per = $savedBolEdit['carrier_per'] ?? $load->carrier_per;
+        $load->signature_time = $savedBolEdit['signature_time'] ?? $load->signature_time;
+        $load->consignee_name_signature = $savedBolEdit['consignee_name_signature'] ?? $load->consignee_name_signature;
+        $load->consignee_date_signature = $savedBolEdit['consignee_date_signature'] ?? $load->consignee_date_signature;
+        $load->consignee_signature = $savedBolEdit['consignee_signature'] ?? $load->consignee_signature;
+        $load->consignee_pieces_received = $savedBolEdit['consignee_pieces_received'] ?? $load->consignee_pieces_received;
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+
+        $html = view('broker.bol_pdf', compact('load', 'savedBolEdit'))->render();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="BOL-'.($incomingData['load_number'] ?? $load->load_number).'.pdf"');
+    }
 
 
     public function extractDoData(Request $request)

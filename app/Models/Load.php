@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Load extends Model
 {
     protected $guarded = [];
+
+    protected $casts = [
+        'bol_edit_data' => 'array',
+    ];
     
     public function user()
     {
@@ -32,6 +36,10 @@ class Load extends Model
     public function carrierVerification()
     {
         return $this->hasOne(\App\Models\CarrierVerification::class, 'load_id');
+    }
+   public function payments()
+    {
+    return $this->hasMany(LoadPayment::class);
     }
 
 }

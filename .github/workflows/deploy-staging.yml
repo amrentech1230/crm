@@ -1,0 +1,146 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [devN]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy devN -> Staging
+    runs-on: ubuntu-latest
+
+    environment:
+      name: staging
+      url: https://ccicrm.in
+
+    steps:
+
+      - name: Validate SSH configuration
+        env:
+          SSH_HOST: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          echo "==> Validating staging SSH target"
+          echo "SSH_TARGET=${SSH_HOST:-<unset>}:${SSH_PORT:-<unset>}"
+          echo "SSH_USER=${SSH_USER:-<unset>}"
+          echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH }}"
+
+          if [[ -z "$SSH_HOST" ]]; then
+            echo "::error::Missing staging SSH host. Configure STAGING_HOST or SSH_HOST in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_PORT" ]]; then
+            echo "::error::Missing staging SSH port. Configure STAGING_PORT or SSH_PORT in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_USER" ]]; then
+            echo "::error::Missing staging SSH username. Configure STAGING_USERNAME or SSH_USER in the staging environment."
+            exit 1
+          fi
+          if [[ -z "$SSH_KEY" ]]; then
+            echo "::error::Missing staging SSH private key. Configure STAGING_SSH_KEY or SSH_PRIVATE_KEY in the staging environment."
+            exit 1
+          fi
+          if [[ -z "${{ vars.DEPLOY_PATH }}" ]]; then
+            echo "::error::Missing staging deployment path. Configure DEPLOY_PATH in the staging environment."
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_BRANCH: devN
+          PHP_BIN: ${{ vars.PHP_BIN }}
+          COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+
+        with:
+          host: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+
+          envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+
+          script_stop: true
+
+          timeout: 30s
+          command_timeout: 15m
+          debug: true
+
+          script: |
+            set -euo pipefail
+
+            PHP_BIN="${PHP_BIN:-php}"
+            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+
+            echo "=========================================="
+            echo "==> Starting Staging Deployment"
+            echo "=========================================="
+
+            echo "==> Deploy branch: $DEPLOY_BRANCH"
+            echo "==> Deploy path: $DEPLOY_PATH"
+
+            echo "==> Changing to application directory"
+            cd "$DEPLOY_PATH"
+
+            echo "==> Fetching latest code"
+            git fetch --all --prune
+
+            echo "==> Resetting to origin/$DEPLOY_BRANCH"
+            git reset --hard "origin/$DEPLOY_BRANCH"
+
+            echo "==> Installing PHP dependencies"
+            $COMPOSER_BIN install \
+              --no-interaction \
+              --prefer-dist \
+              --optimize-autoloader \
+              --no-dev
+
+            echo "==> Enabling maintenance mode"
+            $PHP_BIN artisan down --retry=15 || true
+
+            trap '$PHP_BIN artisan up || true' EXIT
+
+            echo "==> Running database migrations"
+            $PHP_BIN artisan migrate --force
+
+            echo "==> Clearing Laravel caches"
+            $PHP_BIN artisan optimize:clear
+
+            echo "==> Caching configuration"
+            $PHP_BIN artisan config:cache
+
+            echo "==> Caching events"
+            $PHP_BIN artisan event:cache
+
+            echo "==> Caching views"
+            $PHP_BIN artisan view:cache
+
+            echo "==> Creating storage link"
+            $PHP_BIN artisan storage:link || true
+
+            echo "==> Restarting queue workers"
+            $PHP_BIN artisan queue:restart
+
+            echo "==> Disabling maintenance mode"
+            $PHP_BIN artisan up
+
+            trap - EXIT
+
+            echo "=========================================="
+            echo "==> Staging deployment completed"
+            echo "=========================================="

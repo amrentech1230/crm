@@ -42,7 +42,7 @@
 
                         <h4 class="card-title">Consignee</h4>
                           <span style="float: left;margin-right: 10px;">Filter By Agents</span>
-                         <span><select style="width:200px;" name="filterusers" class="form-control" id="filterusers">
+                         <span style="display:inline-block;width:200px;"><select style="width:200px;max-width:200px;" name="filterusers" class="no-select2" id="filterusers">
 						<option value="{{Auth::id()}}">{{Auth::user()->name}}</option>
                             @foreach($userInfos as $key => $user)
                                 <option value="{{$key}}">{{$user}}</option>
@@ -63,17 +63,20 @@
                                 <th>Agent</th>
                                 <th>Team Leader</th>
                                 <th>Manager</th>
-								<th>Status</th>
+                                <th>Status</th>
                             </tr>
                             </thead>
 
-
                             <tbody id="consignee-data">
-                                @include('broker.partials.consignee_table')                           
+                                @include('broker.partials.consignee_table')
                             </tbody>
                         </table>
+
+                        <div id="consignee-modal-container">
+                            @include('broker.partials.consignee_modals')
+                        </div>
                         <div class="custom-pagination">
-                            {{ $consignees->links() }}
+                            {{ $consignees->links('pagination::bootstrap-5') }}
                         </div>
                     </div>
                 </div>
@@ -279,11 +282,14 @@
         $.ajax({
             url: url,
             type: 'GET',
-            success: function(data) {
+            success: function(response) {
+			 const rows = response.rows || response;
+			 const modals = response.modals || '';
 			 if ($.fn.DataTable.isDataTable('#datatable')) {
 					$('#datatable').DataTable().destroy();
 				}
-				$('#consignee-data').html(data);
+				$('#consignee-data').html(rows);
+				$('#consignee-modal-container').html(modals);
 				$('#datatable').DataTable({
 					responsive: true,
 					dom: 'frtip',
@@ -299,8 +305,8 @@
 <script>
 $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {
@@ -357,13 +363,17 @@ $(document).ready(function () {
                         type: 'GET',
                         data: { query: query },
                         success: function (response) {
+                            const rows = response.rows || response;
+                            const modals = response.modals || '';
+
                             // Destroy existing DataTable if it exists
                             if ($.fn.DataTable.isDataTable(tableSelector)) {
                                 $(tableSelector).DataTable().destroy();
                             }
 
                             // Inject new table rows
-                            $(resultContainer).html(response);
+                            $(resultContainer).html(rows);
+                            $('#consignee-modal-container').html(modals);
 
                             // Re-initialize DataTable
                             $(tableSelector).DataTable({
@@ -384,6 +394,7 @@ $(document).ready(function () {
                 } else {
                     // Clear results if query is empty
                     $(resultContainer).html('');
+                    $('#consignee-modal-container').html('');
                 }
             }, 300); // 300ms debounce
 
@@ -411,13 +422,16 @@ $(document).ready(function () {
 				type: 'GET',
 				data: { user_id: user_id },
 				success: function (response) {
+					const rows = response.rows || response;
+					const modals = response.modals || '';
 					// Destroy existing DataTable if it exists
 					if ($.fn.DataTable.isDataTable(tableSelector)) {
 						$(tableSelector).DataTable().destroy();
 					}
 
 					// Inject new table rows
-					$(resultContainer).html(response);
+					$(resultContainer).html(rows);
+					$('#consignee-modal-container').html(modals);
 
 					// Re-initialize DataTable
 					$(tableSelector).DataTable({

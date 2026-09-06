@@ -74,14 +74,12 @@
                             </div>
                         </div>
 
-                        <!-- Divider -->
                         <hr class="my-4">
 
                         <!-- Logs Section -->
                         <h4 class="card-title mb-3">Activity Logs</h4>
 
                         <div class="accordion accordion-flush" id="accordionLogs">
-                            <!-- Log Entry 1 -->
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="logHeadingOne">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -93,45 +91,60 @@
                                 <div id="logCollapseOne" class="accordion-collapse collapse"
                                     aria-labelledby="logHeadingOne" data-bs-parent="#accordionLogs">
                                     <div class="accordion-body">
-                                        <table id="datatable-buttons" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                                            <thead>
-												<tr>
-													<th>Load Id</th>
-													<th>Subject</th>
-													<th>Name</th>
-													<th>Date</th>
-													<th>Changes</th>
-													
-												</tr>
-                                            </thead>
-        
-        
-                                            <tbody>
-												@foreach($alllogs as $log)
-												@php 
-													$diffrent = getdiffrance($log->old_json, $log->new_json);
-												@endphp
-												
-												<tr>
-													<th>{{$log->load_id}}</th>
-													<th>{{$log->message}}</th>
-													<th>{{$log->user_name}}</th>
-													<th>{{$log->updated_at}}</th>
-													<th width="100px">{!! $diffrent !!}</th>
-													
-													
-												</tr>
-												@endforeach
-                                            </tbody>
-                                        </table>
+                                        @if($alllogs->isEmpty())
+                                            <div class="alert alert-light mb-0">No activity has been recorded for this load yet.</div>
+                                        @else
+                                            <div class="d-flex flex-column gap-3 p-3">
+                                                @foreach($alllogs as $log)
+                                                    @php
+                                                        $changes = getdiffrance($log->old_json, $log->new_json);
+                                                    @endphp
+
+                                                    <div class="activity-history border rounded p-3 bg-white shadow-sm">
+                                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                                            <div>
+                                                                <div class="activity-title fw-bold mb-0">{{ $log->message ?: 'Activity was recorded' }}</div>
+                                                                <div class="activity-label text-muted mt-1">Performed by: <strong class="activity-actor">{{ $log->user_name ?: 'System' }}</strong></div>
+                                                            </div>
+                                                            <span class="activity-time text-muted">{{ format_activity_timestamp($log->created_at ?: $log->updated_at) }}</span>
+                                                        </div>
+
+                                                        <div class="mt-3">
+                                                            <div class="activity-label fw-semibold text-dark">What changed</div>
+                                                            <div class="mt-2">{!! trim($changes) !== '' ? $changes : '<div class="text-muted">No details found.</div>' !!}</div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
-                        </div> <!-- End Accordion -->
-
-                    </div>
-                </div>
+                        </div>
+                    </div> 
+                </div> <!-- end card -->
             </div> <!-- end col -->
         </div> <!-- end row -->
+    </div> <!-- container-fluid -->
+</div> <!-- page-content -->
 
-        @endsection
+@endsection
+
+<style>
+.activity-history {
+    font-size: 16px;
+}
+
+.activity-history .activity-title {
+    font-size: 17px;
+}
+
+.activity-history .activity-label,
+.activity-history .small {
+    font-size: 15px !important;
+}
+
+.activity-actor {
+    color: #a6ce3a;
+}
+</style>

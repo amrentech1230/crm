@@ -94,7 +94,7 @@
                                             </tbody>
                                         </table>
 										<div class="custom-pagination"> 
-											{{$allequipment->links()}}
+											{{$allequipment->links('pagination::bootstrap-5')}}
 										</div>
                                     </div>
                                 </div>

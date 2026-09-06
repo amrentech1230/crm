@@ -67,7 +67,10 @@ class ConsigneeController extends Controller
             $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
         }
 		if ($request->ajax()) {
-				return view('broker.partials.consignee_table', compact('userInfos', 'state', 'allcountry', 'consignees', 'users'))->render();
+				return response()->json([
+					'rows' => view('broker.partials.consignee_table', compact('userInfos', 'state', 'allcountry', 'consignees', 'users'))->render(),
+					'modals' => view('broker.partials.consignee_modals', compact('state', 'allcountry', 'consignees', 'users'))->render(),
+				]);
 			}
         return view('broker.consignee',compact('userInfos', 'state', 'allcountry', 'consignees', 'users'));
     }
@@ -152,6 +155,13 @@ class ConsigneeController extends Controller
 		$users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
             
 		
+		if ($request->ajax()) {
+			return response()->json([
+				'rows' => view('broker.partials.consignee_table', compact('state', 'allcountry', 'consignees', 'users'))->render(),
+				'modals' => view('broker.partials.consignee_modals', compact('state', 'allcountry', 'consignees', 'users'))->render(),
+			]);
+		}
+
 		return view('broker.partials.consignee_table', compact('state', 'allcountry', 'consignees', 'users'))->render();
 			
 	}

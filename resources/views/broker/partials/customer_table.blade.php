@@ -4,17 +4,18 @@
     <td>
         {{ ($customers->currentPage() - 1) * $customers->perPage() + $key + 1 }}
     </td>
-    <td>
-	@if(in_array(Auth::user()->role_id, [1,2,3]))
-		<a href="{{route('edit.customer',$customer->id)}}">{{ $customer->customer_name }}</a>
-	@else
-		@if($customer->status == 'Not Approved')
-		<a href="{{route('customer.edit',$customer->id)}}">{{ $customer->customer_name }}</a>
-		@else
-			{{ $customer->customer_name }}
-		@endif
-	@endif
-    </td>
+<td>
+@if(in_array(Auth::user()->role_id, [1,2,3]))
+    <a href="{{ route('edit.customer', encrypt($customer->id)) }}">{{ $customer->customer_name }}</a>
+@else
+    @if($customer->status == 'Not Approved')
+    <a href="{{ route('customer.edit', encrypt($customer->id)) }}">{{ $customer->customer_name }}</a>
+    @else
+        {{ $customer->customer_name }}
+    @endif
+@endif
+</td>
+
     <td class="dynamic-data">
         {{ $customer->customer_address }} 
         {{ $customer->customer_country }} 

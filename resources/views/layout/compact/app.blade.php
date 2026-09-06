@@ -36,10 +36,49 @@
 		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 		<style>
-		span.select2-container{z-index:9999;}
+		/* Only the open dropdown needs to clear modals (see rules below). A blanket z-index here
+		   made every closed select2 control float above open modals. */
 		span.select2.select2-container.select2-container--default {
 				width: 100% !important;
 			}
+		.select2-dropdown { z-index: 999999 !important; }
+		.select2-container--open { z-index: 999999 !important; }
+		.select2-dropdown--above {
+			top: 100% !important;
+			bottom: auto !important;
+			border-top: 1px solid #aaa !important;
+			border-bottom: 1px solid #aaa !important;
+			border-radius: 0 0 4px 4px !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__arrow {
+			height: 100% !important;
+			right: 6px !important;
+			width: 32px !important;
+			background: #f6f7fb !important;
+			border-left: 1px solid #d8dbe2 !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__arrow b {
+			border-color: #2f3a4a transparent transparent transparent !important;
+			border-width: 6px 5px 0 5px !important;
+			margin-top: -3px !important;
+		}
+		.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+			border-color: transparent transparent #2f3a4a transparent !important;
+			border-width: 0 5px 6px 5px !important;
+		}
+		.select2-container--default .select2-selection--single {
+			height: calc(1.5em + 0.75rem + 2px) !important;
+			padding: 0.375rem 2rem 0.375rem 0.75rem !important;
+			border: 0.2px solid #00000024 !important;
+			border-radius: 4px !important;
+			display: flex !important;
+			align-items: center !important;
+		}
+		.select2-container--default .select2-selection--single .select2-selection__rendered {
+			padding: 0 !important;
+			line-height: normal !important;
+			color: #495057 !important;
+		}
             body[data-topbar="dark"] .app-search .form-control {
     background-color: rgba(var(--bs-topbar-search-bg), .07);
     color: #fff;
@@ -57,6 +96,31 @@
 div#datatable-buttons_filter {
     display: none;
 } */
+
+.custom-pagination {
+    margin-top: 1rem;
+}
+
+.custom-pagination .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0;
+}
+
+.custom-pagination .page-item .page-link {
+    border-radius: 0.25rem;
+}
+
+.custom-pagination .page-item.active .page-link {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+.custom-pagination .page-item .page-link:hover {
+    color: #0d6efd;
+}
 /* div#datatable_length {
     display: none;
 } */
@@ -132,6 +196,17 @@ table.dataTable tbody > tr.selected td p {
     position: relative !important;
     width: 100% !important;
 }
+select.form-control {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #666 50%), linear-gradient(135deg, #666 50%, transparent 50%);
+    background-position: calc(100% - 16px) calc(50% - 3px), calc(100% - 10px) calc(50% - 3px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+}
+
 .form-control {
     border: 0.2px solid #00000024 !important;
 }
@@ -300,23 +375,61 @@ table.dataTable tbody > tr.selected td p {
      
         <script> 
 		
-			$(document).ready(function () {
-				// Initialize Select2 for selects inside modals
-				$('.modal').each(function () {
-					var $popup = $(this);
+			function select2TextMatcher(params, data) {
+				if ($.trim(params.term) === '') {
+					return data;
+				}
 
-					$popup.find('select.mySelect2, #country, #state').select2({
-						dropdownParent: $popup
+				if (data && data.text) {
+					var text = data.text.toLowerCase();
+					var term = params.term.toLowerCase();
+					if (text.indexOf(term) > -1) {
+						return data;
+					}
+				}
+
+				return null;
+			}
+
+			// Initialize ALL selects with dropdownParent body so they always open downward.
+			// Pass a container (e.g. a freshly cloned form) to initialise only that subtree.
+			window.initSelect2 = function (scope) {
+				var $selects = scope ? $(scope).find('select') : $('select');
+
+				$selects.not('.no-select2').each(function () {
+					var $select = $(this);
+					var $modal = $select.closest('.modal');
+					// A placeholder overwrites the text of the empty option, so reuse that option's
+					// own wording ("Select Status", "Select Customer", ...) instead of a generic label
+					var $emptyOption = $select.find('option[value=""]').first();
+					var placeholder = $select.data('placeholder')
+						|| $emptyOption.text().trim()
+						|| 'Select';
+
+					if ($select.data('select2')) {
+						$select.select2('destroy');
+					} else if ($select.hasClass('select2-hidden-accessible')) {
+						// Markup copied by .clone() from an initialised select: drop the orphan container
+						$select.siblings('.select2-container').remove();
+						$select.removeClass('select2-hidden-accessible')
+							.removeAttr('data-select2-id aria-hidden tabindex');
+					}
+
+					$select.select2({
+						// Inside a modal the dropdown must live in the modal, or Bootstrap's
+						// focus trap steals keystrokes from the search box
+						dropdownParent: $modal.length ? $modal : $('body'),
+						width: '100%',
+						// allowClear needs an empty option to clear back to, else select2 warns
+						allowClear: $emptyOption.length > 0,
+						placeholder: placeholder,
+						matcher: select2TextMatcher
 					});
 				});
+			};
 
-				// Initialize Select2 for selects NOT inside any modal
-				$('select.mySelect2, #country, #state').each(function () {
-					// Only initialize if not already initialized inside a modal
-					if ($(this).closest('.modal').length === 0) {
-						$(this).select2(); // No dropdownParent needed
-					}
-				});
+			$(document).ready(function () {
+				window.initSelect2();
 			});
 
             // Wait for the DOM to be fully loaded
@@ -355,20 +468,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script>
 
-
-<!-- <script>
-document.addEventListener('contextmenu', function (e) {
-    e.preventDefault();
-    alert('Right-click is disabled on this page.');
-});
-
-document.addEventListener('keydown', function (e) {
-    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
-        e.preventDefault();
-        alert('Viewing page source is disabled.');
-    }
-});
-</script> -->
 <script>
 window.addEventListener("load", function () {
     document.getElementById("crm-loader").style.display = "none";

@@ -75,6 +75,10 @@
     </style>
 </head>
 <body>
+    @php
+        // If editData is available, use those values; otherwise fall back to load
+        $editData = $editData ?? [];
+    @endphp
     <div class="bol-container">
         <!-- Top Section -->
         <table class="no-border" style="margin-bottom: 10px;">
@@ -83,7 +87,7 @@
                     <div style="display: flex; align-items: flex-start; gap: 15px;">
                         <div>
                             @php
-                                $logoUrl = 'https://geeshasolutions.com/wp-content/uploads/2024/07/cargo.png';
+                                $logoUrl = public_path('images/cargo.png');
                                 $logoBase64 = base64_encode(file_get_contents($logoUrl));
                             @endphp
                             <img class="logo" src="data:image/png;base64,{{ $logoBase64 }}" alt="logo">
@@ -104,11 +108,11 @@
                     <table>
                         <tr>
                             <th>Load Number</th>
-                            <td>{{ $load->load_number }}</td>
+                            <td>{{ $editData['load_number'] ?? $load->load_number }}</td>
                         </tr>
                         <tr>
                             <th>BOL Number</th>
-                            <td>{{ $load->load_workorder ?? '' }}</td>
+                            <td>{{ $editData['bol_number'] ?? $load->load_workorder ?? '' }}</td>
                         </tr>
                         <tr>
                             <th>Ship Date</th>
@@ -117,7 +121,6 @@
                                 $shipDate = isset($shipper_appointment[0]['appointment']) ? \Carbon\Carbon::parse($shipper_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $shipDate }}</td>
-                            <td>{{ $load->ship_date ?? '' }}</td>
                         </tr>
                         <tr>
                             <th>Delivery Date</th>
@@ -126,7 +129,6 @@
                                 $deliveryDate = isset($consignee_appointment[0]['appointment']) ? \Carbon\Carbon::parse($consignee_appointment[0]['appointment'])->format('m-d-Y') : '';
                             @endphp
                             <td>{{ $deliveryDate }}</td>
-                            <td>{{ $load->delivery_date ?? '' }}</td>
                         </tr>
                     </table>
                 </td>
@@ -139,38 +141,42 @@
                 <td style="width: 50%;">
                     <h6>Shipper</h6>
                     @php
-                        $shippers = json_decode($load->load_shipperr, true);
-                        $shipperText = '';
-                        if($shippers && is_array($shippers)) {
-                            foreach($shippers as $item) {
-                                $shipperText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $shipperText .= $item['location'] . "\n";
+                        $shipperText = $editData['shipper'] ?? null;
+                        if (!$shipperText) {
+                            $shippers = json_decode($load->load_shipperr, true);
+                            $shipperText = '';
+                            if($shippers && is_array($shippers)) {
+                                foreach($shippers as $item) {
+                                    $shipperText .= ($item['name'] ?? '') . "\n";
+                                    if(!empty($item['location'])) {
+                                        $shipperText .= $item['location'] . "\n";
+                                    }
+                                    $shipperText .= "\n";
                                 }
-                                $shipperText .= "\n";
                             }
                         }
                     @endphp
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($shipperText) }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->shipper_info ?? '' }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Consignee</h6>
                     @php
-                        $consignees = json_decode($load->load_consignee, true);
-                        $consigneeText = '';
-                        if($consignees && is_array($consignees)) {
-                            foreach($consignees as $item) {
-                                $consigneeText .= ($item['name'] ?? '') . "\n";
-                                if(!empty($item['location'])) {
-                                    $consigneeText .= $item['location'] . "\n";
+                        $consigneeText = $editData['consignee'] ?? null;
+                        if (!$consigneeText) {
+                            $consignees = json_decode($load->load_consignee, true);
+                            $consigneeText = '';
+                            if($consignees && is_array($consignees)) {
+                                foreach($consignees as $item) {
+                                    $consigneeText .= ($item['name'] ?? '') . "\n";
+                                    if(!empty($item['location'])) {
+                                        $consigneeText .= $item['location'] . "\n";
+                                    }
+                                    $consigneeText .= "\n";
                                 }
-                                $consigneeText .= "\n";
                             }
                         }
                     @endphp
                     <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ trim($consigneeText) }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->consignee_info ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -182,13 +188,11 @@
                     <h6>3rd Party Billing</h6>
                     <!-- Assuming 3rd party billing info is not directly in $load for now -->
                     <div style="min-height: 80px;"></div>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0; min-height: 80px;">{{ $load->third_party_billing ?? '' }}</pre>
                 </td>
                 <td style="width: 50%;">
                     <h6>Transportation Company</h6>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $load->load_mc_no ?? '' }}
-Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
-                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">{{ $load->transportation_company ?? '' }}</pre>
+                    <pre style="font-family: Arial, sans-serif; font-size: 12px; margin: 0;">MC #: {{ $editData['mc_number'] ?? $load->load_mc_no ?? '' }}
+Carrier Name: {{ $editData['carrier_name'] ?? $load->load_carrier ?? '' }}</pre>
                 </td>
             </tr>
         </table>
@@ -208,24 +212,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
             </thead>
             <tbody>
                 <!-- Placeholder for freight items. If freight data is stored in $load, iterate here. -->
-                @php $totalPieces = 0; $totalWeight = 0; @endphp
-                @if(!empty($load->freight_items) && is_array($load->freight_items))
-                    @foreach($load->freight_items as $item)
-                    @php
-                        $totalPieces += 1; // Or use a quantity field if available
-                        $totalWeight += (float)($item['weight'] ?? 0);
-                    @endphp
-                    <tr>
-                        <td>{{ $item['pieces'] ?? '' }}</td>
-                        <td>{{ $item['description'] ?? '' }}</td>
-                        <td>{{ $item['weight'] ?? '' }}</td>
-                        <td>{{ $item['type'] ?? '' }}</td>
-                        <td>{{ $item['nmfc'] ?? '' }}</td>
-                        <td>{{ $item['hm'] ?? '' }}</td>
-                        <td>{{ $item['class'] ?? '' }}</td>
-                    </tr>
-                    @endforeach
-                @else
                 <tr>
                     <td>#Unit 1</td>
                     <td></td>
@@ -234,7 +220,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                     <td></td>
                     <td></td>
                     <td></td>
-                    <td colspan="7" class="text-center">No freight items.</td>
                 </tr>
                 {{--
                 @foreach(json_decode($load->freight_items, true) as $item)
@@ -249,7 +234,6 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                 </tr>
                 @endforeach
                 --}}
-                @endif
             </tbody>
             <tfoot>
                 <tr>
@@ -257,13 +241,11 @@ Carrier Name: {{ $load->load_carrier ?? '' }}</pre>
                         <span class="fw-bold">Total Pieces</span><br>
                         <!-- Calculate total pieces if freight data is available -->
                         1
-                        {{ $totalPieces }}
                     </td>
                     <td colspan="2" class="text-center">
                         <span class="fw-bold">Total Weight</span><br>
                         <!-- Calculate total weight if freight data is available -->
                         0.00
-                        {{ number_format($totalWeight, 2) }}
                     </td>
                     <td colspan="4" class="text-center">
                         <span class="fw-bold">Emergency Response Phone</span><br>

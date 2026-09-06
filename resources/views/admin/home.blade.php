@@ -161,11 +161,11 @@
                             </ul>
                         </div>
                         <div class="row filterdata">
-                            <h4>Filter Users</h4>
+                            <h4>Filter By Agents</h4>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="officeSelect">Office:</label>
-                                <select id="officeSelect" class="form-control">
+                                <select id="officeSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Office --</option>
                                     @foreach($office as $data)
                                     <option value="{{$data->id}}">{{$data->office_name}}</option>
@@ -173,9 +173,9 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="managerSelect">Manager:</label>
-                                <select id="managerSelect" class="form-control">
+                                <select id="managerSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Manager --</option>
                                     @foreach($manager as $data)
                                     <option value="{{$data->id}}">{{$data->manager}}</option>
@@ -183,9 +183,9 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
                                 <label for="teamLeaderSelect">Team Leader:</label>
-                                <select id="teamLeaderSelect" class="form-control">
+                                <select id="teamLeaderSelect" class="form-control no-select2" style="width:100%;">
                                     <option value="">-- Select Team Leader --</option>
                                     @foreach($teamlead as $data)
                                     <option value="{{$data->id}}">{{$data->tl}}</option>
@@ -193,10 +193,10 @@
                                 </select>
                             </div>
 
-                            <div class="col-2 filter-group">
-                                <label for="agentSelect">Agent:</label>
-                                <select id="agentSelect" class="form-control">
-                                    <option value="">-- Select Agent --</option>
+                            <div class="col-2 filter-group" style="min-width:0;overflow:hidden;">
+                                <label for="agentSelect">Broker/Customer:</label>
+                                <select id="agentSelect" class="form-control no-select2" style="width:100%;">
+                                    <option value="">-- Select Broker/Customer --</option>
                                     @foreach($agent as $data)
                                     <option value="{{$data->id}}">{{$data->name}}</option>
                                     @endforeach
@@ -310,7 +310,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $broker_status->setPageName('all_load')->links() }}
+                                    {!! render_pagination_links($broker_status->setPageName('all_load')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="open" role="tabpanel">
@@ -346,7 +346,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {!! render_pagination_links($open->setPageName('open')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="delivered" role="tabpanel">
@@ -383,7 +383,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $deliverd->setPageName('delivered')->links() }}
+                                    {!! render_pagination_links($deliverd->setPageName('delivered')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="completed" role="tabpanel">
@@ -420,7 +420,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $complete->setPageName('completed')->links() }}
+                                    {!! render_pagination_links($complete->setPageName('completed')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced" role="tabpanel">
@@ -459,7 +459,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice_paid->setPageName('invoiced')->links() }}
+                                    {!! render_pagination_links($invoice_paid->setPageName('invoiced')) !!}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoiced_paid" role="tabpanel">
@@ -498,7 +498,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $paid_record->setPageName('invoiced_paid')->links() }}
+                                    {!! render_pagination_links($paid_record->setPageName('invoiced_paid')) !!}
                                 </div>
                             </div>
                         </div>
@@ -628,7 +628,7 @@
             resultContainer = '#delivered-search';
             tableSelector = '#datatable-buttons-delivered';
         } else if (activeTab === '#completed') {
-            resultContainer = '#shipper-search';
+            resultContainer = '#completed-search';
             tableSelector = '#datatable-buttons-completed';
         } else if (activeTab === '#invoiced') {
             resultContainer = '#invoiced-search';
@@ -641,92 +641,172 @@
         }
 
         $.ajax({
-            url: '/admin/search_by_filter',
-            type: 'GET',
-            data: {
-                tab: activeTab,
-                office: office,
-                manager: manager,
-                teamLeader: teamLeader,
-                agent: agent,
-            },
-            success: function (data) {
-                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                    $(tableSelector).DataTable().destroy();
-                }
+          url: '/admin/search_by_filter',
+          type: 'GET',
+          dataType: 'json',   
+        data: {
+          tab: activeTab,
+          office: office,
+          manager: manager,
+          teamLeader: teamLeader,
+          agent: agent,
+          
+    },
+    success: function (response) {
+        if ($.fn.DataTable.isDataTable(tableSelector)) {
+            $(tableSelector).DataTable().destroy();
+        }
 
-                $(resultContainer).html(data);
+        $(resultContainer).html(response.html);
 
-                $(tableSelector).DataTable({
-                    responsive: true,
-                    dom: 'rtip',
-                    buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    paging: false,
-                });
-            }
+        // Pagination update
+        let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+        paginationContainer.css('display', 'block');
+        paginationContainer.html(response.pagination || '');
+        paginationContainer.show();
+
+        $(tableSelector).DataTable({
+            responsive: true,
+            dom: 'rtip',
+            buttons: ['copy', 'excel', 'pdf', 'colvis'],
+            paging: false,
         });
+    },
+    error: function (xhr) {
+        console.error("Filter AJAX error:", xhr.responseText);
+    }
+});
     }
 </script>
 <script>
-    $(document).on('click', '.custom-pagination a', function (e) {
-        e.preventDefault();
+    // $(document).on('click', '.custom-pagination a', function (e) {
+    //     e.preventDefault();
 
-        let url = $(this).attr('href');
+    //     let url = $(this).attr('href');
 
-        // Get active tab (without the #)
-        let activeTab = $('.nav-link.active').attr('href');
-        let resultContainer = '';
-        let tableSelector = '';
+    //     // Get active tab (without the #)
+    //     let activeTab = $('.nav-link.active').attr('href');
+    //     let resultContainer = '';
+    //     let tableSelector = '';
 
-        if (activeTab === '#all_load') {
-            resultContainer = '#all_load-search';
-            tableSelector = '#datatable-buttons-all_load';
-        } else if (activeTab === '#open') {
-            resultContainer = '#open-search';
-            tableSelector = '#datatable-buttons-open';
-        } else if (activeTab === '#delivered') {
-            resultContainer = '#delivered-search';
-            tableSelector = '#datatable-buttons-delivered';
-        } else if (activeTab === '#completed') {
-            resultContainer = '#shipper-search';
-            tableSelector = '#datatable-buttons-completed';
-        } else if (activeTab === '#invoiced') {
-            resultContainer = '#invoiced-search';
-            tableSelector = '#datatable-buttons-invoiced';
-        } else if (activeTab === '#invoiced_paid') {
-            resultContainer = '#invoiced_paid-search';
-            tableSelector = '#datatable-buttons-invoiced_paid';
-        } else {
-            return; // Exit if it's not one of the expected tabs
-        }
-        $.ajax({
-            url: url,
-            type: 'GET',
-            data: {
-                tab: activeTab
-            },
-            success: function (data) {
-                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                    $(tableSelector).DataTable().destroy();
-                }
+    //     if (activeTab === '#all_load') {
+    //         resultContainer = '#all_load-search';
+    //         tableSelector = '#datatable-buttons-all_load';
+    //     } else if (activeTab === '#open') {
+    //         resultContainer = '#open-search';
+    //         tableSelector = '#datatable-buttons-open';
+    //     } else if (activeTab === '#delivered') {
+    //         resultContainer = '#delivered-search';
+    //         tableSelector = '#datatable-buttons-delivered';
+    //     } else if (activeTab === '#completed') {
+    //         resultContainer = '#shipper-search';
+    //         tableSelector = '#datatable-buttons-completed';
+    //     } else if (activeTab === '#invoiced') {
+    //         resultContainer = '#invoiced-search';
+    //         tableSelector = '#datatable-buttons-invoiced';
+    //     } else if (activeTab === '#invoiced_paid') {
+    //         resultContainer = '#invoiced_paid-search';
+    //         tableSelector = '#datatable-buttons-invoiced_paid';
+    //     } else {
+    //         return; // Exit if it's not one of the expected tabs
+    //     }
+    //     $.ajax({
+    //         url: url,
+    //         type: 'GET',
+    //         data: {
+    //             tab: activeTab
+    //         },
+    //         success: function (data) {
+    //             if ($.fn.DataTable.isDataTable(tableSelector)) {
+    //                 $(tableSelector).DataTable().destroy();
+    //             }
 
-                $(resultContainer).html(data);
+    //             $(resultContainer).html(data);
 
 
-                $(tableSelector).DataTable({
-                    responsive: true,
-                    dom: 'rtip',
-                    buttons: ['copy', 'excel', 'pdf', 'colvis'],
-                    paging: false,
-                    pageLength: 50,
-                });
+    //             $(tableSelector).DataTable({
+    //                 responsive: true,
+    //                 dom: 'rtip',
+    //                 buttons: ['copy', 'excel', 'pdf', 'colvis'],
+    //                 paging: false,
+    //                 pageLength: 50,
+    //             });
 
-                // Optional: update the browser URL
-                window.history.pushState("", "", url);
+    //             // Optional: update the browser URL
+    //             window.history.pushState("", "", url);
+    //         }
+    //     });
+    // });
+$(document).on('click', '.custom-pagination a', function (e) {
+    e.preventDefault();
+
+    let href = $(this).attr('href');
+    if (!href) return;
+
+    let activeTab = $('.nav-link.active').attr('href');
+    let resultContainer = '', tableSelector = '', pageName = '';
+
+    if (activeTab === '#all_load') {
+        resultContainer = '#all_load-search'; tableSelector = '#datatable-buttons-all_load'; pageName = 'all_load';
+    } else if (activeTab === '#open') {
+        resultContainer = '#open-search'; tableSelector = '#datatable-buttons-open'; pageName = 'open';
+    } else if (activeTab === '#delivered') {
+        resultContainer = '#delivered-search'; tableSelector = '#datatable-buttons-delivered'; pageName = 'delivered';
+    } else if (activeTab === '#completed') {
+        resultContainer = '#completed-search'; tableSelector = '#datatable-buttons-completed'; pageName = 'completed';
+    } else if (activeTab === '#invoiced') {
+        resultContainer = '#invoiced-search'; tableSelector = '#datatable-buttons-invoiced'; pageName = 'invoiced';
+    } else if (activeTab === '#invoiced_paid') {
+        resultContainer = '#invoiced_paid-search'; tableSelector = '#datatable-buttons-invoiced_paid'; pageName = 'invoiced_paid';
+    } else {
+        return;
+    }
+
+    // Extract the correct page parameter from the clicked link.
+    let urlObj = new URL(href, window.location.origin);
+    let pageNum = urlObj.searchParams.get(pageName) || urlObj.searchParams.get('page') || '1';
+
+    const requestData = {
+        tab: activeTab,
+        page: pageNum,
+        [pageName]: pageNum,
+        office: $('#officeSelect').val(),
+        manager: $('#managerSelect').val(),
+        teamLeader: $('#teamLeaderSelect').val(),
+        agent: $('#agentSelect').val(),
+    };
+
+    $('.loader-container').removeClass('hide');
+
+    $.ajax({
+        url: '/admin/search_by_filter',
+        type: 'GET',
+        dataType: 'json',
+        data: requestData,
+        success: function (response) {
+            if ($.fn.DataTable.isDataTable(tableSelector)) {
+                $(tableSelector).DataTable().destroy();
             }
-        });
+            $(resultContainer).html(response.html);
+            const paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
+            paginationContainer.css('display', 'block');
+            paginationContainer.html(response.pagination || '');
+            paginationContainer.show();
+            $(tableSelector).DataTable({
+                responsive: true,
+                dom: 'rtip',
+                buttons: ['copy', 'excel', 'pdf', 'colvis'],
+                paging: false,
+                pageLength: 50,
+            });
+            $('.loader-container').addClass('hide');
+        },
+        error: function (xhr) {
+            console.error("Pagination AJAX error:", xhr.responseText);
+            $('.loader-container').addClass('hide');
+        }
     });
-
+});
     $(document).ready(function () {
         $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr("href");
@@ -757,7 +837,7 @@
                 $('form.app-search .position-relative').attr('id', 'completeds');
                 inputSelector = '#completeds input[name="query"]';
                 ajaxUrl = '/admin/complete_search';
-                resultContainer = '#shipper-search';
+                resultContainer = '#completed-search';
                 tableSelector = '#datatable-buttons-completed';
             } else if (target === '#invoiced') {
                 $('form.app-search .position-relative').attr('id', 'invoiceds');
@@ -786,7 +866,7 @@
                         $(tableSelector).DataTable().destroy();
                     }
 
-                    $(resultContainer).html(response);
+                    $(resultContainer).html(response.html);
 
                     $(tableSelector).DataTable({
                         responsive: true,
@@ -843,7 +923,7 @@
                 $('form.app-search .position-relative').attr('id', 'completeds');
                 inputSelector = '#completeds input[name="query"]';
                 ajaxUrl = '/admin/complete_search';
-                resultContainer = '#shipper-search';
+                resultContainer = '#completed-search';
                 tableSelector = '#datatable-buttons-completed';
             } else if (target === '#invoiced') {
                 $('form.app-search .position-relative').attr('id', 'invoiceds');
@@ -863,44 +943,53 @@
 
             $(inputSelector).on('keyup', function () {
                 let query = $(this).val().trim();
+                let paginationContainer = $(resultContainer).closest('.tab-pane').find('.custom-pagination');
 
                 clearTimeout($.data(this, 'timer'));
                 let wait = setTimeout(() => {
+                    $('.loader-container').removeClass('hide');
+
                     if (query.length > 0) {
-                        $('.loader-container').removeClass('hide');
-
-                        $.ajax({
-                            url: ajaxUrl,
-                            type: 'GET',
-                            data: {
-                                query: query
-                            },
-                            success: function (response) {
-                                if ($.fn.DataTable.isDataTable(tableSelector)) {
-                                    $(tableSelector).DataTable().destroy();
-                                }
-
-                                $(resultContainer).html(response);
-
-                                $(tableSelector).DataTable({
-                                    responsive: true,
-                                    dom: 'Bfrtip',
-                                    buttons: ['copy', 'excel', 'pdf',
-                                        'colvis'
-                                    ],
-                                    pageLength: 50,
-                                });
-
-                                $('.loader-container').addClass('hide');
-                            },
-                            error: function (xhr) {
-                                console.error("AJAX error:", xhr.responseText);
-                                $('.loader-container').addClass('hide');
-                            }
-                        });
+                        paginationContainer.hide();
                     } else {
-                        $(resultContainer).html('');
+                        paginationContainer.show();
                     }
+
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'GET',
+                        dataType: 'json',
+                        data: {
+                            query: query
+                        },
+                        success: function (response) {
+                            if ($.fn.DataTable.isDataTable(tableSelector)) {
+                                $(tableSelector).DataTable().destroy();
+                            }
+
+                            $(resultContainer).html(response.html);
+                            if (query.length > 0) {
+                    paginationContainer.hide(); 
+                } else {
+                    paginationContainer.html(response.pagination).show();
+                }
+
+                            $(tableSelector).DataTable({
+                                responsive: true,
+                                dom: 'Bfrtip',
+                                buttons: ['copy', 'excel', 'pdf',
+                                    'colvis'
+                                ],
+                                pageLength: 50,
+                            });
+
+                            $('.loader-container').addClass('hide');
+                        },
+                        error: function (xhr) {
+                            console.error("AJAX error:", xhr.responseText);
+                            $('.loader-container').addClass('hide');
+                        }
+                    });
                 }, 300);
 
                 $(this).data('timer', wait);

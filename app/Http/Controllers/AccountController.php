@@ -13,6 +13,8 @@ use App\Models\Load;
 use App\Models\User;
 use App\Models\Office;
 use App\Models\Factoring;
+use App\Models\TeamLeader;
+use App\Models\Manger;
 use App\Models\CarrierVerification;
 use App\Models\CustomerApprovalForm;
 use App\Models\Cmt;
@@ -30,6 +32,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Pagination\Paginator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet; 
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class AccountController extends Controller
 {
@@ -58,7 +61,7 @@ class AccountController extends Controller
 					if($request->input('target') == '#open'){
 						 $open = Load::where('load_status','Open')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
+                                $query->orWhere('load_number', 'like', "%{$term}%");
 									 
 								}
 							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('open');
@@ -71,10 +74,10 @@ class AccountController extends Controller
 								$query->where('invoice_status', '')
 									->orWhereNull('invoice_status');
 							})->where(function($query) use ($searchTerms) {
-								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
-								}
+                                foreach ($searchTerms as $term) {
+                                    $query->orWhere('load_number', 'like', "%{$term}%");
+						 
+                                }
 							})
 							->with(['user', 'customer', 'carrier', 'user.officedata'])
 							->orderBy("loads.id", "desc")
@@ -83,29 +86,35 @@ class AccountController extends Controller
 						return view('accounts.partials.accounting_complete',compact('complete'))->render();
 						
 					}else if($request->input('target') == '#invoiced'){
-						
-						 $invoiced = Load::where('invoice_status','Paid')->with(['user','customer','carrier', 'user.officedata'])->where(function($query) use ($searchTerms) {
+						$invoiced = Load::where('invoice_status', 'Paid')
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->orderBy("loads.id", "desc")->paginate(100)->setPageName('invoiced');
-						 
-						return view('accounts.partials.accounting_invoiced',compact('invoiced'))->render();
+							})
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('invoiced');
 						
+						return view('accounts.partials.accounting_invoiced', compact('invoiced'))->render();
 					}else if($request->input('target') == '#invoiced_paid'){
-						$paid = Load::where('invoice_status','Paid Record')->where(function($query) use ($searchTerms) {
+						$paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
+							->where(function($query) use ($searchTerms) {
 								foreach ($searchTerms as $term) {
-									$query->orWhere('load_number', 'like', "$term");
-									 
+									$query->orWhere('load_number', 'like', "%{$term}%");
 								}
-							})->with(['user','customer','carrier', 'user.officedata'])->orderBy("loads.id", "desc")->paginate(100)->setPageName('paid');
+							})
+							->with(['user', 'customer', 'carrier', 'user.officedata'])
+							->orderBy("loads.id", "desc")
+							->paginate(100)
+							->setPageName('paid');
 						
-						return view('accounts.partials.accounting_paid',compact('paid'))->render();
+						return view('accounts.partials.accounting_paid', compact('paid'))->render();
 					}
-						
-				}
+                
 			}
+            }
                
         } 
         return view('accounts.accounting',compact('open', 'complete', 'invoiced', 'paid'));
@@ -113,16 +122,12 @@ class AccountController extends Controller
 
     public function accounting(Request $request)
     {
-        $tabs = ['open', 'complete', 'invoiced', 'paid'];
-
-        foreach ($tabs as $tab) {
-            if ($request->has($tab)) {
-                Paginator::currentPageResolver(function () use ($request, $tab) {
-                    return $request->input($tab);
-                });
-                break; // Stop after finding the matching tab
-            }
-        }
+        $activeTab = match (true) {
+            $request->filled('complete') => 'completed',
+            $request->filled('invoiced') => 'invoiced',
+            $request->filled('paid') => 'invoiced_paid',
+            default => 'open',
+        };
 
         // 🔎 Custom search by load_numbers (comma separated)
         $searchNumbers = $request->input('load_numbers');
@@ -140,7 +145,7 @@ class AccountController extends Controller
             $openQuery->whereIn('load_number', $numbersArray);
         }
 
-        $open = $openQuery->paginate(50)->setPageName('open');
+        $open = $openQuery->paginate(50, ['*'], 'open');
 
         // Completed tab query
         $completeQuery = Load::where('load_status', 'Completed')
@@ -155,7 +160,7 @@ class AccountController extends Controller
             $completeQuery->whereIn('load_number', $numbersArray);
         }
 
-        $complete = $completeQuery->paginate(50)->setPageName('complete');
+        $complete = $completeQuery->paginate(50, ['*'], 'complete');
 
         // Invoiced tab query
         $invoicedQuery = Load::where('invoice_status', 'Paid')
@@ -166,10 +171,10 @@ class AccountController extends Controller
             $invoicedQuery->whereIn('load_number', $numbersArray);
         }
 
-        $invoiced = $invoicedQuery->paginate(50)->setPageName('invoiced');
+        $invoiced = $invoicedQuery->paginate(50, ['*'], 'invoiced');
 
         // Paid tab query
-        $paidQuery = Load::where('invoice_status', 'Paid Record')
+        $paidQuery = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
             ->with(['user', 'customer', 'carrier', 'user.officedata'])
             ->orderBy("loads.id", "desc");
 
@@ -177,22 +182,27 @@ class AccountController extends Controller
             $paidQuery->whereIn('load_number', $numbersArray);
         }
 
-        $paid = $paidQuery->paginate(50)->setPageName('paid');
+        $paid = $paidQuery->paginate(50, ['*'], 'paid');
 
-        // Handle AJAX tab switching
+        // Handle AJAX pagination requests with the selected tab's pagination links.
         if ($request->ajax()) {
-            if ($request->input('tab') == '#open') {
-                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#completed') {
-                return view('accounts.partials.accounting_complete', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#invoiced') {
-                return view('accounts.partials.accounting_invoiced', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#invoiced_paid') {
-                return view('accounts.partials.accounting_paid', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            }
+            $tabConfig = [
+                '#open' => ['view' => 'accounts.partials.accounting_open', 'paginator' => $open],
+                '#completed' => ['view' => 'accounts.partials.accounting_complete', 'paginator' => $complete],
+                '#invoiced' => ['view' => 'accounts.partials.accounting_invoiced', 'paginator' => $invoiced],
+                '#invoiced_paid' => ['view' => 'accounts.partials.accounting_paid', 'paginator' => $paid],
+            ];
+
+            $config = $tabConfig[$request->input('tab')] ?? $tabConfig['#open'];
+            $html = view($config['view'], compact('open', 'complete', 'invoiced', 'paid'))->render();
+
+            return response()->json([
+                'html' => $html,
+                'pagination' => render_pagination_links($config['paginator']),
+            ]);
         }
 
-        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid'));
+        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid', 'activeTab'));
     }
 
 	
@@ -316,21 +326,24 @@ public function loadspi(Request $request)
 
     public function compliance(Request $request)
     {
-        $carriers = External::with('user',)->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50);
-        $loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50);
-        $carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50);
+		$activeTab = $request->filled('cpr') ? 'cpr' : ($request->filled('block_carrier') ? 'block_carrier' : 'mc');
+		$carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50, ['*'], 'mc');
+		$loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50, ['*'], 'cpr');
+		$carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50, ['*'], 'block_carrier');
 		
 		if ($request->ajax()) {
 			
-			if($request->input('tab') == '#cpr'){
-				 return view('accounts.partials.compliance_cpr_table', compact('carriers', 'loads'))->render();
-			}else{
-				 return view('accounts.partials.compliance_mc_table', compact('carriers', 'loads'))->render();
-			}
+            $config = match ($request->input('tab')) {
+                '#cpr' => ['view' => 'accounts.partials.compliance_cpr_table', 'paginator' => $loads],
+                '#block_carrier' => ['view' => 'accounts.partials.compliance_block_carrier_table', 'paginator' => $carrier_blocked],
+                default => ['view' => 'accounts.partials.compliance_mc_table', 'paginator' => $carriers],
+            };
+            $html = view($config['view'], compact('carriers', 'loads', 'carrier_blocked'))->render();
+            return response()->json(['html' => $html, 'pagination' => render_pagination_links($config['paginator'])]);
 			
 		}
 			
-        return view('accounts.compliance', compact('carriers', 'loads','carrier_blocked'));
+        return view('accounts.compliance', compact('carriers', 'loads','carrier_blocked', 'activeTab'));
     }
 
 
@@ -465,7 +478,10 @@ public function carrier_block(Request $request)
 
 			// Load Completed Log Tab
 			if ($tab == '#load_completed_log') {
-				$dashboard_logs = Load::with('user')->paginate(50, ['*'], 'logs');
+                $dashboard_logs = Load::with('user')
+                    ->where('load_status', 'Completed')
+                    ->latest('created_at')
+                    ->simplePaginate(50, ['*'], 'logs');
 				return view('accounts.reporting.load_completed_logs', compact('dashboard_logs'))->render();
 			}
 
@@ -663,12 +679,102 @@ public function carrier_block(Request $request)
 
     public function vendor_system(Request $request)
     {
-         $vendormanagement = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(100);
+        $vendormanagement = Load::with(['user', 'customer'])
+        ->orderBy("loads.id", "desc")
+        ->paginate(100);
+
+    // echo "<pre>"; print_r($vendormanagement); die;
 		 
 		 if ($request->ajax()) {
-				return view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render();
+                return response()->json([
+                    'html' => view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render(),
+                    'modals' => view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render(),
+                    'pagination' => render_pagination_links($vendormanagement),
+                ]);
 			}
         return view('accounts.vendor_system', compact('vendormanagement'));
+    }
+
+    public function vendorSystemExcel()
+    {
+        $loads = Load::with(['user', 'customer'])
+            ->orderByDesc('loads.id')
+            ->get();
+
+        $formatDate = static function ($value): string {
+            if (empty($value) || $value === '0000-00-00') {
+                return '';
+            }
+
+            try {
+                return Carbon::parse($value)->format('m/d/Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $headers = [
+            'Sr No.', 'Load#', 'W/O #', 'Carrier', 'Carrier Invoice Date',
+            'Carrier Due Date', 'Ready to Pay', 'Processed By', 'Documents',
+            'Quick Pay %', 'Carrier Files Upload', 'Carrier Files View',
+            'Payment Method', 'Carrier Payment Status', 'Carrier Payment Date',
+            'Customer Invoice Date', 'Logs Check', 'Vendor Internal Notes',
+        ];
+
+        $rows = [$headers];
+        foreach ($loads as $index => $load) {
+            $carrierFiles = json_decode($load->carrierDoc ?? '', true);
+            $hasCarrierFiles = is_array($carrierFiles) && $carrierFiles !== [];
+            $processedBy = $load->customer?->invoice_through ?: $load->invoice_through;
+            $dueDate = $load->load_carrier_due_date;
+            if (empty($dueDate) && !empty($load->carrier_invoice_date)) {
+                try {
+                    $dueDate = Carbon::parse($load->carrier_invoice_date)->addDays(25);
+                } catch (\Throwable) {
+                    $dueDate = null;
+                }
+            }
+
+            $rows[] = [
+                $index + 1,
+                $load->load_number ?? '',
+                $load->load_workorder ?? '',
+                $load->load_carrier ?? '',
+                $formatDate($load->carrier_invoice_date),
+                $formatDate($dueDate),
+                $load->ready_to_pay ?? '',
+                $processedBy ?? '',
+                $load->carrier_documents ?? '',
+                $load->quick_pay ?? '',
+                $hasCarrierFiles ? 'Yes' : 'No',
+                $hasCarrierFiles ? 'Available' : 'Not available',
+                $load->payment_method ?? '',
+                $load->carrier_mark_as_paid ?? '',
+                $formatDate($load->load_carrier_due_date_on),
+                $formatDate($load->invoice_date ?: $load->invoice_status_date),
+                $load->cpr_check ?? '',
+                $load->vendorInternalNotes ?? '',
+            ];
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Vendor System');
+        $sheet->fromArray($rows, null, 'A1');
+        $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:R1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach (range('A', 'R') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'vendor-system-' . date('Y-m-d') . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function vendor_search(Request $request){
@@ -704,6 +810,8 @@ public function carrier_block(Request $request)
 				->paginate(50);
 		}
 
+        $vendormanagement->appends($request->query());
+
 		// Render the table rows
 		$rowsHtml = view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render();
 
@@ -714,6 +822,7 @@ public function carrier_block(Request $request)
 		return response()->json([
 			'rows' => $rowsHtml,
 			'modals' => $modalsHtml,
+            'pagination' => render_pagination_links($vendormanagement),
 		]);
 		
     }
@@ -864,7 +973,9 @@ public function carrier_search(Request $request)
 
         if ($load) {
 
-            $subject = "Change the carrier MC check status $load->mc_check to $request->mc_check";
+            $subject = 'Changed the carrier MC "' . $load->carrier_mc_ff_input .
+           '" check status from "' . $load->mc_check .
+           '" to "' . $request->mc_check . '"';
             addToLog($customerId ='', $loadId ='', $subject, $oldData ='', $newData ='');
 
             $load->mc_check = $request->mc_check ?? 'Not Approved';
@@ -929,22 +1040,26 @@ public function carrier_search(Request $request)
         }
     }
 
-    public function no_of_macro(Request $request){
+public function no_of_macro(Request $request)
+{
+    $request->validate([
+        'load_id' => 'required|exists:loads,id',
+        'no_of_macro' => 'required|integer|between:0,10',
+    ]);
 
-        $load = Load::find($request->load_id);
+    $load = Load::find($request->load_id);
 
-        if ($load) {
+    $subject = "Change the Load no of macro {$load->no_of_macro} to {$request->no_of_macro}";
+    addToLog('', $request->load_id, $subject, '', '');
 
-            $subject = "Change the Load no of macro $load->no_of_macro to $request->no_of_macro";
-            addToLog($customerId ='', $request->load_id, $subject, $oldData ='', $newData ='');
+    $load->no_of_macro = $request->no_of_macro;
+    $load->save();
 
-            $load->no_of_macro = $request->no_of_macro;
-            $load->save();
-            return response()->json(['success' => true, 'message' => 'No Of macro updated successfully.']);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Load not found.'], 404);
-        }
-    }
+    return response()->json([
+        'success' => true,
+        'message' => 'No Of Macro updated successfully.'
+    ]);
+}
 
     public function quick_pay(Request $request){
 
@@ -997,23 +1112,154 @@ public function carrier_search(Request $request)
         }
     }
 
-     public function updateLoadDate(Request $request)
+    public function updateCarrierInvoiceDate(Request $request)
     {
-       
         $load = Load::find($request->id);
 
-        if ($load) {
-
-            $subject = "Change the Load load carrier due date  $load->load_carrier_due_date to $request->load_carrier_due_date";
-            addToLog($customerId ='', $request->id, $subject, $oldData ='', $newData ='');
-
-            $load->load_carrier_due_date = $request->load_carrier_due_date;
-            $load->save();
-            return response()->json(['success' => true, 'message' => 'Carrier due date updated successfully.']);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Load not found.'], 404);
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found.'
+            ], 404);
         }
-        
+
+        if (empty($request->carrier_invoice_date)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice date is required.'
+            ], 422);
+        }
+
+        try {
+
+            // Save old values BEFORE updating
+            $oldInvoiceDate = $load->carrier_invoice_date;
+            $oldDueDate     = $load->load_carrier_due_date;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Incoming date from <input type="date">
+            | Example: 2026-08-13
+            |--------------------------------------------------------------------------
+            */
+            $invoiceDate = \Carbon\Carbon::createFromFormat(
+                'Y-m-d',
+                $request->carrier_invoice_date,
+                'America/New_York'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Add 25 days
+            |--------------------------------------------------------------------------
+            */
+            $dueDate = $invoiceDate->copy()->addDays(25);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Log
+            |--------------------------------------------------------------------------
+            */
+            $subject = "Carrier invoice date changed from {$oldInvoiceDate} to {$invoiceDate->format('m/d/Y')}";
+
+            addToLog(
+                '',
+                $request->id,
+                $subject,
+                $oldInvoiceDate,
+                $invoiceDate->format('Y-m-d')
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE TO DATABASE
+            |--------------------------------------------------------------------------
+            | MySQL DATE format = Y-m-d
+            |--------------------------------------------------------------------------
+            */
+
+            $load->carrier_invoice_date = $invoiceDate->format('Y-m-d');
+            $load->load_carrier_due_date = $dueDate->format('Y-m-d');
+
+            $load->save();
+
+            return response()->json([
+                'success' => true,
+
+                'message' => 'Carrier invoice date and due date updated successfully by ' .
+                            auth()->user()->name,
+
+                // Old values
+                'old_invoice_date' => $oldInvoiceDate,
+                'old_due_date'     => $oldDueDate,
+
+                // Database values
+                'carrier_invoice_date' => $invoiceDate->format('Y-m-d'),
+                'load_carrier_due_date' => $dueDate->format('Y-m-d'),
+
+                // Frontend values
+                'formatted_invoice_date' => $invoiceDate->format('m/d/Y'),
+                'formatted_due_date'     => $dueDate->format('m/d/Y'),
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid invoice date format.',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+    public function updateCarrierDocuments(Request $request)
+    {
+        $load = Load::find($request->id);
+
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found.'
+            ], 404);
+        }
+
+        $allowedDocuments = [
+            'NOA',
+            'Void Check',
+            'Pay by Check'
+        ];
+
+        $document = $request->carrier_documents;
+
+        if ($document !== '' && !in_array($document, $allowedDocuments)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid document selected.'
+            ], 422);
+        }
+
+        $oldDocument = $load->carrier_documents;
+
+        $load->carrier_documents = $document ?: null;
+        $load->save();
+
+        $subject = "Carrier document changed from "
+            . ($oldDocument ?: 'None')
+            . " to "
+            . ($document ?: 'None');
+
+        addToLog(
+            '',
+            $request->id,
+            $subject,
+            $oldDocument ?: '',
+            $document ?: ''
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Carrier document updated successfully by ' . auth()->user()->name,
+            'carrier_documents' => $load->carrier_documents
+        ]);
     }
 
       public function getFiles(Request $request)
@@ -1087,16 +1333,23 @@ public function editCustomer($id)
 
 
 
-    $credits = json_decode($customer->credit_limit_log, true);
-
-    if (is_array($credits)) {
-        $totalCreditLimit = array_sum(array_column($credits, 'credit_limit'));
-    } else {
-        $totalCreditLimit = 0;
+    $credits = json_decode($customer->remaining_credit_logs, true);
+    if (!is_array($credits) || count($credits) === 0) {
+        $credits = json_decode($customer->credit_limit_log, true);
     }
 
-    $usedAmount = $totalCreditLimit - $customer->remaining_credit;
-    $remainingCredit = $customer->remaining_credit;
+    if (is_array($credits)) {
+        $totalCreditLimit = max(0.0, (float) array_sum(array_column($credits, 'credit_limit')));
+    } else {
+        $totalCreditLimit = 0.0;
+    }
+
+    if ($totalCreditLimit <= 0) {
+        $totalCreditLimit = max(
+            0.0,
+            (float) ($customer->adv_customer_credit_limit ?? $customer->invoice_credit_limit ?? 0)
+        );
+    }
     
 
     // Calculate totals using aggregates for better performance
@@ -1119,19 +1372,81 @@ public function editCustomer($id)
                             now()->toDateString()
                             ])->sum('shipper_load_final_rate');
 
-    $loadcreateamount = Load::where('customer_id', $customer->id)->sum('shipper_load_final_rate');
-    $receiving_amount = Load::where('customer_id', $customer->id)->where('invoice_status', 'Paid Record')->sum('receiving_amount');
+    $customerLoadScope = function ($query) use ($customer) {
+        $query->where('customer_id', $customer->id)
+              ->orWhereRaw('LOWER(TRIM(load_bill_to)) = LOWER(TRIM(?))', [$customer->customer_name]);
+    };
 
-    $after_used_remaing_amount =  $totalCreditLimit - $loadcreateamount;
-    $afterpaymentremaingamount = $after_used_remaing_amount + $receiving_amount;
+    $creditLoadAmount = max(0.0, (float) Load::where($customerLoadScope)
+        ->get(['shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+        ->sum(function ($load) {
+            $createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+            $charges = json_decode($load->shipper_load_other_charge, true) ?: [];
+            $hasInvoiceFlags = collect($charges)->contains(function ($charge) {
+                return array_key_exists('for_invoice', $charge);
+            });
+
+            $invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+                if ($hasInvoiceFlags && ($charge['for_invoice'] ?? 'off') !== 'on') {
+                    return 0;
+                }
+
+                if (!$hasInvoiceFlags && strtolower(trim($charge['type'] ?? '')) !== 'tyre') {
+                    return 0;
+                }
+
+                return (float) ($charge['amount'] ?? 0);
+            });
+
+            return max(0.0, $createdAmount - $invoiceCharges);
+        }));
+
+    $loadcreateamount = max(0.0, (float) Load::where($customerLoadScope)
+        ->get(['load_shipper_rate', 'shipper_load_final_rate', 'load_final_rate', 'shipper_load_other_charge'])
+        ->sum(function ($load) {
+            $createdAmount = (float) ($load->shipper_load_final_rate ?: $load->load_final_rate ?: 0);
+            $baseAmount = (float) ($load->load_shipper_rate ?: 0);
+            $charges = json_decode($load->shipper_load_other_charge, true) ?: [];
+            $hasInvoiceFlags = collect($charges)->contains(function ($charge) {
+                return array_key_exists('for_invoice', $charge);
+            });
+            $invoiceCharges = collect($charges)->sum(function ($charge) use ($hasInvoiceFlags) {
+                if ($hasInvoiceFlags) {
+                    return ($charge['for_invoice'] ?? 'off') === 'on'
+                        ? (float) ($charge['amount'] ?? 0)
+                        : 0;
+                }
+
+                return 0;
+            });
+            $allCharges = collect($charges)->sum(function ($charge) {
+                return (float) ($charge['amount'] ?? 0);
+            });
+
+            if ($invoiceCharges > 0 && $createdAmount < $baseAmount + $allCharges) {
+                $createdAmount += $invoiceCharges;
+            }
+
+            return max(0.0, $createdAmount);
+        }));
+
+    $receiving_amount = max(0.0, (float) Load::where($customerLoadScope)
+        ->sum('receiving_amount'));
+
+    $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
+    $remainingCredit = $totalCreditLimit > 0
+        ? max(0.0, $totalCreditLimit - $creditLoadAmount)
+        : max(0.0, (float) ($customer->remaining_credit ?? 0));
+    $usedAmount = $totalExhaustedLimit;
+    $after_used_remaing_amount = $remainingCredit;
+    $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
 
                       
     $dailyInvoiceTotals = Load::select(
         DB::raw('DATE(invoice_status_date) as date'),
         DB::raw('SUM(receiving_amount) as total_amount')
     )
-    ->where('customer_id', $customer->id)
-    ->where('invoice_status', 'Paid Record')
+    ->where($customerLoadScope)
     ->groupByRaw('DATE(invoice_status_date)')
     ->get();
 
@@ -1139,7 +1454,7 @@ public function editCustomer($id)
     // print_r($dailyInvoiceTotals); die;
 
 	
-	$pendingpayment = $loadcreateamount - $receiving_amount;
+    $pendingpayment = max(0.0, $loadcreateamount - $receiving_amount);
 
     $loads = Load::where('customer_id', $customer->id)->where('invoice_status','Paid')->get();
     $loadDatacustomeraging = $loads->sortByDesc(function ($load) {
@@ -1200,7 +1515,6 @@ public function accountupdateCustomer(Request $request, $id)
         'customer_telephone' => 'required',
     ]);
 	
-	
     if ($validator->fails()) {
         return redirect()->back()->withErrors($validator)->withInput();
     }
@@ -1244,8 +1558,6 @@ public function accountupdateCustomer(Request $request, $id)
     $newCreditLimitLogs = [];
     $creditLimitLogData = $request->input('new_credit_limit', []);
     $creditTimes = $request->input('new_credit_time', []);
-
-
     if (!empty($creditLimitLogData) && !empty($creditTimes)) {
         foreach ($creditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit) && isset($creditTimes[$index])) {
@@ -1256,19 +1568,11 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new logs
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-	
-	// Decode existing remaning credit limit logs or initialize an empty array
     $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
-
-
     if (!empty($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
             if (!empty($creditLimit)) {
@@ -1279,13 +1583,8 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-
-    // Decode existing remaning credit limit logs or initialize an empty array
     $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
-
-    // Prepare new remaning credit limit logs
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
@@ -1300,26 +1599,16 @@ public function accountupdateCustomer(Request $request, $id)
             }
         }
     }
-
-    // Merge existing and new remaning logs
     $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
     $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
- 
-    // Calculate total credit limit from the updated logs
     $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-
-    // Calculate remaining credit
-   // $usedAmount = $customer->used_amount ?? 0;
     $remainingCredit = $totalCreditLimit - $usedAmount;
-  
-    // Update customer details
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    //$customer->adv_customer_credit_limit = $totalCreditLimit; // Save total credit limit in adv_customer_credit_limit
-    $customer->remaining_credit = $request->input('remaining_credit'); // Save remaining credit in remaining_credit
+    $customer->remaining_credit = $request->input('remaining_credit'); 
     $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
-	 $customer->customer_country = $request->input('customer_country');
+	$customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
     $customer->customer_name = $request->input('customer_name');
     $customer->customer_address = $request->input('customer_address');
@@ -1333,6 +1622,10 @@ public function accountupdateCustomer(Request $request, $id)
     $customer->approved_limit = $request->input('approved_limit');
     $customer->customer_hold_status = $request->has('customer_hold_status') ? 'hold' : 'unhold';
     $customer->invoice_through = $request->input('invoice_through');
+//     echo '<pre>';
+// print_r($customer);
+// echo '</pre>';
+// die;
     $customer->save();
 
     $subject = "Update the Customer info";
@@ -1487,47 +1780,116 @@ public function updateInvoiceStatus(Request $request, $id)
     public function updateInvoiceStatusAsPaidRecord(Request $request, $id)
     {
         $load = Load::find($id);
-        // return $request->all();
         if ($load) {
-            $load->invoice_status = 'Paid Record';
+            $request->validate([
+                'payment_receiving_date' => 'required|date',
+                'receiving_amount' => 'nullable|numeric|min:0',
+                'remaining_amount' => 'nullable|numeric'
+            ]);
+
+            // Allow caller to specify the desired status (default to 'Paid Record')
+            $desiredStatus = $request->input('status', 'Paid Record');
+            $load->invoice_status = $desiredStatus;
             $load->payment_receiving_date = $request->input('payment_receiving_date');
             $load->invoice_status_date = now()->format('Y-m-d H:i:s');
-            // $load->invoice_date = now()->format('Y-m-d H:i:s');
-			$load->receiving_amount = $load->shipper_load_final_rate;
 
-            
+            if ($request->filled('receiving_amount')) {
+                $load->receiving_amount = $request->input('receiving_amount');
+            }
+
+            if ($request->filled('remaining_amount')) {
+                $load->remaining_amount = $request->input('remaining_amount');
+            } elseif ($request->filled('receiving_amount')) {
+                $load->remaining_amount = floatval($load->shipper_load_final_rate) - floatval($load->receiving_amount);
+            }
+
             $load->save();
 
             $subject = "Load Mark as Paid, payment receiving date :".$request->input('payment_receiving_date');
             addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
-    
-            return response()->json(['success' => true, 'message' => 'Marked as Paid Record successfully'], 200);
+
+            return response()->json(['success' => true, 'message' => 'Marked as Paid successfully', 'status' => $desiredStatus], 200);
         }
     
         return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+    }
+
+    /**
+     * Mark a load as a short payment (partial payment) from Paid tab.
+     * If payment_receiving_date is not provided, set it to now().
+     */
+    public function updateInvoiceStatusAsShort(Request $request, $id)
+    {
+        $load = Load::find($id);
+        Log::info('updateInvoiceStatusAsShort called', ['id' => $id, 'request' => $request->all()]);
+
+        if (! $load) {
+            Log::warning('Load not found for short payment', ['id' => $id]);
+            return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'receiving_amount' => 'required|numeric|min:0'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Short payment validation failed', ['id' => $id, 'errors' => $validator->errors()->all()]);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $receiving = floatval($request->input('receiving_amount'));
+
+        // Update only payment fields; do NOT modify shipper_load_final_rate
+        $this->applyPaymentAmounts($load, $receiving);
+        $load->invoice_status = 'Paid Record';
+
+        if ($request->filled('payment_receiving_date')) {
+            $load->payment_receiving_date = $request->input('payment_receiving_date');
+        } else {
+            $load->payment_receiving_date = now()->format('Y-m-d H:i:s');
+        }
+
+        $load->invoice_status_date = now()->format('Y-m-d H:i:s');
+
+        $saved = $load->save();
+
+        Log::info('Short payment saved', ['id' => $id, 'saved' => $saved, 'receiving' => $receiving, 'remaining' => $load->remaining_amount]);
+
+        $subject = "Load marked as Short Payment, receiving: {$receiving}";
+        addToLog($customeid='', $id, $subject, $oldData ='', $newData ='');
+
+        return response()->json(['success' => true, 'message' => 'Marked as Short Payment successfully'], 200);
     }
 
     public function updateReceivingAmount(Request $request)
     {
         $request->validate([
             'load_id' => 'required|integer',
-            'receiving_amount' => 'required|numeric|min:0',
-            'remaining_amount' => 'required|numeric|min:0'
+            'receiving_amount' => 'required|numeric|min:0'
         ]);
     
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->receiving_amount = $request->receiving_amount;
-            $load->remaining_amount = $request->remaining_amount;
-            $load->save();
+            $receivingAmount = floatval($request->receiving_amount);
+            $previousReceivingAmount = round(floatval($load->receiving_amount), 2);
+            $previousRemainingAmount = round(floatval($load->remaining_amount), 2);
 
-             $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ."and remaining amount ".$request->remaining_amount;
-            addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            $this->applyPaymentAmounts($load, $receivingAmount);
+            $amountsChanged = $previousReceivingAmount !== round(floatval($load->receiving_amount), 2)
+                || $previousRemainingAmount !== round(floatval($load->remaining_amount), 2);
+
+            if ($amountsChanged) {
+                $load->save();
+
+                $subject = "update the load payment receiving amount receiving_amount ".$request->receiving_amount ." and remaining amount ".$load->remaining_amount;
+                addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
+            }
     
             return response()->json([
                 'success' => true,
-                'remaining_amount' => number_format($load->remaining_amount, 2)
+                'remaining_amount' => number_format($load->remaining_amount, 2),
+                'load_advance_rec_amount' => number_format($load->load_advance_rec_amount, 2)
             ]);
         } else {
             return response()->json([
@@ -1547,8 +1909,18 @@ public function updateInvoiceStatus(Request $request, $id)
         $load = Load::find($request->load_id);
     
         if ($load) {
-            $load->load_advance_rec_amount = $request->adv_receiving_amount;
-            $load->save();
+            $advAmount = floatval($request->adv_receiving_amount ?? 0);
+
+            // Only treat as advance if amount is greater than shipper final rate
+            $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+            $advanceToStore = 0;
+            if ($advAmount > $shipperRate) {
+                $advanceToStore = $advAmount - $shipperRate;
+            }
+
+            $load->load_advance_rec_amount = $advanceToStore;
+            $saved = $load->save();
+            Log::info('updateadvReceivingAmount', ['load_id' => $load->id, 'advAmount' => $advAmount, 'shipperRate' => $shipperRate, 'stored' => $advanceToStore, 'saved' => $saved]);
 
             //$subject = "update the load payment receiving amount advance receiving amount ".$request->adv_receiving_amount;
             //addToLog($customeid='', $request->load_id, $subject, $oldData ='', $newData ='');
@@ -1593,6 +1965,20 @@ public function updateInvoiceStatus(Request $request, $id)
         }
     }
 
+    protected function applyPaymentAmounts(Load $load, float $receiving)
+    {
+        $load->receiving_amount = $receiving;
+        $shipperRate = floatval($load->shipper_load_final_rate ?? 0);
+
+        if ($receiving >= $shipperRate) {
+            $load->remaining_amount = 0;
+            $load->load_advance_rec_amount = round($receiving - $shipperRate, 2);
+        } else {
+            $load->remaining_amount = round($shipperRate - $receiving, 2);
+            $load->load_advance_rec_amount = 0;
+        }
+    }
+
 
     public function printInvoicePaid($id)
     {
@@ -1621,7 +2007,7 @@ public function updateInvoiceStatus(Request $request, $id)
 
        
         if (!$invoice) {
-            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found
+            abort(404, 'Invoice not found'); // Return a 404 error if no invoice is found 
         }
         
         // Clean up the address data
@@ -1832,7 +2218,7 @@ $searchTerms = array_filter(
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])
+                $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "%$term%");
@@ -1852,7 +2238,7 @@ $searchTerms = array_filter(
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $paid = Load::where('invoice_status','Paid Record')->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
+            $paid = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])->with(['user','customer','carrier'])->orderBy("loads.id", "desc")->paginate(100);
 			
         }
         
@@ -2088,10 +2474,8 @@ $searchTerms = array_filter(
             $dashboard = Load::with('user')->paginate(50);
   
         }
-        
         return view('accounts.reporting.load', compact('dashboard'))->render();
     }
-
     public function report_sales_rep_search(Request $request){
         $q = $request->input('query');
         if (!empty($q)) {
@@ -2119,10 +2503,10 @@ $searchTerms = array_filter(
                     })->paginate(50);
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
-                $totalRevenueBroker = collect();
+                $totalRevenueBroker = collect(); 
             }
         } else {
-            // If query is empty, return a paginated result without any filter
+            // If query is empty, return a paginated result without any filter 
             $totalRevenueBroker = Load::join('users', 'loads.user_id', '=', 'users.id')
                     ->select('users.name')
                     ->selectRaw('SUM(loads.load_shipper_rate) AS total_revenue')
@@ -2148,21 +2532,25 @@ $searchTerms = array_filter(
 
             if (count($searchTerms) > 0) {
                 // Search for non-empty terms with 'orWhere'
-                $dashboard_logs = Load::with('user')
+                    $dashboard_logs = Load::with('user')
+                        ->where('load_status', 'Completed')
                     ->where(function($query) use ($searchTerms) {
                         foreach ($searchTerms as $term) {
                             $query->orWhere('load_number', 'like', "{$term}");
                                 //->orWhere('load_workorder', 'like', "%{$term}%")
                                 //->orWhere('customer_refrence_number', 'like', "%{$term}%");
                         }
-                    })->paginate(50);
+                        })->latest('created_at')->simplePaginate(50);
             } else {
                 // If no valid terms, return an empty collection or handle accordingly
                 $dashboard_logs = collect();
             }
         } else {
             // If query is empty, return a paginated result without any filter
-            $dashboard_logs = Load::with('user')->paginate(50);
+                $dashboard_logs = Load::with('user')
+                    ->where('load_status', 'Completed')
+                    ->latest('created_at')
+                    ->simplePaginate(50);
   
         }
         
@@ -2369,7 +2757,24 @@ public function deleteCarrierFile(Request $request)
     public function viewLoadDetail($id)
     {
         $load = Load::findOrFail($id);
-		$alllogs = activity_log::where('load_id', $id)->get();
+        $logs = activity_log::where('load_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $seenMailMessages = [];
+        $alllogs = $logs->reject(function ($log) use (&$seenMailMessages) {
+            $message = (string) $log->message;
+            if (!str_starts_with($message, 'mail send to customer ')) {
+                return false;
+            }
+
+            if (isset($seenMailMessages[$message])) {
+                return true;
+            }
+
+            $seenMailMessages[$message] = true;
+            return false;
+        })->values();
 
         return view('accounts.view_loads_detail', compact('load', 'alllogs'));
     }
@@ -2384,7 +2789,6 @@ public function deleteCarrierFile(Request $request)
 		$customer = Customer::findOrFail($request->customer_id);
 		$existingFiles = json_decode($customer->remittance, true);
 		$existingFiles = is_array($existingFiles) ? $existingFiles : [];
-
 		$timezone = 'America/New_York';
 		$timestamp = Carbon::now($timezone)->format('Y-m-d H:i:s');
 		$allFiles = [];
@@ -2429,7 +2833,10 @@ public function deleteCarrierFile(Request $request)
             
 		
 		if ($request->ajax()) {
-				return view('accounts.partials.remittance_table', compact('allcountry','customers'))->render();
+                return response()->json([
+                    'html' => view('accounts.partials.remittance_table', compact('allcountry', 'customers'))->render(),
+                    'pagination' => render_pagination_links($customers),
+                ]);
 			}
         
         return view('accounts.remittance', compact('allcountry','customers'));
@@ -3514,8 +3921,8 @@ public function deleteCarrierFile(Request $request)
     
         } elseif ($id == 'Cpr') {
             $data = Load::with('user')->orderByRaw('CAST(load_number AS UNSIGNED) DESC')->get();
-            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note'];
-            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', ''];
+            $headers = ['Sr.no', 'Load #', 'Agent Name', 'Customer #', 'Office', 'Manager', 'Team Leader', 'Load Creation Date', 'Shipper Date', 'Delivery Date', 'Equipment Type', 'Carrier Name', 'CPR Status', 'Micro Point', 'Number of Macropoint', 'CPR contact number', 'Note', 'MC Number'];
+            $columns = ['load_number', 'user.name', 'load_bill_to', 'user.officedata.office_name', 'user.managerInfo.manager', 'user.teamLeaderInfo.tl',  'created_at', 'load_shipper_appointment', 'load_consignee_appointment', 'load_equipment_type', 'load_carrier', 'cpr_check', 'macro', 'no_of_macro', '', '', 'load_mc_no'];
          
         } else {
             return response()->json(['message' => 'Invalid data type.'], 400);
@@ -5087,15 +5494,15 @@ public function customerDetailsReportingExcell()
 
     public function loadCompleteReportingExcel()
     {
-        $data = Load::with('user')->get();
+        $loadQuery = Load::where('load_status', 'Completed');
 
-            $maxConsignees = 0;
-        foreach ($data as $item) {
+        $maxConsignees = 0;
+        $loadQuery->select('id', 'load_consignee_location')->cursor()->each(function ($item) use (&$maxConsignees) {
             $consignee_location = json_decode($item->load_consignee_location, true);
             if (is_array($consignee_location)) {
                 $maxConsignees = max($maxConsignees, count($consignee_location));
             }
-        }
+        });
 
         $headers = ['Sr.no', 'load Number', 'Invoice No', 'Agent Name', 'Load Status', 'Invoice Status', 'Customer Reference #','Load Create Date', 'Customer Name', 'Carrier Name','Pickup Location'];
 
@@ -5103,11 +5510,50 @@ public function customerDetailsReportingExcell()
                 $headers[] = "Unloading Location $i";
             }
         
-         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent' ]);
+         $headers = array_merge($headers, ['Load Type','Carrier Advance Payment','Actual Delivery Date','Carrier Due Date','Carrier Mark Payment Date','Carrier Payment Status','Carrier Fee','Shipper Rate','Invoice Date','Paper work Received Date','Payment Receiving Date','Customer Payment Received Amount','Customer Payment Mark Date','Customer Rate','Customer Fsc','Customer Other Charges','Customer Final Rate','Carrier Rate','Carrier Fsc','Carrier Other Charges','Carrier Final Rate','Margin','Margin %','Work Order','CPR Check','Macro Sent','Delivery Date','Shipper Date','Equipement Type','Shipment Type','CMT Agent','Currency' ]);
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Data');
+        $outputPath = storage_path('app/load-complete-report-' . uniqid('', true) . '.csv');
+        $output = fopen($outputPath, 'w');
+
+        $sheet = new class($output) {
+            private int $currentRow = 0;
+            private array $values = [];
+
+            public function __construct(private $output)
+            {
+            }
+
+            public function setTitle(string $title): void
+            {
+            }
+
+            public function setCellValue(string $coordinate, mixed $value): void
+            {
+                preg_match('/^([A-Z]+)(\d+)$/', $coordinate, $matches);
+                $row = (int) $matches[2];
+
+                if ($this->currentRow !== 0 && $row !== $this->currentRow) {
+                    fputcsv($this->output, $this->values);
+                    $this->values = [];
+                }
+
+                $this->currentRow = $row;
+                $column = 0;
+                foreach (str_split($matches[1]) as $letter) {
+                    $column = ($column * 26) + ord($letter) - 64;
+                }
+
+                $this->values[$column - 1] = $value ?? '';
+            }
+
+            public function finish(): void
+            {
+                if ($this->values !== []) {
+                    fputcsv($this->output, $this->values);
+                }
+                fclose($this->output);
+            }
+        };
 
         $col = 'A';
         foreach ($headers as $header) {
@@ -5116,9 +5562,10 @@ public function customerDetailsReportingExcell()
         }
 
         $row = 2;
-        foreach ($data as $index => $item) {
+        $index = 0;
+        foreach (Load::with('user')->where('load_status', 'Completed')->latest('created_at')->cursor() as $item) {
             $col = 'A';
-            $sheet->setCellValue($col . $row, $index + 1);
+            $sheet->setCellValue($col . $row, ++$index);
             $col++;
             
             $shipper = json_decode($item->load_shipperr, true);
@@ -5127,9 +5574,7 @@ public function customerDetailsReportingExcell()
             $shipper_location = json_decode($item->load_shipper_location, true);
             $appointment = isset($shipper_location[0]['appointment']) ? $shipper_location[0]['appointment'] : '';
             $consignee_location = json_decode($item->load_consignee_location, true);
-            $consignee_appointment = json_decode($item->load_consignee_appointment, true);
-            
-            
+            $consignee_appointment = json_decode($item->load_consignee_appointment, true);           
             $sheet->setCellValue($col . $row, $item->load_number ?? '');
             $col++;
             $sheet->setCellValue($col . $row, in_array($item->invoice_status, ['Paid Record', 'Paid']) ? ($item->invoice_number ?? '') : '');
@@ -5179,7 +5624,7 @@ public function customerDetailsReportingExcell()
             $col++;
             $sheet->setCellValue($col . $row, $item->load_carrier_due_date ? \Carbon\Carbon::parse($item->load_carrier_due_date)->format('m/d/Y') : '');
             $col++;
-           $date = trim($item->load_carrier_due_date_on);
+           $date = trim($item->load_carrier_due_date_on ?? '');
             $formatted = '';
 
             try {
@@ -5191,6 +5636,8 @@ public function customerDetailsReportingExcell()
             }
 
             $sheet->setCellValue($col.$row, $formatted);
+            $col++;
+            $sheet->setCellValue($col . $row, $item->carrier_mark_as_paid ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->load_final_carrier_fee ?? '');
             $col++;
@@ -5263,42 +5710,67 @@ public function customerDetailsReportingExcell()
             $margin = $shipperLoadFinalRate - abs($loadFinalCarrierFee);
             $sheet->setCellValue($col . $row, number_format($margin, 2));
             $col++;
+            $shipperLoadFinalRate = floatval($shipperLoadFinalRate); 
+            $carrierFee = floatval($loadFinalCarrierFee);
+            $margin = $shipperLoadFinalRate - $carrierFee;
+
+            $marginPercentage = $shipperLoadFinalRate > 0
+                ? ($margin / $shipperLoadFinalRate) * 100
+                : 0;
+
+            $sheet->setCellValue(
+                $col . $row,
+                number_format($marginPercentage, 2) . '%'
+            );
+
+            $col++;
             $sheet->setCellValue($col . $row, $item->load_workorder ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->cpr_check ?? '');
             $col++;
             $sheet->setCellValue($col . $row, $item->no_of_macro ?? '');
             $col++;
-            $lastAppointment = !empty($consignee_appointment) 
-                ? end($consignee_appointment)['appointment'] 
-                : null;
+            // Safely get last consignee appointment
+            $lastAppointment = null;
+            if (!empty($consignee_appointment) && is_array($consignee_appointment)) {
+                $lastItem = end($consignee_appointment);
+                $lastAppointment = $lastItem['appointment'] ?? null;
+            }
 
             // Format with Carbon
-            $formattedAppointment = $lastAppointment 
-                ? Carbon::parse($lastAppointment)->format('m/d/Y') 
-                : '-';
+            $formattedAppointment = '-';
+            if ($lastAppointment) {
+                try {
+                    $formattedAppointment = \Carbon\Carbon::parse($lastAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedAppointment = '-';
+                }
+            }
 
             // Set value in Excel
             $sheet->setCellValue($col . $row, $formattedAppointment);
             $col++;
 
+            // Safely get first shipper appointment
             $firstAppointment = null;
+            if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+                $firstItem = reset($shipper_appointment);
+                if (isset($firstItem['appointment'])) {
+                    $firstAppointment = $firstItem['appointment'];
+                }
+            }
 
-if (!empty($shipper_appointment) && is_array($shipper_appointment)) {
+            $formattedFirstAppointment = '-';
+            if ($firstAppointment) {
+                try {
+                    $formattedFirstAppointment = \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    $formattedFirstAppointment = '-';
+                }
+            }
 
-    $firstItem = reset($shipper_appointment); // safely get first element
-
-    if (isset($firstItem['appointment'])) {
-        $firstAppointment = $firstItem['appointment'];
-    }
-}
-
-$formattedFirstAppointment = $firstAppointment
-    ? \Carbon\Carbon::parse($firstAppointment)->format('m/d/Y')
-    : '-';
-
-$sheet->setCellValue($col . $row, $formattedFirstAppointment);
-$col++;
+            $sheet->setCellValue($col . $row, $formattedFirstAppointment);
+            $col++;
             
             $sheet->setCellValue($col . $row, $item->load_equipment_type ?? '');
             $col++;
@@ -5309,26 +5781,20 @@ $col++;
             $sheet->setCellValue($col . $row, $item->cmt_agent ?? '');
             $col++;
 
+            $sheet->setCellValue($col . $row, $item->load_currency ?? '');
+            $col++;
+
             
             $row++;
         }
 
-        $writer = new Xlsx($spreadsheet);
         $filename = 'Load Complete Report ' . date('Y-m-d') . '.xlsx';
+        $sheet->finish();
+        $filename = str_replace('.xlsx', '.csv', $filename);
 
-        $file = $this->getFileStream($writer);
-
-        return response()->stream(
-            function () use ($file) {
-                echo $file;
-            },
-            200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment;filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
-        );
+        return response()->download($outputPath, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ])->deleteFileAfterSend(true);
     }
 
 
@@ -5821,7 +6287,7 @@ public function getVendorNotes(Request $request)
 
 
     public function customerApprovalFormAdmin(){
-        $customers = CustomerApprovalForm::get();
+        $customers = CustomerApprovalForm::orderBy('created_at', 'desc')->get();
         return view('admin.customer_approval', compact('customers'));
     }
 
@@ -6105,11 +6571,56 @@ public function customerApprovalupdateStatus(Request $request)
         $data->status = $request->status;
         $data->save();
 
+        // Send email using core PHP mail() 
+        if ($data->agent_email) {
+            $to = $data->agent_email;
+            $subject = "Customer Approval Status Updated - " . $request->status;
+
+            // Email body
+            $message = "
+            <html>
+            <head>
+                <title>Approval Status Update</title>
+            </head>
+            <body>
+                <h2>Approval Status Update</h2>
+                <p>Dear User,</p>
+                <p>Your customer approval status has been updated by the admin.</p>
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{$data->agent_email}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>{$request->status}</td>
+                    </tr>
+                </table>
+                <br>
+                <p>Regards,<br><strong>Admin Team</strong></p>
+            </body>
+            </html>
+            ";
+
+            // Headers
+            $headers = "MIME-Version: 1.0" . "\r
+";
+            $headers .= "Content-type:text/html;charset=UTF-8" . "\r
+";
+            $headers .= "From: admin@yourdomain.com" . "\r
+";
+            $headers .= "Cc: sumit@geeshasolutions.com" . "\r
+";
+
+            mail($to, $subject, $message, $headers);
+        }
+
         return response()->json(['success' => true]);
     }
 
     return response()->json(['success' => false], 404);
 }
+
 
     public function generateBolPdf($id)
     {
@@ -6130,5 +6641,353 @@ public function customerApprovalupdateStatus(Request $request)
 
         // Stream the file for download
         return $dompdf->stream("BOL-{$load->load_number}.pdf", ["Attachment" => true]);
+    }
+
+    public function uploadCarrierDocuments(Request $request)
+{
+    $request->validate([
+        'carrier_id'    => 'required|integer',
+        'doc_upload.*'  => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx,xlsx,xls|max:20480',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    // Upload new files
+    if ($request->hasFile('doc_upload')) {
+
+        foreach ($request->file('doc_upload') as $file) {
+
+            $originalName = $file->getClientOriginalName();
+
+            $fileName = time().'_'.uniqid().'_'.preg_replace('/\s+/', '_', $originalName);
+
+            $destination = public_path('carrier_doc');
+
+            if (!File::exists($destination)) {
+                File::makeDirectory($destination, 0755, true);
+            }
+
+            $file->move($destination, $fileName);
+
+            $documents[] = [
+                'original_name' => $originalName,
+                'file_name'     => $fileName,
+                'file_path'     => 'carrier_doc/'.$fileName,
+            ];
+        }
+    }
+
+    // Save JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                      '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'html'    => $html,
+        'message' => 'Documents uploaded successfully.'
+    ]);
+}
+
+public function deleteCarrierDocument(Request $request)
+{
+    $request->validate([
+        'carrier_id' => 'required|integer',
+        'doc_index'  => 'required|integer',
+    ]);
+
+    $carrier = External::find($request->carrier_id);
+
+    if (!$carrier) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Carrier not found.'
+        ]);
+    }
+
+    // Get existing documents
+    $documents = $carrier->doc_upload;
+
+    if (!is_array($documents)) {
+        $documents = json_decode($documents, true) ?: [];
+    }
+
+    $docIndex = $request->doc_index;
+
+    if (!isset($documents[$docIndex])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Document not found.'
+        ]);
+    }
+
+    // Delete physical file
+    $filePath = public_path($documents[$docIndex]['file_path']);
+
+    if (file_exists($filePath)) {
+        @unlink($filePath);
+    }
+
+    // Remove from array
+    unset($documents[$docIndex]);
+
+    // Re-index array
+    $documents = array_values($documents);
+
+    // Save updated JSON
+    $carrier->doc_upload = $documents;
+    $carrier->save();
+
+    // Build updated HTML
+    $html = '';
+
+    if (count($documents)) {
+
+        foreach ($documents as $index => $doc) {
+
+            $html .= '
+            <div class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-2">
+
+                <span class="trim-file-name"
+                      data-title="'.$doc['original_name'].'"
+                      title="'.$doc['original_name'].'">
+                    '.$doc['original_name'].'
+                </span>
+
+                <div>
+
+                    <a href="'.asset('public/'.$doc['file_path']).'"
+                       target="_blank"
+                       class="btn btn-sm btn-primary">
+                        View
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="deleteCarrierDocument('.$carrier->id.', '.$index.')">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>';
+        }
+
+    } else {
+
+        $html = '<span class="text-muted">No documents uploaded.</span>';
+
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Document deleted successfully.',
+        'html'    => $html
+    ]);
+}
+
+public function exportCreditLimitLog()
+{
+    $customers = Customer::select('customer_name', 'remaining_credit_logs')->get();
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Headers
+    $sheet->setCellValue('A1', 'Customer Name');
+    $sheet->setCellValue('B1', 'Remaining Credit Logs');
+
+    // Header Style
+    $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+
+    $row = 2;
+
+    foreach ($customers as $customer) {
+
+        $sheet->setCellValue('A' . $row, $customer->customer_name);
+
+        $logs = json_decode($customer->remaining_credit_logs, true);
+
+        $logText = '';
+
+        if (!empty($logs) && is_array($logs)) {
+
+            foreach ($logs as $index => $log) {
+
+                $amount = (float)($log['credit_limit'] ?? 0);
+
+                // Currency format
+                $creditLimit = $amount < 0
+                    ? '-$' . number_format(abs($amount), 2)
+                    : '$' . number_format($amount, 2);
+
+                // Date format
+                $creditTime = !empty($log['credit_time'])
+                    ? date('M d Y', strtotime($log['credit_time']))
+                    : '';
+
+                $logText .= ($index + 1) . ". Credit Limit: {$creditLimit} | {$creditTime}" . PHP_EOL;
+            }
+
+        } else {
+
+            $logText = 'No Logs';
+
+        }
+
+        $sheet->setCellValue('B' . $row, trim($logText));
+
+        // Wrap text
+        $sheet->getStyle('B' . $row)
+              ->getAlignment()
+              ->setWrapText(true);
+
+        // Top align
+        $sheet->getStyle('A' . $row . ':B' . $row)
+              ->getAlignment()
+              ->setVertical(Alignment::VERTICAL_TOP);
+
+        $row++;
+    }
+
+    // Auto-size columns
+    foreach (range('A', 'B') as $column) {
+        $sheet->getColumnDimension($column)->setAutoSize(true);
+    }
+
+    // Freeze header
+    $sheet->freezePane('A2');
+
+    $filename = 'Remaining_Credit_Logs_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+    // Download
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
+}
+public function all_load_status_ar(Request $request){
+$tabs = ['all_load', 'open', 'delivered', 'completed', 'invoiced', 'invoiced_paid'];
+
+		foreach ($tabs as $tab) {
+			if ($request->has($tab)) {
+				Paginator::currentPageResolver(function () use ($request, $tab) {
+					return $request->input($tab);
+				});
+				break; // Stop after finding the matching tab
+			}
+		}
+        $broker_status = Load::with('user')->orderBy("id", "desc")->paginate(50)->setPageName('all_load'); 
+        $allagent = User::pluck('name');
+        $open = Load::with('user')->where('load_status', 'Open')->orderBy("id", "desc")->paginate(50)->setPageName('open'); 
+        $deliverd = Load::with('user')->where('load_status', 'Delivered')->orderBy("id", "desc")->paginate(50)->setPageName('delivered'); 
+        $complete = Load::where('load_status', 'Completed')
+                    ->where(function ($query) {
+                        $query->where('invoice_status', '')
+                            ->orWhereNull('invoice_status');
+                    })
+                    ->with(['user', 'customer', 'carrier'])
+                    ->orderBy("loads.id", "desc")
+                    ->paginate(50)->setPageName('completed');
+        $invoice_paid = Load::with('user')->where('invoice_status', 'Paid')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced'); 
+        $paid_record = Load::with('user')->where('invoice_status', 'Paid Record')->orderBy("id", "desc")->paginate(50)->setPageName('invoiced_paid'); 
+        $manager = Manger::get();
+        $teamlead = TeamLeader::get();
+        $office = Office::get();
+		$agent = User::where('role_id', 21)->get();
+		
+		if ($request->ajax()) {
+			
+			if($request->input('tab') == '#all_load'){
+				return view('admin.home.all_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#open'){
+				return view('admin.home.open_load', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#delivered'){
+				return view('admin.home.delivered', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#completed'){
+				return view('admin.home.completed', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced'){
+				return view('admin.home.invoiced', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}else if($request->input('tab') == '#invoiced_paid'){
+				return view('admin.home.invoiced_paid', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'))->render();
+			}
+				
+		}
+         return view('admin.home', compact('broker_status', 'allagent', 'open', 'deliverd', 'complete', 'invoice_paid', 'paid_record', 'manager', 'teamlead', 'office','agent'));
+
+}
+
+    public function updateArAgingClose(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:loads,id',
+            'value' => 'nullable|in:Bank Charges Adjusted,Short Pay Adjusted Internally',
+        ]);
+
+        $load = Load::findOrFail($request->id);
+        $load->ar_aging_close = $request->value;
+        $load->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Updated successfully.'
+        ]);
     }
 }

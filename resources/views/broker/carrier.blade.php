@@ -83,7 +83,7 @@
                         <div class="tab-content p-3 text-muted">
                             <div class="tab-pane active" id="my-carrier" role="tabpanel">
 							<span style="float: left;margin-right: 10px;">Filter By Agents</span>
-							<span><select style="width:200px;" name="filterusers" class="form-control" id="filterusers">
+							<span style="display:inline-block;width:200px;"><select style="width:200px;max-width:200px;" name="filterusers" class="no-select2" id="filterusers">
 							<option value="{{Auth::id()}}">{{Auth::user()->name}}</option>
 								@foreach($userInfos as $key => $user)
 									<option value="{{$key}}">{{$user}}</option>
@@ -114,7 +114,7 @@
                                     </tbody>
                                 </table>
                                     <div class="custom-pagination">
-                                    {{ $carriers->links() }}
+                                    {{ $carriers->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="all-carrier" role="tabpanel">
@@ -141,7 +141,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $allcarriers->links() }}
+                                    {{ $allcarriers->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>
@@ -428,8 +428,8 @@
     <script>
     $(document).ready(function () {
     // Initialize Select2 once
-    $('#country').select2();
-    $('#state').select2();
+    $('#country').select2({ width: '100%', dropdownParent: $('body') });
+    $('#state').select2({ width: '100%', dropdownParent: $('body') });
 
     // Handle change event
     $('#country').on('change', function () {
@@ -536,14 +536,14 @@ $(document).ready(function () {
                             if ($.fn.DataTable.isDataTable(tableSelector)) {
                                 $(tableSelector).DataTable().destroy();
                             }
-                            $(resultContainer).html(response);
+                            $(resultContainer).html(response.html);
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'rtip',
                                 buttons: false,
                                 buttons: false,
-                                pageLength: 50,              // ✅ default show 50
-                               // lengthMenu: [10, 25, 50, 100] // ✅ dropdown options
+                                pageLength: 50,              // default show 50
+                               // lengthMenu: [10, 25, 50, 100] // dropdown options
                             }); 
                             $('.loader-container').addClass('hide');
                         },

@@ -1,5 +1,6 @@
-@extends('layout.compact.app')
+﻿@extends('layout.compact.app')
 @section('content')
+
 <style>
     ul#navTabs,
     ul#navTabs1 {
@@ -115,24 +116,65 @@
                                     <div class="form-group">
                                         <label>Bill To <code>*</code> <a type="button" class="btn btn-info" id="customerInfoBtn"><i class="fa fa-info-circle"></i></a></label>
                                         <div class="input-group">
-                                            <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to"   @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly  @endif>
-                                                <option value="">Select Customer</option>
+                                            @php
+                                                $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
+                                                $currentCustomerId = $post->customer_id ?: ($post->customer?->id ?? '');
+                                                $selectedCustomer = null;
+
+                                                if (!empty($currentCustomerId)) {
+                                                    $selectedCustomer = $allcustomer->firstWhere('id', $currentCustomerId);
+                                                }
+
+                                                if (!$selectedCustomer && !empty($currentCustomerName)) {
+                                                    $selectedCustomer = $allcustomer->first(function ($cust) use ($currentCustomerName) {
+                                                        return trim((string) $cust->customer_name) === trim((string) $currentCustomerName);
+                                                    });
+                                                }
+                                            @endphp
+                                            @if(!empty($currentCustomerName) || !empty($currentCustomerId))
+                                                <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
+                                                    <option value="">Select Customer</option>
+                                                    @if(!empty($currentCustomerName))
+                                                        @php
+                                                            $currentCustomer = $selectedCustomer ?? $allcustomer->firstWhere('customer_name', $currentCustomerName);
+                                                            $selectedCustomerId = $currentCustomer?->id ?? $currentCustomerId;
+                                                        @endphp
+                                                        <option value="{{ $currentCustomerName }}" 
+                                                            data-id="{{ $selectedCustomerId }}"
+                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer ?? $allcustomer->firstWhere('id', $selectedCustomerId)) }}"
+                                                            data-remaining-credit="{{ (float) ($currentCustomer->remaining_credit ?? 0) }}"
+                                                            data-invoice-credit-limit="{{ (float) ($currentCustomer->invoice_credit_limit ?? 0) }}"
+                                                            selected>
+                                                            {{ $currentCustomerName }}
+                                                        </option>
+                                                    @endif
                                                     @foreach($allcustomer as $cust)
-													   @if($post->user->id == $cust->user_id)
-                                                        <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}"
-                                                                @if($post->load_bill_to == $cust->customer_name) selected @endif>
-                                                            {{ $cust->customer_name }}
-                                                        </option> 
-														@endif
+                                                        @php
+                                                            $isSelected = false;
+                                                            if (!empty($currentCustomerId)) {
+                                                                $isSelected = (int) $cust->id === (int) $currentCustomerId;
+                                                            } elseif (trim((string) $cust->customer_name) === trim((string) $currentCustomerName)) {
+                                                                $isSelected = true;
+                                                            }
+                                                        @endphp
+                                                        @if(!$isSelected)
+                                                            <option value="{{ $cust->customer_name }}" 
+                                                                data-id="{{ $cust->id }}"
+                                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
+                                                                {{ $cust->customer_name }}
+                                                            </option>
+                                                        @endif
                                                     @endforeach
-                                            </select>
+                                                </select>
+                                            @else
+                                                <input type="text" class="form-control" name="load_bill_to" value="{{ $post->load_bill_to }}" readonly>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
-
-
-
-                               <input type="hidden" id="customer_id" name="customer_id" value="">
+                               <input type="hidden" id="customer_id" name="customer_id" value="{{ $post->customer_id ?? ($post->customer?->id ?? '') }}">
 
 
 
@@ -180,7 +222,7 @@
                                 
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
-    <label>Customer Payment Status</label>
+    <label>Load Status</label>
     <select class="form-control select2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
@@ -280,6 +322,15 @@
                                         </select>
                                     </div>
                                 </div>
+                                @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-2 mb-2">
+                                    <div class="form-group">
+                                        <label>Carrier Paid Date</label>
+                                        <input type="date" class="form-control" name="load_carrier_due_date_on" id="load_carrier_due_date_on" value="{{ !empty($post->load_carrier_due_date_on) ? \Carbon\Carbon::parse($post->load_carrier_due_date_on)->format('Y-m-d') : '' }}">
+                                    </div>
+                                </div>
+                                @endif
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Equipment Type
@@ -333,12 +384,32 @@
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Customer Payment Terms</label>
-                                     
-<input type="text" 
-       class="form-control" 
-       name="invoicing_payment_terms"  
-       id="invoicing_payment_terms" 
-       value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                        <input type="text" 
+                                            class="form-control" 
+                                            name="invoicing_payment_terms"  
+                                            id="invoicing_payment_terms" 
+                                            value="{{  $post->invoicing_payment_terms ?? $post->customer?->adv_customer_payment_terms }}">
+                                                                            </div>
+                                </div>
+                                    @if(in_array(auth()->id(), [312, 222, 221]))
+
+                                <div class="col-md-3 mb-2">
+                                    <div class="form-group">
+                                        <label>Customer Paid Date</label>
+                                        <input type="date" class="form-control" name="invoice_status_date" id="invoice_status_date" value="{{ !empty($post->invoice_status_date) ? \Carbon\Carbon::parse($post->invoice_status_date)->format('Y-m-d') : '' }}">
+                                    </div>
+                                </div>
+                                @endif
+
+                                <div class="col-md-3 mb-2">
+                                    <div class="form-group">
+                                        <label>Invoice Status</label>
+                                        @php
+                                            $selectedValue = !empty($post->customer?->invoice_through) 
+                                                            ? $post->customer->invoice_through
+                                                            : $post->invoice_through;
+                                        @endphp
+                                        <input type="text" value="{{ $selectedValue }}" id="invoice_through" class="form-control" readonly>
                                     </div>
                                 </div>
 								
@@ -363,7 +434,7 @@
                                     <div class="form-group" id="shipper_rate_div">
                                         <label>Customer Base Rate
                                             <code>*</code></label>
-                                        <input type="number" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
+                                        <input type="text" class="form-control number value" name="load_shipper_rate" value="{{ $post->load_shipper_rate }}"
                                             autocomplete="off" id="load_shipper_rate" required style="width: 100%;" @if(in_array(auth()->id(), [228, 227, 226])) readonly title="You do not have access" @endif>
                                         
                                     </div>
@@ -738,10 +809,19 @@
                                     </div>
                                 </div>
 
-                                                                <div class="col-md-2 mb-2">
+                                <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label>Carrier Payment Status</label>
-                                        <input type="text" class="form-control" readonly name="carrier_mark_as_paid" id="carrier_mark_as_paid" value="{{ $post->carrier_mark_as_paid ?? 'Not Paid' }}">
+                                            <select class="form-control" name="carrier_mark_as_paid">
+                                                <option value="">Select Carrier Payment Status</option>
+                                                <option value="Not Paid" {{ $post->carrier_mark_as_paid == 'Not Paid' ? 'selected' : '' }}>
+                                                    Not Paid
+                                                </option>
+                                                <option value="Paid" {{ $post->carrier_mark_as_paid == 'Paid' ? 'selected' : '' }}>
+                                                    Paid
+                                                </option>
+                                            </select>
+                                     
                                     </div>
                                 </div>
                             </div>
@@ -1166,25 +1246,32 @@
                                                             value="{{ $consignee['name'] ?? '' }}">
                                                     @else
                                                         <!-- Show select normally -->
-                                                        <select class="form-control load_consignee" 
-                                                                name="load_consignee_{{ $key + 1 }}" 
-                                                                autocomplete="off"
-                                                                id="load_consignee_{{ $key + 1 }}" 
-                                                                required style="width: 100%;">
-                                                            <option value="">Select Consignee</option>
-                                                            @foreach($consigneedata as $consignees)
-                                                                <option value="{{ $consignees->consignee_name }}" 
-                                                                        data-name="{{ $consignees->consignee_name }}" 
-                                                                        data-address="{{ $consignees->consignee_address }}" 
-                                                                        data-city="{{ $consignees->consignee_city }}" 
-                                                                        data-state="{{ $consignees->consignee_state }}" 
-                                                                        data-country="{{ $consignees->consignee_country }}" 
-                                                                        data-zip="{{ $consignees->consignee_zip }}" 
-                                                                        @if($consignee['name'] == $consignees->consignee_name) selected @endif>
-                                                                    {{ $consignees->consignee_name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
+                                                        @if(empty($consigneedata))
+                                                            <div class="alert alert-warning" role="alert">
+                                                                <strong>No consignees found!</strong> Please add consignees in Consignee Management first.
+                                                            </div>
+                                                            <input type="text" class="form-control" placeholder="No consignees available" disabled>
+                                                        @else
+                                                            <select class="form-control load_consignee" 
+                                                                    name="load_consignee_{{ $key + 1 }}" 
+                                                                    autocomplete="off"
+                                                                    id="load_consignee_{{ $key + 1 }}" 
+                                                                    required style="width: 100%;">
+                                                                <option value="">Select Consignee ({{ count($consigneedata) }} available)</option>
+                                                                @foreach($consigneedata as $consignees)
+                                                                    <option value="{{ $consignees->consignee_name }}" 
+                                                                            data-name="{{ $consignees->consignee_name }}" 
+                                                                            data-address="{{ $consignees->consignee_address }}" 
+                                                                            data-city="{{ $consignees->consignee_city }}" 
+                                                                            data-state="{{ $consignees->consignee_state }}" 
+                                                                            data-country="{{ $consignees->consignee_country }}" 
+                                                                            data-zip="{{ $consignees->consignee_zip }}" 
+                                                                            @if($consignee['name'] == $consignees->consignee_name) selected @endif>
+                                                                        {{ $consignees->consignee_name }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        @endif
                                                         <span class="customerErrorMessage" style="color: red; display: none;">
                                                             Select Consignee From the List
                                                         </span>
@@ -1437,7 +1524,7 @@
 							<input class="form-control form-control-lg" name="load_delivery_do_file[]" id="load_delivery_do_file" accept="image/*,application/pdf" type="file" multiple>
 						</div>
 
-                        						<div class="card-header">
+                        <div class="card-header">
                             <h3 class="card-title" style="font-size: 16px; text-align: left; font-weight: 700; margin-left: 0; font-family: 'Poppins';">
                                 Notes </h3>
                         </div>
@@ -1492,10 +1579,81 @@ $notes = json_decode($post->vendorInternalNotes, true);
     @endif
 </div>
 
-                        
+                
+@php
+    $allowedAuthIds = [227, 226, 218, 312, 221, 222];
+@endphp
+
+@if(in_array(auth()->id(), $allowedAuthIds))
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"
+                style="font-size: 16px;
+                       font-weight: 700;
+                       font-family: 'Poppins';">
+                Vendor Logs
+            </h3>
+        </div>
+
+        <div class="card-body" id="vendor_logs">
+
+            @if($alllogs->count())
+
+                @foreach($alllogs as $log)
+
+                    @php
+                        $formattedDate = format_activity_timestamp($log->created_at ?: $log->updated_at);
+                        $changes = getdiffrance($log->old_json, $log->new_json);
+                    @endphp
+
+                    <div class="activity-history mb-3 border-bottom pb-3">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                            <strong class="activity-title">{{ $log->message ?: 'Activity was recorded' }}</strong>
+                            <span class="activity-time text-muted">{{ $formattedDate }}</span>
+                        </div>
+                        <div class="mt-1">Performed by: <strong class="activity-actor">{{ $log->user_name ?: 'System' }}</strong></div>
+                        <div class="activity-label text-muted mt-2"><strong>What changed:</strong></div>
+                        <div class="mt-1">{!! $changes !!}</div>
+                    </div>
+
+                @endforeach
+
+            @else
+
+                <div class="text-muted">
+                    No vendor logs available.
+                </div>
+
+            @endif
+
+        </div>
+    </div>
+
+@endif
+
+<style>
+.activity-history {
+    font-size: 16px;
+}
+
+.activity-history .activity-title {
+    font-size: 17px;
+}
+
+.activity-history .activity-label,
+.activity-history .small {
+    font-size: 20px !important;
+}
+
+.activity-actor {
+    color: #35e950;
+}
+</style>
+        
 
 
-                        <input type="submit" class="btn btn-info" value="update Load">
+                        <input type="submit" class="btn btn-info" value="Update Load">
                        
                     </form>
 <div class="modal fade" id="customerInfoModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -1812,18 +1970,38 @@ $(document).ready(function () {
 <script>
 
     $(document).ready(function () {
+        function syncCustomerSelection() {
+            var selectedCustomer = $('#load_bill_to').find('option:selected');
+            var customerId = selectedCustomer.data('id');
+            $('#customer_id').val(customerId || '');
+
+            if (!customerId && $('#load_bill_to').val()) {
+                var customerName = $.trim($('#load_bill_to').val());
+                var matches = $('#load_bill_to option').filter(function () {
+                    return $.trim($(this).text()) === customerName || $.trim($(this).val()) === customerName;
+                });
+                if (matches.length) {
+                    $('#customer_id').val(matches.first().data('id') || '');
+                }
+            }
+        }
+
 		 $('#load_bill_to').select2(); // Initialize Select2
 		$('#load_bill_to').on('change', function() {
-			var customer_id =  $(this).find('option:selected').data('id');
-			$('#customer_id').val(customer_id);
+			syncCustomerSelection();
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
 			$('#shipper_load_final_rate').val(0);
-			
         });
+
+        syncCustomerSelection();
 		
         $('#shipper_load_final_rate').on('keydown paste input', function (e) {
             e.preventDefault();
+        });
+
+        $('#myFormLoad').on('submit', function () {
+            syncCustomerSelection();
         });
     });
 
@@ -1845,22 +2023,24 @@ $(document).ready(function () {
             }
 
             function updateTotalshipper() {
+
                 var total = 0;
 
                 $('.shipperchargeAmount').each(function (index, inputBox) {
                     var amount = parseFloat($(inputBox).val()) || 0;
                     total += amount;
                 });
-
                 $('#totalChargeAmount').val(total.toFixed(2));
 
                 var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
                 total += loadShipperRate;
-
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
-                total += (loadFscRate / 100) * loadShipperRate;
-
+                var fscAmount = (loadFscRate / 100) * loadShipperRate;
+                total += fscAmount;
                 $('#shipper_load_final_rate').val(total.toFixed(2));
+
+                // Display credit deduction breakdown
+                displayCreditDeduction(loadShipperRate, fscAmount, total);
 
                 var final_total_rate = parseFloat(total) - parseFloat($('#old_shipper_load_final_rate').val());
                 
@@ -1872,7 +2052,7 @@ $(document).ready(function () {
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
-                            customer_id: "{{$post->customer_id}}",
+                            customer_id: $('#customer_id').val() || "{{$post->customer_id}}",
                             finalrate: final_total_rate,
                             _token: '{{ csrf_token() }}'
                         },
@@ -1894,6 +2074,42 @@ $(document).ready(function () {
                         
                     });
 
+            }
+
+            function displayCreditDeduction(baseRate, fscAmount, totalDeduction) {
+                var $creditDisplay = $('#creditlimitcheck');
+                if (!$creditDisplay.length) return;
+
+                // Calculate Non-Invoice Charges (For Invoice unchecked)
+                var nonInvoiceCharges = 0;
+                $('.shipperchargeAmount').each(function (index) {
+                    var amount = parseFloat($(this).val()) || 0;
+                    var isInvoice = $('[name="for_invoice[' + index + ']"]').is(':checked');
+                    if (!isInvoice && amount > 0) {
+                        nonInvoiceCharges += amount;
+                    }
+                });
+
+                var deductionBreakdown = 'Base: $' + parseFloat(baseRate || 0).toFixed(2);
+                if (fscAmount > 0) {
+                    deductionBreakdown += ' + F.S.C: $' + parseFloat(fscAmount || 0).toFixed(2);
+                }
+                if (nonInvoiceCharges > 0) {
+                    deductionBreakdown += ' + Charges: $' + parseFloat(nonInvoiceCharges || 0).toFixed(2);
+                }
+                // var displayText = 'Final Deduction: $' + parseFloat(totalDeduction || 0).toFixed(2) + ' (' + deductionBreakdown + ')';
+
+                $creditDisplay.html('<small style="color: #0066cc; font-weight: 500;">' + displayText + '</small>');
+
+                // Log detailed calculations to console for background tracking
+                var fscRate = parseFloat($('#load_fsc_rate').val() || 0);
+                console.log('Credit Deduction Breakdown:', {
+                    'Base Rate': '$' + parseFloat(baseRate || 0).toFixed(2),
+                    'FSC Rate %': fscRate + '%',
+                    'FSC Amount': '$' + parseFloat(fscAmount || 0).toFixed(2),
+                    'Non-Invoice Charges': '$' + parseFloat(nonInvoiceCharges || 0).toFixed(2),
+                    'Total Final Rate': '$' + parseFloat(totalDeduction || 0).toFixed(2)
+                });
             }
 
             $(document).on('input', '.shipperchargeAmount, #load_shipper_rate, #load_fsc_rate',
@@ -2379,18 +2595,20 @@ $(document).on('click', '#customerInfoBtn', function() {
 });
 
 $(document).ready(function() {
-    var $select = $('#load_bill_to');
+    var $target = $('#load_bill_to');
     var $hidden = $('#customer_id');
 
-    // Set hidden input on page load to match selected option
-    var initialId = $select.find(':selected').data('id');
-    $hidden.val(initialId || '');
+    if ($target.is('select')) {
+        var initialId = $target.find(':selected').data('id');
+        $hidden.val(initialId || '');
 
-    // Update hidden input whenever customer changes
-    $select.on('change', function() {
-        var selectedId = $(this).find(':selected').data('id');
-        $hidden.val(selectedId || '');
-    });
+        $target.on('change', function() {
+            var selectedId = $(this).find(':selected').data('id');
+            $hidden.val(selectedId || '');
+        });
+    } else {
+        $hidden.val($hidden.val() || '');
+    }
 });
 
 
@@ -2427,6 +2645,95 @@ $(document).on('click', '#carrierInfoBtn', function() {
     });
 });
 
+</script>
+
+<script>
+// Credit Limit Validation for Admin Load Edit
+$(document).ready(function() {
+    var originalCustomerId = $('#customer_id').val();
+    
+    // When customer changes, update and validate credit
+    $('#load_bill_to').on('change', function() {
+        var selectedCustomerId = $(this).find('option:selected').data('id');
+        
+        // If customer is being changed from the original, validate NEW customer only
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            // If customer is same as original, validate based on rate change
+            validateCurrentCustomerCredit();
+        } else {
+            clearValidationMessage();
+        }
+    });
+
+    // When final rate changes, validate credit
+    $('#shipper_load_final_rate').on('change', function() {
+        var selectedCustomerId = $('#load_bill_to').find('option:selected').data('id');
+        
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            validateCurrentCustomerCredit();
+        }
+    });
+
+    function validateNewCustomerCredit(newCustomerId) {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+        
+        var $message = $('#creditlimitcheck');
+
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
+            return;
+        }
+
+        // Only validate NEW customer, not old customer
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ <strong>New Customer - Insufficient Credit!</strong><br>Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-success mt-2">✓ <strong>New Customer - Credit OK!</strong><br>Available after transfer: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    function validateCurrentCustomerCredit() {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+
+        var $message = $('#creditlimitcheck');
+
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
+            return;
+        }
+
+        // Current customer - check if rate change exceeds limit
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ Insufficient credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-warning mt-2">✓ Available after this update: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    function clearValidationMessage() {
+        $('#creditlimitcheck').html('');
+    }
+
+    // Validate on page load
+    var initialCustomerId = $('#load_bill_to').find('option:selected').data('id');
+    if (initialCustomerId && initialCustomerId == originalCustomerId) {
+        validateCurrentCustomerCredit();
+    }
+});
 </script>
 
 <style>

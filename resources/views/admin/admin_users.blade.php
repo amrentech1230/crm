@@ -131,6 +131,10 @@
     z-index: 9999;
     top: 10px;
 }
+
+.table tbody td .switch-button {
+    padding: 0 !important;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -183,7 +187,7 @@
                                             </tbody>
                                         </table>
 										<div class="custom-pagination"> 
-											{{$admins->links()}}
+											{{$admins->links('pagination::bootstrap-5')}}
 										</div> 
                                     </div>
                                 </div>

@@ -3,6 +3,129 @@
 
 @section('content')
 <style>
+/* The Add Load form sits inside the XL modal (max-width:90%, centred), so the banner is
+   pinned to the viewport and centred to the same width instead of the page content area.
+   position: sticky cannot be used here: .main-content has overflow:hidden. */
+#credit-limit-message {
+    position: fixed;
+    top: 82px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 1180px);
+    max-width: calc(100vw - 48px);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1060;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+#credit-limit-message.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
+/* The other-charges pop-ups are toggled with jQuery .show(), so Bootstrap never adds a
+   .modal-backdrop. Dim the overlay on the modal element itself instead. */
+#myModal,
+#otherChargesModal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Compact form controls for this page and its modals */
+.page-content .form-control,
+.page-content .form-select,
+.modal .form-control,
+.modal .form-select {
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.page-content .form-control:not(textarea):not([type="file"]),
+.page-content .form-select,
+.modal .form-control:not(textarea):not([type="file"]),
+.modal .form-select {
+    height: 30px;
+    min-height: 30px;
+}
+
+/* The shipper/consignee autocomplete panels are <div class="form-control">, not inputs:
+   keep them out of the fixed input height or the suggestions get clipped to one line */
+.shipperList,
+.consigneeList {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 4px 0 !important;
+    background-color: #fff;
+    z-index: 1070;
+}
+
+.shipperList .item,
+.consigneeList .item {
+    padding: 4px 8px !important;
+    cursor: pointer;
+}
+
+.shipperList .item:hover,
+.consigneeList .item:hover {
+    background-color: #f1f3f5;
+}
+
+.page-content label,
+.modal label {
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+/* Keep the select2 controls the same size as the inputs beside them */
+.select2-container--default .select2-selection--single {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 2px 26px 2px 8px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    font-size: 12px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    width: 24px !important;
+}
+
+/* Dropdowns are appended to body / the modal, so they need their own rule */
+.select2-dropdown,
+.select2-results__option,
+.select2-search__field {
+    font-size: 12px !important;
+}
+
+/* Filter By Agents: its wrapper is an inline <span>, so the layout's width:100% resolves
+   against .card-body and the control grows once DataTables widens the table. Pin it instead. */
+#filteruser + .select2-container {
+    width: 200px !important;
+    vertical-align: middle;
+}
+
+#myFormLoad input[type="submit"].disabled,
+#myFormLoad input[type="submit"]:disabled {
+    background-color: #b8b8b8 !important;
+    border-color: #b8b8b8 !important;
+    color: #ffffff !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+}
+
 /* General */
 .load-row {
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -181,11 +304,12 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
             </div>
         </div>
         <!-- end page title -->
-        @if(session('error'))
-        <div class="alert alert-danger" id="error-alert">
-            {{ session('error') }}
-        </div>
-        @endif
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
 
         @if(session('success'))
         <div class="alert alert-success" id="success-alert">
@@ -307,6 +431,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             <th>Margin %</th>
                                             <th>Aging</th>
                                             <th>CPR Status</th>
+                                            <th>Carrier Payment Status</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -317,7 +442,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $all_load->setPageName('all_loads')->links() }}
+                                    {{ $all_load->setPageName('all_loads')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="open" role="tabpanel">
@@ -360,7 +485,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $open->setPageName('open')->links() }}
+                                    {{ $open->setPageName('open')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="delivered" role="tabpanel">
@@ -400,7 +525,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $delivered->setPageName('delivered')->links() }}
+                                    {{ $delivered->setPageName('delivered')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="complete" role="tabpanel">
@@ -441,7 +566,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $complete->setPageName('complete')->links() }}
+                                    {{ $complete->setPageName('complete')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="invoice" role="tabpanel">
@@ -482,7 +607,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice->setPageName('invoice')->links() }}
+                                    {{ $invoice->setPageName('invoice')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                             <div class="tab-pane" id="paid" role="tabpanel">
@@ -523,7 +648,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $invoice_paid->setPageName('invoice_paid')->links() }}
+                                    {{ $invoice_paid->setPageName('invoice_paid')->links('pagination::bootstrap-5') }}
                                 </div>
                             </div>
                         </div>
@@ -549,6 +674,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                     <form method="POST" action="{{ route('load.create') }}" id="myFormLoad"
                         enctype="multipart/form-data">
                         @csrf
+                        <div id="credit-limit-message" class="alert alert-warning d-none mb-3"></div>
                         <div class="card-header">
                             <h3 class="card-title"
                                 style="font-size: 18px;text-align: left;font-weight: 700;margin-left: 0;">Add Load</h3>
@@ -559,17 +685,22 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                     <div class="form-group">
                                         <label>Load Number
                                         </label>
-                                        <input class="form-control" name="load_number"
-                                            title="Load number generated automatically" disabled style="width: 100%;">
+                                        <input class="form-control" name="load_number" title="Load number generated automatically" readonly style="width: 100%;">
                                     </div>
                                 </div>
                                 <div class="col-md-2 mb-2">
                                     <div class="form-group">
                                         <label>Bill To <code>*</code></label>
-                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to">
+                                        <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" data-placeholder="Select Customer">
                                             <option value="">Select Customer</option>
                                             @foreach($customer as $cust)
-                                            <option value="{{$cust->customer_name}}" data-customer-id="{{$cust->id}}">{{$cust->customer_name}}</option>
+                                            <option value="{{$cust->customer_name}}"
+                                                data-customer-id="{{$cust->id}}"
+                                                data-available-credit="{{ (float) ($availableCredits[$cust->id] ?? 0) }}"
+                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
+                                                {{$cust->customer_name}}
+                                            </option>
                                             @endforeach
                                         </select>
                                         <input type="hidden" id="customer_id" name="customer_id" value="" >
@@ -593,6 +724,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             style="width: 100%;">
                                             <option value="None">None</option>
                                             <option value="Rachel">Rachel</option>
+                                            <option value="Amelia">Amelia</option>
                                         </select>
                                 </div>
                                 </div>
@@ -674,7 +806,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                         <label>Equipment Type
                                             <code>*</code></label>
                                         <select class="form-control mySelect2" name="load_equipment_type"
-                                            id="load_equipment_type" style="width: 100%;" required>
+                                            id="load_equipment_type" style="width: 100%;" required data-placeholder="Select Equipment">
 
                                             <option value="">Select Equipment </option>
                                             @foreach($equipmentType as $equipment)
@@ -746,13 +878,13 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         </div>
     </div>
 
-    <div class="col-md-2">
+    <div class="col-md-2 for-invoice-field" style="display: none;">
         <div class="form-group mt-3">
             <label>For Invoice:</label><br>
             <input type="checkbox"
-                class="form-check-input for_invoice"
-                name="for_invoice[]"
-                value="on">
+                class="form-check-input for_invoice">
+            <input type="hidden" class="for_invoice_flag"
+                name="for_invoice[]" value="off">
         </div>
     </div>
 
@@ -785,12 +917,12 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         </div>
     </div>
 
-    <div class="col-md-2" style="margin-top:20px;">
+    <div class="col-md-2 for-invoice-field" style="display: none; margin-top:20px;">
         <div class="form-group">
             <input type="checkbox"
-                class="form-check-input for_invoice"
-                name="for_invoice[]"
-                value="on">
+                class="form-check-input for_invoice">
+            <input type="hidden" class="for_invoice_flag"
+                name="for_invoice[]" value="off">
         </div>
     </div>
 
@@ -1041,7 +1173,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                             <div class="form-group">
                                                 <label>Commodity Name <code>*</code></label>
                                                 <input class="form-control load_shipper_commodity" id="load_shipper_commodity"
-                                                    name="load_shipper_commodity" autocomplete="off" type="text"
+                                                    name="load_shipper_commodity" autocomplete="off" type="text" required
                                                      style="width: 100%;">
                                             </div>
                                         </div>
@@ -1162,7 +1294,7 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
                                                 <div class="form-group">
                                                     <label>Commodity Name <code>*</code></label>
                                                     <input class="form-control load_consignee_commodity" name="load_consignee_commodity"
-                                                        id="load_consignee_commodity" autocomplete="off" type="text" style="width: 100%;">
+                                                        id="load_consignee_commodity" autocomplete="off" type="text" required style="width: 100%;">
                                                 </div>
                                             </div>
                                         </div>
@@ -1220,10 +1352,10 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
 
                         </div>
                         <div class="modal-footer">
-                            <input type="submit" class="btn btn-info" value="Save">
-                            <input type="reset" style="font-size:14px !important;" class="btn btn-warning"
+                            <input type="submit" class="btn btn-info keep-enabled" value="Save">
+                            <input type="reset" style="font-size:14px !important;" class="btn btn-warning keep-enabled"
                                 id="clearFormButton" Value="Clear Form">
-                            <input type="button" class="btn btn-danger" data-bs-dismiss="modal" value="Cancel">
+                            <input type="button" class="btn btn-danger keep-enabled" data-bs-dismiss="modal" value="Cancel">
                         </div>
                     </form>
                 </div>
@@ -1235,39 +1367,46 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
    $(document).on('click', '.custom-pagination a', function(e) {
     e.preventDefault();
 
-    let url = $(this).attr('href');
+    let href = $(this).attr('href');
+    if (!href) return;
 
     // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
         let resultContainer = '';
         let tableSelector = '';
+        let pageName = '';
 
         if (activeTab === '#all') {
-            resultContainer = '#all_search';
+            resultContainer = '#all_search'; pageName = 'all_loads';
             tableSelector = '#datatable-buttons-all';
         } else if (activeTab === '#open') {
-            resultContainer = '#open_search';
+            resultContainer = '#open_search'; pageName = 'open';
             tableSelector = '#datatable-buttons-open';
         } else if (activeTab === '#delivered') {
-            resultContainer = '#delivered_search';
+            resultContainer = '#delivered_search'; pageName = 'delivered';
             tableSelector = '#datatable-buttons-delivered';
         } else if (activeTab === '#complete') {
-            resultContainer = '#complete_search';
+            resultContainer = '#complete_search'; pageName = 'complete';
             tableSelector = '#datatable-buttons-complete';
         } else if (activeTab === '#invoice') {
-            resultContainer = '#invoice_search';
+            resultContainer = '#invoice_search'; pageName = 'invoice';
             tableSelector = '#datatable-buttons-invoice';
         } else if (activeTab === '#paid') {
-            resultContainer = '#paid_search';
+            resultContainer = '#paid_search'; pageName = 'invoice_paid';
             tableSelector = '#datatable-buttons-paid';
         } else {
             return; // Exit if it's not one of the expected tabs
         }
+    let pageUrl = new URL(href, window.location.origin);
+    let pageNumber = pageUrl.searchParams.get(pageName) || '1';
+
     $.ajax({
-        url: url,
+        url: '/broker/load',
         type: 'GET',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            page: pageNumber,
+            [pageName]: pageNumber
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
@@ -1291,11 +1430,9 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
         ]
             });
 
-            // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            window.history.replaceState({}, '', '/broker/load');
         }
     });
-});
 </script>
     <script>
       
@@ -1346,18 +1483,312 @@ div#datatable-buttons-open_filter,div#datatable-buttons-delivered_filter,div#dat
   });
 
 
-        $(document).ready(function () {
-			$('#load_bill_to').select2(); // Initialize Select2
+        function formatCreditAmount(value) {
+            var numericValue = Number(value);
+            if (!isFinite(numericValue)) {
+                return '$0.00';
+            }
+            return '$' + numericValue.toFixed(2);
+        }
 
+        // Note: customer other charges are deliberately left alone here. A charge marked
+        // For Invoice is drawn from the invoicing limit, so a credit failure must not wipe
+        // what the user typed - the message and the disabled Save button are the feedback.
+        function zeroRateFields() {
+            $('#shipper_load_final_rate').val(0);
+            $('#load_shipper_rate').val(0);
+            $('#load_fsc_rate').val(0);
+            $('#load_final_carrier_fee').val(0);
+            $('#totalShipperOtherChgarges').val(0);
+        }
+
+        function getSelectedCustomerCreditLimit() {
+            var $select = $('#load_bill_to');
+            if (!$select.length) {
+                return { remaining: 0, invoice: 0 };
+            }
+
+            var selectedOption = $select.find('option:selected');
+            var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+            var remainingCredit = parseFloat(selectedOption.data('remaining-credit')) || 0;
+            var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+
+            var remaining = availableCredit > 0 ? availableCredit : remainingCredit;
+
+            return { remaining: remaining, invoice: invoiceCreditLimit };
+        }
+
+        function isTONU() {
+            var shipmentType = $('[name="load_type"]').val();
+            return shipmentType && shipmentType.toUpperCase() === 'TONU';
+        }
+
+        function getInvoiceChargesTotal() {
+            var total = 0;
+            $('[name="shipperchargeAmount[]"]').each(function (index) {
+                var amount = parseFloat($(this).val()) || 0;
+                var isInvoice = $('.for_invoice').eq(index).is(':checked');
+                if (isInvoice) {
+                    total += amount;
+                }
+            });
+            return total;
+        }
+
+        function getNonInvoiceChargesTotal() {
+            var total = 0;
+            $('[name="shipperchargeAmount[]"]').each(function (index) {
+                var amount = parseFloat($(this).val()) || 0;
+                var isInvoice = $('.for_invoice').eq(index).is(':checked');
+                if (!isInvoice) {
+                    total += amount;
+                }
+            });
+            return total;
+        }
+
+        function validateCreditForLoad() {
+            var $form = $('#myFormLoad');
+            var $select = $('#load_bill_to');
+            var $rate = $('#shipper_load_final_rate');
+            var $message = $('#credit-limit-message');
+            var $submitButton = $form.find('input[type="submit"]');
+
+            if (!$form.length || !$select.length || !$rate.length) {
+                return true;
+            }
+
+            if (!$select.val()) {
+                $message.text('').addClass('d-none');
+                $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+                $form.data('credit-valid', true);
+                return true;
+            }
+
+            var credits = getSelectedCustomerCreditLimit();
+            var remainingLimit = credits.remaining;
+            var invoiceLimit = credits.invoice;
+            var enteredAmount = parseFloat($rate.val()) || 0;
+
+            if (enteredAmount < 0) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Shipper rate cannot be negative.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            if (enteredAmount > 0 && enteredAmount < 200) {
+                var validationMessage = 'Final shipper rate is not less than 200.';
+
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text(validationMessage).removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled').prop('title', validationMessage);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            // TONU: Only uses invoice credit limit (no base rate needed)
+            if (isTONU()) {
+                var invoiceCharges = getInvoiceChargesTotal();
+                if (invoiceLimit <= 0) {
+                    $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                        .text('You do not have invoicing limit. Cannot create TONU load.').removeClass('d-none');
+                    $submitButton.prop('disabled', true).addClass('disabled');
+                    zeroRateFields();
+                    $form.data('credit-valid', false);
+                    return false;
+                }
+                if (invoiceCharges > invoiceLimit) {
+                    $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                        .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You entered ' + formatCreditAmount(invoiceCharges) + '.')
+                        .removeClass('d-none');
+                    $submitButton.prop('disabled', true).addClass('disabled');
+                    $('#shipper_load_final_rate').val(0);
+                    $form.data('credit-valid', false);
+                    return false;
+                }
+                $message.removeClass('alert-danger').addClass('alert-warning')
+                    .text('TONU - Invoice limit: ' + formatCreditAmount(invoiceLimit) + '. Used: ' + formatCreditAmount(invoiceCharges) + '.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+                $form.data('credit-valid', true);
+                return true;
+            }
+
+            // Non-TONU: Base rate + non-invoice charges use remaining limit
+            //           Invoice-checked charges use invoice limit
+            var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+            var fscAmount = (fscRate / 100) * baseRate;
+            var nonInvoiceCharges = getNonInvoiceChargesTotal();
+            var invoiceCharges = getInvoiceChargesTotal();
+
+            // Only For Invoice=checked charges are deducted from the invoicing limit.
+            // Base rate, F.S.C and non-invoice charges must fit inside the remaining limit -
+            // the invoicing limit is never used to cover a shortfall there.
+            var remainingUsed = baseRate + fscAmount + nonInvoiceCharges;
+            var totalInvoiceUsed = invoiceCharges;
+
+            // Check remaining credit limit (base rate + non-invoice charges)
+            if (remainingLimit <= 0 && invoiceLimit <= 0) {
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('No remaining credit limit available.').removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                zeroRateFields();
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            // The remaining limit has to cover base rate + F.S.C + non-invoice charges on its own
+            if (remainingUsed > remainingLimit) {
+                var shortageAmount = remainingUsed - remainingLimit;
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Amount (' + formatCreditAmount(remainingUsed) + ') exceeds remaining credit limit (' + formatCreditAmount(remainingLimit) + '). You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            // Check invoice credit limit (For Invoice=checked charges only)
+            if (totalInvoiceUsed > invoiceLimit) {
+                var shortageAmount = totalInvoiceUsed - invoiceLimit;
+                $message.removeClass('alert-warning alert-success').addClass('alert-danger')
+                    .text('Insufficient invoicing limit. Your invoicing limit is ' + formatCreditAmount(invoiceLimit) + '. You need ' + formatCreditAmount(shortageAmount) + ' more credits.')
+                    .removeClass('d-none');
+                $submitButton.prop('disabled', true).addClass('disabled');
+                $('#shipper_load_final_rate').val(0);
+                $form.data('credit-valid', false);
+                return false;
+            }
+
+            // All good - show only what is left on each limit after this load
+            var deductionSummary = 'Available: ' + formatCreditAmount(remainingLimit - remainingUsed) + ' | Invoicing Limit: ' + formatCreditAmount(invoiceLimit - totalInvoiceUsed);
+
+            $message.removeClass('alert-danger').addClass('alert-warning')
+                .text(deductionSummary)
+                .removeClass('d-none');
+
+            // Log detailed calculations to console for background tracking
+            console.log('Credit Limit Check:', {
+                'Base Rate': formatCreditAmount(baseRate),
+                'FSC Rate %': parseFloat(fscRate || 0).toFixed(1) + '%',
+                'FSC Amount': formatCreditAmount(fscAmount),
+                'Invoice Charges (For Invoice=checked)': formatCreditAmount(invoiceCharges),
+                '  → Deducted from Invoice Limit': formatCreditAmount(invoiceCharges),
+                'Non-Invoice Charges (For Invoice=unchecked)': formatCreditAmount(nonInvoiceCharges),
+                '  → Deducted from Remaining Limit': formatCreditAmount(nonInvoiceCharges),
+                'Total Used from Remaining': formatCreditAmount(remainingUsed),
+                'Total Used from Invoice Limit': formatCreditAmount(totalInvoiceUsed),
+                'Remaining Available': formatCreditAmount(remainingLimit - remainingUsed),
+                'Invoice Limit Available': formatCreditAmount(invoiceLimit - totalInvoiceUsed),
+                'Remaining Limit': formatCreditAmount(remainingLimit),
+                'Invoice Limit': formatCreditAmount(invoiceLimit)
+            });
+            $submitButton.prop('disabled', false).removeClass('disabled').prop('title', 'Save');
+            $form.data('credit-valid', true);
+            return true;
+        }
+
+        function toggleLoadFormByCredit() {
+            var $form = $('#myFormLoad');
+            var $select = $('#load_bill_to');
+            var $message = $('#credit-limit-message');
+
+            if (!$form.length || !$select.length) {
+                return;
+            }
+
+            var creditInfo = getSelectedCustomerCreditLimit();
+            var availableLimit = Number(creditInfo.remaining) || 0;
+            var invoiceLimit = Number(creditInfo.invoice) || 0;
+            var shouldLock = !!$select.val() && availableLimit <= 0;
+
+            $form.data('credit-locked', shouldLock);
+
+            $form.find(':input')
+                .not($select)
+                .not('[type="hidden"]')
+                .each(function () {
+                    $(this).prop('disabled', shouldLock);
+                });
+
+            $form.find('input[type="submit"], input[type="reset"], input[type="button"], button').prop('disabled', shouldLock);
+
+            if (shouldLock) {
+                zeroRateFields();
+                $message
+                    .removeClass('alert-warning alert-success')
+                    .addClass('alert-danger')
+                    .text('You do not have sufficient limit to create this load.')
+                    .removeClass('d-none');
+            } else if ($select.val()) {
+                $message
+                    .removeClass('alert-danger')
+                    .addClass('alert-warning')
+                    .text('Available limit: ' + formatCreditAmount(availableLimit) + ' | Invoicing limit: ' + formatCreditAmount(invoiceLimit) + '.')
+                    .removeClass('d-none');
+            } else {
+                $message.text('').addClass('d-none');
+            }
+
+            $select.prop('disabled', false);
+        }
+
+        $(document).ready(function () {
 			// Bind the change event
 			$('#load_bill_to').on('change', function () {
                 var selectedOption = $(this).find('option:selected').data('customer-id');
-                $('#customer_id').val(selectedOption);
-                // alert(selectedOption);
+                $('#customer_id').val(selectedOption || '');
 				$('#load_shipper_rate').prop('readonly', false).val(0);
+                $('#shipper_load_final_rate').val('');
+                toggleLoadFormByCredit();
+                validateCreditForLoad();
 			});
+
+            $('#shipper_load_final_rate').on('input change', function () {
+                validateCreditForLoad();
+            });
+
+            // Re-validate when shipment type changes (TONU logic)
+            $('[name="load_type"]').on('change', function () {
+                validateCreditForLoad();
+            });
+
+            // Re-validate when "For Invoice" checkbox is toggled, and keep the submitted
+            // hidden flag in sync so the server receives one on/off value per charge row,
+            // in the same order as the amount inputs.
+            $(document).on('change', '.for_invoice', function () {
+                $(this).closest('.row').find('.for_invoice_flag').val(this.checked ? 'on' : 'off');
+                validateCreditForLoad();
+            });
+
+            $('#myFormLoad').on('submit', function (e) {
+                if ($(this).data('credit-locked') || !validateCreditForLoad()) {
+                    e.preventDefault();
+                }
+            });
+
+            toggleLoadFormByCredit();
+            validateCreditForLoad();
 		});
         $(document).ready(function () {
+
+            function toggleForInvoiceFields() {
+                const shipmentType = $('[name="load_type"] option:selected').text().trim().toUpperCase();
+                const isTonu = shipmentType === 'TONU';
+
+                $('.for-invoice-field').toggle(isTonu);
+                if (!isTonu) {
+                    $('.for_invoice').prop('checked', false);
+                    $('.for_invoice_flag').val('off');
+                }
+            }
+
+            $('[name="load_type"]').on('change', toggleForInvoiceFields);
+            toggleForInvoiceFields();
 
             $('#load_shipper_other_charges').on('click', function () {
                 $('#myModal').show();
@@ -1681,13 +2112,6 @@ $(document).ready(function () {
 </script>
 <script>
 
-    $(document).ready(function () {
-        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-            e.preventDefault();
-        });
-    });
-
-
         $(document).ready(function () {
             function updateTotalshipper() {
                 var total = 0;
@@ -1705,38 +2129,61 @@ $(document).ready(function () {
                 var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
                 total += (loadFscRate / 100) * loadShipperRate;
 
+                // Always show the calculated total in final rate field
                 $('#shipper_load_final_rate').val(total.toFixed(2));
+                // Re-validate UI based on new totals (keeps calculated final rate visible)
+                validateCreditForLoad();
 
+                // Also send non-invoice portion to the server-side remaining-credit check
                 var customer_id = $('#customer_id').val();
-                
-                 $.ajax({
-                        url: '{{ route('check.remaing.limit') }}',
-                        method: 'GET',
-                        data: {
-                            customer_id: customer_id,
-                            finalrate: total,
-                            _token: '{{ csrf_token() }}'
-                        },
-                        success: function(response) {
-                          
-                            if (response.success) {
 
-                                 $('#mc-error-message').text(response.message).fadeIn();
+                // Calculate total of invoice-selected charges only
+                var invoiceTotal = 0;
+                $('.for_invoice').each(function(index, checkbox) {
+                    var checked = $(checkbox).is(':checked');
+                    if (checked) {
+                        // Find corresponding amount input by index
+                        var amountInput = $('[name="shipperchargeAmount[]"]').eq(index);
+                        var val = parseFloat(amountInput.val()) || 0;
+                        invoiceTotal += val;
+                    }
+                });
 
-                                // Hide after 10 seconds
-                                setTimeout(function() {
-                                    $('#mc-error-message').text('').fadeOut();
-                                }, 2000); 
-                                
-                                $('#shipper_load_final_rate').val('0');
-                                $('#totalChargeAmount').val('0');
-                                $('.shipperchargeAmount').val('0'); 
-                            }
-                               
-                        },
-                        
-                    });
+                // Non-invoice portion is validated against remaining credit, the For Invoice
+                // portion against the invoicing limit.
+                var nonInvoiceFinalRate = Math.max(0, total - invoiceTotal);
 
+                $.ajax({
+                    url: '{{ route('check.remaing.limit') }}',
+                    method: 'GET',
+                    data: {
+                        customer_id: customer_id,
+                        finalrate: total,
+                        remaining_amount: nonInvoiceFinalRate,
+                        invoice_amount: invoiceTotal,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#mc-error-message').text(response.message).fadeIn();
+
+                            // Hide after 2 seconds
+                            setTimeout(function() {
+                                $('#mc-error-message').text('').fadeOut();
+                            }, 2000);
+
+                            // Block saving but keep what was typed. This check only covers the
+                            // remaining limit; a For Invoice charge is paid out of the invoicing
+                            // limit, so the customer other charges must not be cleared here.
+                            var $loadForm = $('#myFormLoad');
+                            $loadForm.data('credit-valid', false);
+                            $loadForm.find('input[type="submit"]')
+                                .prop('disabled', true)
+                                .addClass('disabled')
+                                .prop('title', response.message);
+                        }
+                    }
+                });
             }
 
             $(document).on('input', '[name="shipperchargeAmount[]"], #load_shipper_rate, #load_fsc_rate',
@@ -1756,21 +2203,17 @@ $(document).ready(function () {
             });
             $('#totalChargeAmount').val(total.toFixed(2));
 
-            var load_shipper_rate = $('#load_shipper_rate').val();
-
             var loadShipperRate = parseFloat($('#load_shipper_rate').val()) || 0;
             total += loadShipperRate;
 
             var loadFscRate = parseFloat($('#load_fsc_rate').val()) || 0;
             total += (loadFscRate / 100) * loadShipperRate;
 
+            // Always show the calculated total in final rate field
             $('#shipper_load_final_rate').val(total.toFixed(2));
             
-
-            //var final_rate = parseFloat(load_shipper_rate) + parseFloat(total);
-
-            //$('#shipper_load_final_rate').val(final_rate);
-
+            // Then validate credit (will disable submit if exceeded, but rate stays visible)
+            validateCreditForLoad();
         }
 
         // Bind input event to existing .shipperchargeAmount inputs
@@ -1840,8 +2283,10 @@ $(document).ready(function () {
                 var customer_rate = $('#shipper_load_final_rate').val();
             
                 if(total > customer_rate){
-                      $('#mc-error-message').text("Final Carrier Fee not graterthe Shipper Final rate").fadeIn();
-                      $('.shipper_other_charge').val(0);
+                      $('#mc-error-message').text("Final carrier fee should not be more than final customer rate").fadeIn();
+                      // Clear the carrier charges by name: the .shipper_other_charge class is also
+                      // on the customer charge rows, and those must not be wiped here.
+                      $('[name="inputBox2[]"], [name="shipper_other_charge[]"]').val(0);
                       $('#totalShipperOtherChgarges').val(0);
                         $('#load_carrier_fee').val(0);
                         $('#load_final_carrier_fee').val(0);
@@ -1863,46 +2308,6 @@ $(document).ready(function () {
         });
 </script>
 <script>
-    const inputFields = ['load_bill_to', 'load_carrier', 'carrier_mc_ff_input', 'carrier_dot'];
-
-    // Loop through each ID and disable copy, paste, and cut
-    inputFields.forEach(function(id) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('paste', function(event) {
-                event.preventDefault(); // Prevent paste action
-                //alert('Paste is not allowed'); // Display an error message
-				$('#mc-error-message').text('Paste is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('copy', function(event) {
-                event.preventDefault(); // Prevent copy action
-                //alert('Copy is not allowed'); // Display an error message
-				$('#mc-error-message').text('Copy is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-
-            element.addEventListener('cut', function(event) {
-                event.preventDefault(); // Prevent cut action
-                //alert('Cut is not allowed'); // Display an error message
-				$('#mc-error-message').text('Cut is not allowed').fadeIn();
-
-				  // Hide after 10 seconds
-				  setTimeout(function() {
-					  $('#mc-error-message').text('').fadeOut();
-				  }, 1000);
-            });
-        }
-    });
 	
 	
 	$(document).ready(function () {
@@ -2314,7 +2719,7 @@ $(document).ready(function () {
                             }
 
                             $(resultContainer).html(response);
-
+$('.custom-pagination').hide();
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
@@ -2339,7 +2744,9 @@ $(document).ready(function () {
                         }
                     });
                 } else {
-                    $(resultContainer).html('');
+                    // $(resultContainer).html('');
+                     $(resultContainer).html('');
+    $('.custom-pagination').show();
                 }
             }, 300);
 
