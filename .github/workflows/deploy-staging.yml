@@ -20,7 +20,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy devN -> Staging
-    runs-on: [self-hosted, hostinger]
+    runs-on: [self-hosted]
 
     environment:
       name: staging
