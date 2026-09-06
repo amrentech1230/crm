@@ -4,6 +4,10 @@ name: Deploy to Production
 # merged into main). The `production` GitHub Environment should have
 # "Required reviewers" enabled so this run pauses for manual approval
 # before the deploy step executes. See DEPLOYMENT.md.
+#
+# This job runs on a SELF-HOSTED runner installed on the production/staging
+# VPS. Because the runner executes ON the server, no inbound SSH is required
+# (no port 2222, no firewall dependency). The deploy commands run locally.
 on:
   push:
     branches: [main]
@@ -19,109 +23,73 @@ concurrency:
 jobs:
   deploy:
     name: Deploy main -> Production
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     environment:
       name: production
       url: https://crmcargoconvoy.co
 
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      DEPLOY_BRANCH: main
+      PHP_BIN: ${{ vars.PHP_BIN }}
+      COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+
     steps:
-      - name: SSH preflight check and debug
-        env:
-          SSH_HOST: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.PROD_USERNAME || secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.PROD_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_BRANCH: main
+      - name: Validate deploy configuration
+        run: |
+          set -euo pipefail
+          echo "==> Validating production deploy configuration"
+          echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
+          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
+
+          if [[ -z "${DEPLOY_PATH}" ]]; then
+            echo "::error::Missing DEPLOY_PATH. Configure it in the production environment variables."
+            exit 1
+          fi
+          if [[ ! -d "${DEPLOY_PATH}" ]]; then
+            echo "::error::DEPLOY_PATH '${DEPLOY_PATH}' does not exist on the runner host."
+            exit 1
+          fi
+
+      - name: Deploy locally
         run: |
           set -euo pipefail
 
-          echo "==> Preflight: validating SSH target and required secrets"
-          echo "SSH_TARGET=${SSH_HOST:-<unset>}:${SSH_PORT:-<unset>}"
-          echo "SSH_USER=${SSH_USER:-<unset>}"
-          echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
-          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
-          
-                    echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
-          echo "DEBUG: HOST length = $(echo -n "$SSH_HOST" | wc -c) (expected 13 for 31.97.186.171)"
-          echo "DEBUG: PORT length = $(echo -n "$SSH_PORT" | wc -c) (expected 2 for 22)"
+          PHP_BIN="${PHP_BIN:-php}"
+          COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 
-          if [[ -z "${SSH_HOST}" || -z "${SSH_PORT}" || -z "${SSH_USER}" || -z "${SSH_KEY}" ]]; then
-            echo "::error::Missing one or more required SSH settings: SSH_HOST, SSH_PORT, SSH_USER, or SSH_PRIVATE_KEY."
-            exit 1
-          fi
+          echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
+          cd "$DEPLOY_PATH"
 
-          for i in 1 2 3; do
-            echo "Attempt $i: testing TCP connect to $SSH_HOST:$SSH_PORT"
-            if timeout 8 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
-              echo "OK: TCP port $SSH_PORT on $SSH_HOST is reachable"
-              break
-            else
-              echo "WARN: attempt $i failed — host not reachable yet"
-              sleep 4
-            fi
-          done
+          echo "==> Fetching latest code"
+          git fetch --all --prune
+          git reset --hard "origin/$DEPLOY_BRANCH"
 
-          if ! timeout 2 bash -c "cat < /dev/tcp/$SSH_HOST/$SSH_PORT" >/dev/null 2>&1; then
-            echo "::error::SSH host $SSH_HOST:$SSH_PORT unreachable after retries. Verify the VPS firewall/NAT/port forwarding and GitHub secrets."
-            exit 1
-          fi
+          echo "==> Ensuring web-root files are readable by nginx"
+          chmod -R a+rX public
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_BRANCH: main
-          PHP_BIN: ${{ vars.PHP_BIN }}
-          COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
-        with:
-          host: ${{ secrets.PROD_HOST || secrets.SSH_HOST }}
-          username: ${{ secrets.PROD_USERNAME || secrets.SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.PROD_PORT || secrets.SSH_PORT }}
-          envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
-          script_stop: true
-          timeout: 30s
-          command_timeout: 15m
-          debug: true
-          script: |
-            set -euo pipefail
+          echo "==> Installing PHP dependencies (production)"
+          $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-            PHP_BIN="${PHP_BIN:-php}"
-            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+          echo "==> Enabling maintenance mode"
+          $PHP_BIN artisan down --retry=15 || true
+          trap '$PHP_BIN artisan up || true' EXIT
 
-            echo "==> Deploying $DEPLOY_BRANCH to $DEPLOY_PATH"
-            cd "$DEPLOY_PATH"
+          echo "==> Running database migrations"
+          $PHP_BIN artisan migrate --force
 
-            echo "==> Fetching latest code"
-            git fetch --all --prune
-            git reset --hard "origin/$DEPLOY_BRANCH"
+          echo "==> Rebuilding caches (route:cache skipped — see note)"
+          $PHP_BIN artisan optimize:clear
+          $PHP_BIN artisan config:cache
+          $PHP_BIN artisan event:cache
+          $PHP_BIN artisan view:cache
+          $PHP_BIN artisan storage:link || true
 
-            echo "==> Ensuring web-root files are readable by nginx"
-            chmod -R a+rX public
+          echo "==> Restarting queue workers (Supervisor picks up new code)"
+          $PHP_BIN artisan queue:restart
 
-            echo "==> Installing PHP dependencies (production)"
-            $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+          echo "==> Disabling maintenance mode"
+          $PHP_BIN artisan up
+          trap - EXIT
 
-            echo "==> Enabling maintenance mode"
-            $PHP_BIN artisan down --retry=15 || true
-            trap '$PHP_BIN artisan up || true' EXIT
-
-            echo "==> Running database migrations"
-            $PHP_BIN artisan migrate --force
-
-            echo "==> Rebuilding caches (route:cache skipped — see note)"
-            $PHP_BIN artisan optimize:clear
-            $PHP_BIN artisan config:cache
-            $PHP_BIN artisan event:cache
-            $PHP_BIN artisan view:cache
-            $PHP_BIN artisan storage:link || true
-
-            echo "==> Restarting queue workers (Supervisor picks up new code)"
-            $PHP_BIN artisan queue:restart
-
-            echo "==> Disabling maintenance mode"
-            $PHP_BIN artisan up
-            trap - EXIT
-
-            echo "==> Production deploy complete"
+          echo "==> Production deploy complete"
