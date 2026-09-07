@@ -2276,7 +2276,11 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                                     $('#mc-error-message').text('').fadeOut();
                                 }, 2000); 
                                
-                                $('#shipper_load_final_rate').val(''); 
+                                // Keep the calculated Final Customer Rate visible; only disable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', true).addClass('disabled');
+                            } else {
+                                // Credit OK - re-enable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', false).removeClass('disabled');
                             }
                                
                         },
