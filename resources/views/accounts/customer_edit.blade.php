@@ -889,7 +889,7 @@
                                 <div class="form-group">
                                     <input type="number" 
                                             class="form-control remaining-credit-limit" 
-                                            readonly name="new_remaing_credit_limit[]" step="any" 
+                                            readonly name="" step="any" 
                                             value="{{ $customer->remaining_credit }}" 
                                             placeholder="Enter Remaing credit limit">
                                 </div>
@@ -1137,13 +1137,17 @@ document.addEventListener('DOMContentLoaded', function () {
       
          // Function to update calculations
          function updateremaingCreditCalculations() {
-            const currentValue = parseFloat($(this).val());
+                const originalRemainingCredit = parseFloat($('#remaining_credit_new').val()) || 0;
+                let newRemainingCredit = 0;
 
-            // This field sets the remaining balance. It must not be added to
-            // the currently displayed remaining credit.
-            if (!isNaN(currentValue)) {
-               $('#remaining_credit').val(Math.max(0, currentValue).toFixed(2));
-            }
+                $('.new-remaning-credit-log-entry .remaining-credit-limit').each(function () {
+                    const value = parseFloat($(this).val());
+                    if (!isNaN(value)) {
+                        newRemainingCredit += value;
+                    }
+                });
+
+                $('#remaining_credit').val(Math.max(0, originalRemainingCredit + newRemainingCredit).toFixed(2));
          }
 		 
 		 
@@ -1186,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Add more remaing credit limit rows dynamically
       $('#addMoreremaingLimit').click(function () {
          const newRow = `
-            <div class="row form-row">
+            <div class="row form-row new-remaning-credit-log-entry">
                <div class="col-md-6">
                   <div class="form-group">
                      <input type="number" name="new_remaing_credit_limit[]" class="form-control remaining-credit-limit" step="any" placeholder="Enter Remaing credit limit">
