@@ -271,8 +271,23 @@ if (!empty($term)) {
     $shipperData = json_decode($post->load_shipperr, true);
     $postData = $post->getAttributes();
 
-    $allCustomers = Customer::where('user_id', $user_id)
-        ->where('status', 'Approved')
+    $shipperNames = collect($shipperData ?: [])
+        ->pluck('name')
+        ->filter()
+        ->unique()
+        ->values();
+    $consigneeNames = collect(json_decode($post->load_consignee, true) ?: [])
+        ->pluck('name')
+        ->filter()
+        ->unique()
+        ->values();
+
+    $allCustomers = Customer::where('status', 'Approved')
+        ->where(function ($query) use ($user_id, $post) {
+            $query->where('user_id', $user_id)
+                ->orWhere('id', $post->customer_id);
+        })
+        ->orderBy('customer_name')
         ->get();
 
     $invoicechargestotal = 0;
@@ -298,11 +313,17 @@ if (!empty($term)) {
 
     $shipmentType = ShipmentType::all();
 
-    $shipperdata = Shipper::where('user_id', $user_id)
+    $shipperdata = Shipper::where(function ($query) use ($user_id, $shipperNames) {
+            $query->where('user_id', $user_id)
+                ->orWhereIn('shipper_name', $shipperNames);
+        })
         ->orderBy('shipper_name', 'asc')
         ->get();
 
-    $consigneedata = Consignee::where('user_id', $user_id)
+    $consigneedata = Consignee::where(function ($query) use ($user_id, $consigneeNames) {
+            $query->where('user_id', $user_id)
+                ->orWhereIn('consignee_name', $consigneeNames);
+        })
         ->orderBy('consignee_name', 'asc')
         ->get();
 
