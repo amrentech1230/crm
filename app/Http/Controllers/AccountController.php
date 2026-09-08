@@ -1619,7 +1619,11 @@ public function accountupdateCustomer(Request $request, $id)
         (float) ($customer->remaining_credit ?? 0),
         array_sum(array_column($existingremaningCreditLogs, 'credit_limit'))
     );
-    $remainingCredit = $existingRemainingCredit + $newRemainingCredit;
+    $calculatedRemainingCredit = $existingRemainingCredit + $newRemainingCredit;
+    $submittedRemainingCredit = $request->input('remaining_credit');
+    $remainingCredit = is_numeric($submittedRemainingCredit)
+        ? max($calculatedRemainingCredit, (float) $submittedRemainingCredit)
+        : $calculatedRemainingCredit;
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
