@@ -819,8 +819,19 @@
 
             <!-- Modal Body -->
             @php
-            // Decode the credit limit log from the customer
-            $credit_log = json_decode($customer->remaining_credit_logs, true) ?? [];
+            $credit_log = json_decode($customer->remaining_credit_logs, true);
+            $credit_log = is_array($credit_log)
+                ? array_values(array_filter($credit_log, function ($credit) {
+                    return is_array($credit) && is_numeric($credit['credit_limit'] ?? null);
+                }))
+                : [];
+
+            if (empty($credit_log) && (float) ($customer->remaining_credit ?? 0) > 0) {
+                $credit_log[] = [
+                    'credit_limit' => $customer->remaining_credit,
+                    'credit_time' => optional($customer->updated_at)->format('Y-m-d\\TH:i') ?? now()->format('Y-m-d\\TH:i'),
+                ];
+            }
             @endphp
 
             <div class="modal-body modal-assigned-credit-remaing">
