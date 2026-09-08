@@ -45,8 +45,8 @@ class LoadController extends Controller
 
 		foreach ($tabs as $tab) {
 			if ($request->has($tab)) {
-				Paginator::currentPageResolver(function () use ($request, $tab) {
-					return $request->input($tab);
+                Paginator::currentPageResolver(function ($pageName = null) use ($request, $tab) {
+                    return (int) $request->input($pageName ?: $tab, 1);
 				});
 				break; // Stop after finding the matching tab
 			}
@@ -90,28 +90,28 @@ class LoadController extends Controller
         
         $role_ids = [1, 2 ,3];
         if(in_array($role_id, $role_ids)){
-            $all_load = Load::orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->paginate(50)->setPageName('delivered');
-            $invoice = Load::where('invoice_status', 'Paid')->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->paginate(50)->setPageName('invoice_paid');
+                })->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->paginate(50, ['*'], 'delivered');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('status', 'Approved')->get();
 
         }else{
-            $all_load = Load::where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('all_loads');
-            $open = Load::where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50)->setPageName('open');
-            $complete = Load::where('load_status', 'Completed')->where(function($query) {
+            $all_load = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'all_loads');
+            $open = Load::with('user')->where('user_id', Auth::id())->orderBy("id", "desc")->where('load_status', 'Open')->paginate(50, ['*'], 'open');
+            $complete = Load::with('user')->where('load_status', 'Completed')->where(function($query) {
                     $query->where('invoice_status', '')
                           ->orWhereNull('invoice_status');
-                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('complete');
-            $delivered = Load::where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('delivered');
+                })->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'complete');
+            $delivered = Load::with('user')->where('load_status', 'Delivered')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'delivered');
             
-            $invoice = Load::where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice');
-            $invoice_paid = Load::where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50)->setPageName('invoice_paid');
+            $invoice = Load::with('user')->where('invoice_status', 'Paid')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice');
+            $invoice_paid = Load::with('user')->where('invoice_status', 'Paid Record')->where('user_id', Auth::id())->orderBy("id", "desc")->paginate(50, ['*'], 'invoice_paid');
             $customer = Customer::where('user_id', Auth::id())
                 ->where('status', 'Approved')
                 ->where(function($q) {
@@ -125,6 +125,7 @@ class LoadController extends Controller
        
         $equipmentType = EquipmentType::all();
         $shipmentType = ShipmentType::all();
+		$availableCredits = get_customers_available_credit_limits($customer);
 		
 		if ($request->ajax()) {
 			
@@ -144,7 +145,7 @@ class LoadController extends Controller
 				
 		}
 		
-        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType'));
+        return view('broker.load', compact('userInfos', 'all_load', 'open', 'complete', 'delivered', 'invoice', 'invoice_paid', 'customer', 'equipmentType', 'shipmentType', 'availableCredits'));
     }
 
     public function broker_all_load(Request $request){
@@ -1533,37 +1534,89 @@ for ($i = 1; $i <= 15; $i++) {
 
         $invoice_credit = $oldinvoicechargestotal - $invoicechargestotal;
 
-        $oldShipperLoadFinalRate = (float) ($request->old_shipper_load_final_rate ?? 0);
+        // Use DB value for old rate — never trust a hidden form field for financial calculations
+        $oldShipperLoadFinalRate = (float) ($loaddata->shipper_load_final_rate ?? 0);
         $newShipperLoadFinalRate = (float) ($request->shipper_load_final_rate ?? 0);
 
-        $oldRemainingUsed = $oldShipperLoadFinalRate - (float) $oldinvoicechargestotal;
-        $newRemainingUsed = $newShipperLoadFinalRate - (float) $invoicechargestotal;
+        // Old invoice charges already calculated above as $oldinvoicechargestotal
+        // New invoice charges already calculated above as $invoicechargestotal
 
+        // remaining_credit delta: positive = credit freed, negative = more credit used
+        $oldRemainingUsed = max(0.0, $oldShipperLoadFinalRate - $oldinvoicechargestotal);
+        $newRemainingUsed = max(0.0, $newShipperLoadFinalRate - $invoicechargestotal);
         $remainingCreditDelta = $oldRemainingUsed - $newRemainingUsed;
-        $invoiceCreditDelta = $invoice_credit;
+
+        // invoice_credit_limit delta: positive = limit freed, negative = more invoice credit used
+        $invoiceCreditDelta = $oldinvoicechargestotal - $invoicechargestotal;
 
         if (!$isCancelling) {
             $oldCustomerId = (int) ($loaddata->customer_id ?? 0);
             $newCustomerId = (int) ($customerId ?? 0);
 
             if ($oldCustomerId > 0 && $newCustomerId > 0 && $oldCustomerId !== $newCustomerId) {
-                $transferResult = $this->creditService->transferLoadCreditBetweenCustomers($oldCustomer, $customerdata, $newShipperLoadFinalRate, $invoicechargestotal);
+                // Customer changed:
+                // 1. Release OLD rate back to old customer
+                // 2. Deduct NEW rate from new customer
 
-                if (!$transferResult['allowed']) {
-                    return redirect()->back()->with('error', $transferResult['message']);
+                $oldRate         = (float) ($loaddata->shipper_load_final_rate ?? 0);
+                $oldInvoiceAmt   = (float) $oldinvoicechargestotal;
+                $oldRemainingAmt = max(0.0, $oldRate - $oldInvoiceAmt);
+
+                $newRate         = (float) $newShipperLoadFinalRate;
+                $newInvoiceAmt   = (float) $invoicechargestotal;
+                $newRemainingAmt = max(0.0, $newRate - $newInvoiceAmt);
+
+        if ($oldCustomer) {
+            $oldCustomer->remaining_credit       = round(max(0.0, (float) $oldCustomer->remaining_credit) + $oldRemainingAmt, 2);
+            $oldCustomer->remaining_credit_amount = $oldCustomer->remaining_credit;
+            $oldCustomer->invoice_credit_limit   = round(max(0.0, (float) $oldCustomer->invoice_credit_limit) + $oldInvoiceAmt, 2);
+            $oldCustomer->save();
+        }
+
+                // Deduct credit from new customer using NEW load rate
+                if ($customerdata) {
+                    // For customer transfer, check against adv_customer_credit_limit (total assigned)
+                    // not remaining_credit, because remaining already accounts for other loads.
+                    // We deduct from remaining_credit directly.
+                    $newAvailable    = $this->creditService->getAvailableCreditLimit($customerdata);
+                    $newInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
+
+                    if ($newAvailable < $newRemainingAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient remaining credit. ' .
+                            'Available: ' . $newAvailable . ', Required: ' . $newRemainingAmt . '.');
+                    }
+                    if ($newInvoiceAmt > 0 && $newInvoiceLimit < $newInvoiceAmt) {
+                        return redirect()->back()->with('error',
+                            'New customer does not have sufficient invoice credit limit. ' .
+                            'Available: ' . $newInvoiceLimit . ', Required: ' . $newInvoiceAmt . '.');
+                    }
+
+                    $customerdata->remaining_credit        = round(max(0.0, $newAvailable - $newRemainingAmt), 2);
+                    $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
+                    $customerdata->invoice_credit_limit    = round(max(0.0, $newInvoiceLimit - $newInvoiceAmt), 2);
+                    $customerdata->save();
                 }
             } elseif ($customerdata) {
-                if ($customerdata->remaining_credit + $remainingCreditDelta < 0) {
-                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $customerdata->remaining_credit);
+                // Same customer, only rate/invoice changed — apply delta
+                $currentRemaining = max(0.0, (float) $this->creditService->getAvailableCreditLimit($customerdata));
+                $currentInvoiceLimit = max(0.0, (float) $customerdata->invoice_credit_limit);
+
+                // remainingCreditDelta > 0 means credit is freed (rate decreased)
+                // remainingCreditDelta < 0 means more credit is consumed (rate increased)
+                if ($currentRemaining + $remainingCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Remaining credit limit. Your remaining credit is ' . $currentRemaining);
                 }
 
-                if ($customerdata->invoice_credit_limit + $invoiceCreditDelta < 0) {
-                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $customerdata->invoice_credit_limit);
+                // invoiceCreditDelta > 0 means invoice limit freed (charges removed)
+                // invoiceCreditDelta < 0 means more invoice limit consumed (charges added)
+                if ($currentInvoiceLimit + $invoiceCreditDelta < 0) {
+                    return redirect()->back()->with('error', 'Customer Final Rate Exceeded the Invoice credit limit. Your invoice credit limit is ' . $currentInvoiceLimit);
                 }
 
-                $customerdata->remaining_credit += $remainingCreditDelta;
+                $customerdata->remaining_credit       = round(max(0.0, $currentRemaining + $remainingCreditDelta), 2);
                 $customerdata->remaining_credit_amount = $customerdata->remaining_credit;
-                $customerdata->invoice_credit_limit += $invoiceCreditDelta;
+                $customerdata->invoice_credit_limit   = round(max(0.0, $currentInvoiceLimit + $invoiceCreditDelta), 2);
                 $customerdata->save();
             }
         }

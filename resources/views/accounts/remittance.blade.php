@@ -71,7 +71,7 @@
 							</tbody>
                         </table>
                         <div class="custom-pagination">
-                            {{ $customers->links('pagination::bootstrap-5') }}
+                            {!! render_pagination_links($customers) !!}
                         </div>
                     </div>
                 </div>
@@ -444,14 +444,17 @@
 			 if ($.fn.DataTable.isDataTable('#datatable')) {
 					$('#datatable').DataTable().destroy();
 				}
-				$('#customer-table-body').html(data);
+                $('#customer-table-body').html(data.html);
+                const paginationContainer = $('#customer-table-body').closest('.card-body').find('.custom-pagination');
+                paginationContainer.css('display', 'block');
+                paginationContainer.html(data.pagination || '');
+                paginationContainer.show();
 				$('#datatable').DataTable({
 					responsive: true,
-					dom: 'frtip',
-					buttons: false,
-					paging: true,
-                    pageLength: 50,              // ✅ default show 50
-                    lengthMenu: false // ✅ dropdown options
+                    dom: 'rtip',
+                    buttons: false,
+                    paging: false,
+                    pageLength: 50
 				});
                 
                 window.history.pushState("", "", url); // optional: update URL

@@ -122,7 +122,11 @@
                                         <select id="load_bill_to" name="load_bill_to" class="form-control mySelect2" data-placeholder="Select Customer" required>
                                             <option value="">Select Customer</option>
                                             @foreach($allCustomers as $customerOption)
-                                                <option value="{{ $customerOption->customer_name }}" data-id="{{ $customerOption->id }}"
+                                                <option value="{{ $customerOption->customer_name }}" 
+                                                    data-id="{{ $customerOption->id }}"
+                                                    data-available-credit="{{ (float) get_customer_available_credit_limit($customerOption) }}"
+                                                    data-remaining-credit="{{ (float) ($customerOption->remaining_credit ?? 0) }}"
+                                                    data-invoice-credit-limit="{{ (float) ($customerOption->invoice_credit_limit ?? 0) }}"
                                                     {{ $post->load_bill_to == $customerOption->customer_name ? 'selected' : '' }}>
                                                     {{ $customerOption->customer_name }}
                                                 </option>
@@ -136,6 +140,8 @@
 
                                 <script>
                                     $(document).ready(function () {
+                                        var originalCustomerId = '{{ $post->customer_id }}';
+                                        
                                         if ($.fn.select2) {
                                             $('#load_bill_to').select2({
                                                 placeholder: 'Select Customer',
@@ -150,8 +156,54 @@
 
                                             $('#customer_id').val(customerId || '');
                                             $('#customer_name').val(customerName || '');
+                                            
+                                            // Update credit limits for the form validation
+                                            currentInvoiceLimit = parseFloat(selectedCustomer.data('invoice-credit-limit')) || 0;
+                                            currentRemainingLimit = parseFloat(selectedCustomer.data('remaining-credit')) || 0;
+                                            
+                                            // Validate credit when customer changes
+                                            validateBrokerCustomerCredit(customerId, originalCustomerId);
+                                            
+                                            // Revalidate charges with new customer's limits
+                                            validateCustomerChargeLimits(null);
                                         });
+                                        
+                                        // Validate on page load
+                                        validateBrokerCustomerCredit(originalCustomerId, originalCustomerId);
                                     });
+                                    
+                                    function validateBrokerCustomerCredit(selectedCustomerId, originalCustomerId) {
+                                        var selectedOption = $('#load_bill_to').find('option:selected');
+                                        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+                                        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+                                        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+                                        var $message = $('#creditlimitcheck');
+
+                                        if (!selectedCustomerId || !finalRate || finalRate <= 0) {
+                                            $message.html('');
+                                            return;
+                                        }
+
+                                        // If customer changed to a NEW one
+                                        if (selectedCustomerId && selectedCustomerId != originalCustomerId) {
+                                            if (finalRate > availableCredit) {
+                                                var shortage = finalRate - availableCredit;
+                                                $message.html('<small style="color: #dc3545; font-weight: 600;">⚠️ New Customer - Insufficient Credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</small>');
+                                            } else {
+                                                var available = availableCredit - finalRate;
+                                                $message.html('<small style="color: #28a745; font-weight: 600;">✓ New Customer - Credit OK! Available after: $' + available.toFixed(2) + '</small>');
+                                            }
+                                        } else if (selectedCustomerId == originalCustomerId) {
+                                            // Same customer - normal validation
+                                            if (finalRate > availableCredit) {
+                                                var shortage = finalRate - availableCredit;
+                                                $message.html('<small style="color: #dc3545; font-weight: 600;">⚠️ Insufficient Credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</small>');
+                                            } else {
+                                                var available = availableCredit - finalRate;
+                                                $message.html('<small style="color: #0c7ce6; font-weight: 600;">✓ Available: $' + available.toFixed(2) + '</small>');
+                                            }
+                                        }
+                                    }
                                 </script>
 
                                 <div class="col-md-2 mb-2">
@@ -2053,8 +2105,8 @@ $(document).ready(function () {
 </script>
 <script>
 
-const currentInvoiceLimit = {{ (float) ($loadCustomer->invoice_credit_limit ?? 0) }};
-const currentRemainingLimit = {{ (float) ($loadCustomer->remaining_credit ?? 0) }};
+let currentInvoiceLimit = {{ (float) ($loadCustomer->invoice_credit_limit ?? 0) }};
+let currentRemainingLimit = {{ (float) ($loadCustomer->remaining_credit ?? 0) }};
 const oldInvoiceChargeTotal = {{ (float) $invoicechargestotal }};
 const oldFinalRate = {{ (float) ($post->shipper_load_final_rate ?? 0) }};
 const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
@@ -2130,8 +2182,14 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
             }
         });
 
-        $('#shipper_load_final_rate').on('keydown paste input', function (e) {
-            e.preventDefault();
+        $('#shipper_load_final_rate').on('keydown paste input change', function (e) {
+            if (e.type === 'keydown' || e.type === 'paste') {
+                e.preventDefault();
+            }
+            // Validate credit when rate changes
+            var originalCustomerId = '{{ $post->customer_id }}';
+            var selectedCustomerId = $('#load_bill_to').find('option:selected').data('id');
+            validateBrokerCustomerCredit(selectedCustomerId, originalCustomerId);
         });
     });
 
@@ -2218,7 +2276,11 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                                     $('#mc-error-message').text('').fadeOut();
                                 }, 2000); 
                                
-                                $('#shipper_load_final_rate').val(''); 
+                                // Keep the calculated Final Customer Rate visible; only disable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', true).addClass('disabled');
+                            } else {
+                                // Credit OK - re-enable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', false).removeClass('disabled');
                             }
                                
                         },
@@ -2268,6 +2330,20 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                     updateTotalshipper();
                 });
 
+        });
+
+        // Robust standalone handler to ALWAYS recalculate Final Customer Rate
+        // (independent of any AJAX/credit-check flow) so the base rate always reflects.
+        $(document).on('input keyup change', '#load_shipper_rate, #load_fsc_rate, .shipperchargeAmount', function () {
+            var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+            var chargesTotal = 0;
+            $('.shipperchargeAmount').each(function () {
+                chargesTotal += parseFloat($(this).val()) || 0;
+            });
+            var finalRate = baseRate + ((fscRate / 100) * baseRate) + chargesTotal;
+            $('#shipper_load_final_rate').val(finalRate.toFixed(2));
+            $('#totalChargeAmount').val(chargesTotal.toFixed(2));
         });
         
     </script>

@@ -119,18 +119,50 @@
                                             @php
                                                 $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
                                                 $currentCustomerId = $post->customer_id ?: ($post->customer?->id ?? '');
+                                                $selectedCustomer = null;
+
+                                                if (!empty($currentCustomerId)) {
+                                                    $selectedCustomer = $allcustomer->firstWhere('id', $currentCustomerId);
+                                                }
+
+                                                if (!$selectedCustomer && !empty($currentCustomerName)) {
+                                                    $selectedCustomer = $allcustomer->first(function ($cust) use ($currentCustomerName) {
+                                                        return trim((string) $cust->customer_name) === trim((string) $currentCustomerName);
+                                                    });
+                                                }
                                             @endphp
                                             @if(!empty($currentCustomerName) || !empty($currentCustomerId))
                                                 <select id="load_bill_to" class="form-control mySelect2" name="load_bill_to" @if(in_array(auth()->id(), [218, 228, 227, 226])) readonly @endif>
                                                     <option value="">Select Customer</option>
                                                     @if(!empty($currentCustomerName))
-                                                        <option value="{{ $currentCustomerName }}" data-id="{{ $currentCustomerId }}" selected>
+                                                        @php
+                                                            $currentCustomer = $selectedCustomer ?? $allcustomer->firstWhere('customer_name', $currentCustomerName);
+                                                            $selectedCustomerId = $currentCustomer?->id ?? $currentCustomerId;
+                                                        @endphp
+                                                        <option value="{{ $currentCustomerName }}" 
+                                                            data-id="{{ $selectedCustomerId }}"
+                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer ?? $allcustomer->firstWhere('id', $selectedCustomerId)) }}"
+                                                            data-remaining-credit="{{ (float) ($currentCustomer->remaining_credit ?? 0) }}"
+                                                            data-invoice-credit-limit="{{ (float) ($currentCustomer->invoice_credit_limit ?? 0) }}"
+                                                            selected>
                                                             {{ $currentCustomerName }}
                                                         </option>
                                                     @endif
                                                     @foreach($allcustomer as $cust)
-                                                        @if(trim((string) $cust->customer_name) !== trim((string) $currentCustomerName))
-                                                            <option value="{{ $cust->customer_name }}" data-id="{{ $cust->id }}">
+                                                        @php
+                                                            $isSelected = false;
+                                                            if (!empty($currentCustomerId)) {
+                                                                $isSelected = (int) $cust->id === (int) $currentCustomerId;
+                                                            } elseif (trim((string) $cust->customer_name) === trim((string) $currentCustomerName)) {
+                                                                $isSelected = true;
+                                                            }
+                                                        @endphp
+                                                        @if(!$isSelected)
+                                                            <option value="{{ $cust->customer_name }}" 
+                                                                data-id="{{ $cust->id }}"
+                                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                                data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
+                                                                data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
                                                                 {{ $cust->customer_name }}
                                                             </option>
                                                         @endif
@@ -190,7 +222,7 @@
                                 
                                 <div class="col-md-2 mb-2">
    <div class="form-group">
-    <label>Customer Payment Status</label>
+    <label>Load Status</label>
     <select class="form-control select2" name="load_status" style="width: 100%;">
         <option value="{{ $post->load_status }}">
             @if($post->invoice_status == 'Paid')
@@ -1938,18 +1970,38 @@ $(document).ready(function () {
 <script>
 
     $(document).ready(function () {
+        function syncCustomerSelection() {
+            var selectedCustomer = $('#load_bill_to').find('option:selected');
+            var customerId = selectedCustomer.data('id');
+            $('#customer_id').val(customerId || '');
+
+            if (!customerId && $('#load_bill_to').val()) {
+                var customerName = $.trim($('#load_bill_to').val());
+                var matches = $('#load_bill_to option').filter(function () {
+                    return $.trim($(this).text()) === customerName || $.trim($(this).val()) === customerName;
+                });
+                if (matches.length) {
+                    $('#customer_id').val(matches.first().data('id') || '');
+                }
+            }
+        }
+
 		 $('#load_bill_to').select2(); // Initialize Select2
 		$('#load_bill_to').on('change', function() {
-			var customer_id =  $(this).find('option:selected').data('id');
-			$('#customer_id').val(customer_id);
+			syncCustomerSelection();
             $('#load_shipper_rate').prop('readonly', false);
             $('#load_shipper_rate').val(0);
 			$('#shipper_load_final_rate').val(0);
-			
         });
+
+        syncCustomerSelection();
 		
         $('#shipper_load_final_rate').on('keydown paste input', function (e) {
             e.preventDefault();
+        });
+
+        $('#myFormLoad').on('submit', function () {
+            syncCustomerSelection();
         });
     });
 
@@ -2000,7 +2052,7 @@ $(document).ready(function () {
                         method: 'GET',
                         data: {
                             load_id: "{{$post->load_number}}",
-                            customer_id: "{{$post->customer_id}}",
+                            customer_id: $('#customer_id').val() || "{{$post->customer_id}}",
                             finalrate: final_total_rate,
                             _token: '{{ csrf_token() }}'
                         },
@@ -2593,6 +2645,95 @@ $(document).on('click', '#carrierInfoBtn', function() {
     });
 });
 
+</script>
+
+<script>
+// Credit Limit Validation for Admin Load Edit
+$(document).ready(function() {
+    var originalCustomerId = $('#customer_id').val();
+    
+    // When customer changes, update and validate credit
+    $('#load_bill_to').on('change', function() {
+        var selectedCustomerId = $(this).find('option:selected').data('id');
+        
+        // If customer is being changed from the original, validate NEW customer only
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            // If customer is same as original, validate based on rate change
+            validateCurrentCustomerCredit();
+        } else {
+            clearValidationMessage();
+        }
+    });
+
+    // When final rate changes, validate credit
+    $('#shipper_load_final_rate').on('change', function() {
+        var selectedCustomerId = $('#load_bill_to').find('option:selected').data('id');
+        
+        if (selectedCustomerId && selectedCustomerId !== originalCustomerId) {
+            validateNewCustomerCredit(selectedCustomerId);
+        } else if (selectedCustomerId == originalCustomerId) {
+            validateCurrentCustomerCredit();
+        }
+    });
+
+    function validateNewCustomerCredit(newCustomerId) {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+        
+        var $message = $('#creditlimitcheck');
+
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
+            return;
+        }
+
+        // Only validate NEW customer, not old customer
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ <strong>New Customer - Insufficient Credit!</strong><br>Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-success mt-2">✓ <strong>New Customer - Credit OK!</strong><br>Available after transfer: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    function validateCurrentCustomerCredit() {
+        var selectedOption = $('#load_bill_to').find('option:selected');
+        var availableCredit = parseFloat(selectedOption.data('available-credit')) || 0;
+        var invoiceCreditLimit = parseFloat(selectedOption.data('invoice-credit-limit')) || 0;
+        var finalRate = parseFloat($('#shipper_load_final_rate').val()) || 0;
+
+        var $message = $('#creditlimitcheck');
+
+        if (!finalRate || finalRate <= 0) {
+            clearValidationMessage();
+            return;
+        }
+
+        // Current customer - check if rate change exceeds limit
+        if (finalRate > availableCredit) {
+            var shortage = finalRate - availableCredit;
+            $message.html('<div class="alert alert-danger mt-2">⚠️ Insufficient credit! Available: $' + availableCredit.toFixed(2) + ' | Need: $' + finalRate.toFixed(2) + ' | Shortage: $' + shortage.toFixed(2) + '</div>');
+        } else {
+            var available = availableCredit - finalRate;
+            $message.html('<div class="alert alert-warning mt-2">✓ Available after this update: $' + available.toFixed(2) + ' | Invoice Limit: $' + invoiceCreditLimit.toFixed(2) + '</div>');
+        }
+    }
+
+    function clearValidationMessage() {
+        $('#creditlimitcheck').html('');
+    }
+
+    // Validate on page load
+    var initialCustomerId = $('#load_bill_to').find('option:selected').data('id');
+    if (initialCustomerId && initialCustomerId == originalCustomerId) {
+        validateCurrentCustomerCredit();
+    }
+});
 </script>
 
 <style>

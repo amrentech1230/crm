@@ -36,6 +36,52 @@ div#datatable-buttons-cpr_filter, ul.pagination.pagination-rounded, div#datatabl
 select#rate_check-21291 {
     border: 1px solid #000;
 }
+
+.mc-check-selector,
+.compliance-select {
+    height: 31px;
+    min-height: 31px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.compliance-select + .select2-container,
+.compliance-select + .select2-container .select2-selection--single {
+    height: 32px;
+    line-height: normal;
+}
+
+.compliance-select + .select2-container {
+    transform: translateY(-2px);
+}
+
+.compliance-select + .select2-container .select2-selection__rendered {
+    line-height: 30px;
+    text-align: center;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.compliance-select + .select2-container .select2-selection__arrow {
+    height: 30px;
+    width: 30px;
+}
+
+.compliance-select + .select2-container .select2-selection__clear {
+    line-height: normal;
+    padding: 0;
+}
+
+.compliance-select + .select2-container > .selection,
+.compliance-select + .select2-container > .dropdown-wrapper {
+    height: 32px;
+    padding: 0;
+    line-height: normal;
+}
+
+.select2-container--open .select2-dropdown--below {
+    top: 4px !important;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
@@ -73,19 +119,19 @@ select#rate_check-21291 {
         
                                         <ul class="nav nav-tabs nav-tabs-custom nav-justified" role="tablist">
                                             <li class="nav-item" role="presentation">
-                                                <a class="nav-link active" data-bs-toggle="tab" href="#mc" role="tab" aria-selected="true">
+                                                <a class="nav-link {{ $activeTab === 'mc' ? 'active' : '' }}" data-bs-toggle="tab" href="#mc" role="tab" aria-selected="true">
                                                     <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
                                                     <span class="d-none d-sm-block">Mc Check</span> 
                                                 </a>
                                             </li>
                                             <li class="nav-item" role="presentation">
-                                                <a class="nav-link" data-bs-toggle="tab" href="#cpr" role="tab" aria-selected="false" tabindex="-1">
+                                                <a class="nav-link {{ $activeTab === 'cpr' ? 'active' : '' }}" data-bs-toggle="tab" href="#cpr" role="tab" aria-selected="false" tabindex="-1">
                                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
                                                     <span class="d-none d-sm-block">CPR Check</span> 
                                                 </a>
                                             </li>
                                             <li class="nav-item" role="presentation">
-                                                <a class="nav-link" data-bs-toggle="tab" href="#block_carrier" role="tab" aria-selected="false" tabindex="-1">
+                                                <a class="nav-link {{ $activeTab === 'block_carrier' ? 'active' : '' }}" data-bs-toggle="tab" href="#block_carrier" role="tab" aria-selected="false" tabindex="-1">
                                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
                                                     <span class="d-none d-sm-block">Blocked Carrier</span> 
                                                 </a>
@@ -100,7 +146,7 @@ select#rate_check-21291 {
                                                     </div>
 
                                         <div class="tab-content p-3 text-muted">
-                                            <div class="tab-pane active" id="mc" role="tabpanel">
+                                            <div class="tab-pane {{ $activeTab === 'mc' ? 'active show' : '' }}" id="mc" role="tabpanel">
                                                
                                                 <table id="datatable-buttons" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
 												<span><a href="{{ route('allcomplianceloadsExcel', 'Mc') }}"><button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">All MC Excel</button></a></span>
@@ -126,10 +172,10 @@ select#rate_check-21291 {
                                                     </tbody>
                                                 </table>
                                                  <div class="custom-pagination">
-                                                    {{ $carriers->links('pagination::bootstrap-5') }}
+                                                    {!! render_pagination_links($carriers->setPageName('mc')) !!}
                                                 </div>
                                             </div>
-                                            <div class="tab-pane" id="cpr" role="tabpanel">
+                                            <div class="tab-pane {{ $activeTab === 'cpr' ? 'active show' : '' }}" id="cpr" role="tabpanel">
                                                 <table id="datatable-buttons-cpr" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
 												<span><a href="{{ route('allcomplianceloadsExcel', 'Cpr') }}"><button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">All CPR Excel</button></a></span>
                                                     <thead>
@@ -168,14 +214,14 @@ select#rate_check-21291 {
                                                     </tbody>
                                                 </table>
                                                 <div class="custom-pagination">
-                                                    {{ $loads->links('pagination::bootstrap-5') }}
+                                                    {!! render_pagination_links($loads->setPageName('cpr')) !!}
                                                 </div>
                                             </div>
 
                                             <div class="tab-pane" id="block_carrier" role="tabpanel">
 
                                             
-                                                <table id="datatable-buttons-cpr" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                                                <table id="datatable-buttons-block-carrier" class="table table-striped table-bordered dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
 												<!-- <span><a href="{{ route('allcomplianceloadsExcel', 'Cpr') }}"><button class="btn btn-primary waves-effect waves-light mb-3 exlbtn">All CPR Excel</button></a></span> -->
                                                     <thead>
                                                     <tr>
@@ -191,26 +237,13 @@ select#rate_check-21291 {
                                                     </thead>
                                                     
 
-                                                    <tbody id="compliance-cpr-search">
-                                                       @foreach($carrier_blocked as $blocjked)
-                                                      
-                                                    <tr>
-                                                        <td>{{$blocjked->carrier_mc_ff_input}}</td>
-                                                        <td>{{$blocjked->carrier_dot}}</td>
-                                                        <td>{{$blocjked->carrier_name}}</td>
-                                                        <td>{{$blocjked->user?->name}}</td>
-                                                        <td>{{$blocjked->created_at}}</td>
-                                                        <td>{{$blocjked->mc_check}}</td>
-                                                        <td>{{$blocjked->setup}}</td>
-                                                        <td>{{$blocjked->carrier_block }}</td>
-                                                    </tr>
-                                                    
-                                                    @endforeach
+                                                    <tbody id="compliance-block-carrier-search">
+                                                        @include('accounts.partials.compliance_block_carrier_table')
                                                     </tbody>
                                                 </table>
-                                                <!-- <div class="custom-pagination">
-                                                    {{ $loads->links('pagination::bootstrap-5') }}
-                                                </div> -->
+                                                <div class="custom-pagination">
+                                                    {!! render_pagination_links($carrier_blocked->setPageName('block_carrier')) !!}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -227,33 +260,48 @@ select#rate_check-21291 {
    $(document).on('click', '.custom-pagination a', function(e) {
     e.preventDefault();
 
-    let url = $(this).attr('href');
+    let href = $(this).attr('href');
+    if (!href) return;
 	let resultContainer = '';
     let tableSelector = '';
+    let pageName = '';
     // Get active tab (without the #)
     let activeTab = $('.nav-link.active').attr('href');
 
 	if (activeTab === '#cpr') {
-		 resultContainer = '#compliance-cpr-search';
+         resultContainer = '#compliance-cpr-search'; pageName = 'cpr';
          tableSelector = '#datatable-buttons-cpr';
 	} else if (activeTab === '#mc') {
-		resultContainer = '#compliance-mc-search';
+        resultContainer = '#compliance-mc-search'; pageName = 'mc';
             tableSelector = '#datatable-buttons';
+	} else if (activeTab === '#block_carrier') {
+        resultContainer = '#compliance-block-carrier-search'; pageName = 'block_carrier';
+            tableSelector = '#datatable-buttons-block-carrier';
 	} else {
 		return;
 	}
+    const pageUrl = new URL(href, window.location.origin);
+    const pageNumber = pageUrl.searchParams.get(pageName) || '1';
     $.ajax({
-        url: url,
+        url: '/account/compliance',
         type: 'GET',
+        dataType: 'json',
         data: {
-            tab: activeTab 
+            tab: activeTab,
+            page: pageNumber,
+            [pageName]: pageNumber
         },
         success: function(data) {
             if ($.fn.DataTable.isDataTable(tableSelector)) {
                 $(tableSelector).DataTable().destroy();
             }
 
-            $(resultContainer).html(data);
+            $(resultContainer).html(data.html);
+            if (activeTab === '#mc' && typeof window.initSelect2 === 'function') {
+                window.initSelect2(resultContainer);
+            }
+            $(resultContainer).closest('.tab-pane').find('.custom-pagination')
+                .html(data.pagination || '').show();
 
             $(tableSelector).DataTable({
                 responsive: true,
@@ -268,8 +316,9 @@ select#rate_check-21291 {
                                 ],
             });
 
-            // Optional: update the browser URL
-            window.history.pushState("", "", url);
+            const urlParams = new URLSearchParams();
+            urlParams.set(pageName, pageNumber);
+            window.history.pushState({}, '', '/account/compliance?' + urlParams.toString());
         }
     });
 });
@@ -318,6 +367,9 @@ $(document).ready(function () {
                                 $(tableSelector).DataTable().destroy();
                             }
                             $(resultContainer).html(response);
+                            if (target === '#mc' && typeof window.initSelect2 === 'function') {
+                                window.initSelect2(resultContainer);
+                            }
                             $(tableSelector).DataTable({
                                 responsive: true,
                                 dom: 'Bfrtip',
@@ -386,6 +438,7 @@ $(document).ready(function() {
     });
 
 });
+
 </script>
 
 

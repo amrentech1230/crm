@@ -1,5 +1,10 @@
 name: Deploy to Staging
 
+# Deploys the devN branch to Staging on every push.
+#
+# This job runs on a SELF-HOSTED runner installed on the production/staging
+# VPS. Because the runner executes ON the server, no inbound SSH is required
+# (no port 2222, no firewall dependency). The deploy commands run locally.
 on:
   push:
     branches: [devN]
@@ -15,113 +20,96 @@ concurrency:
 jobs:
   deploy:
     name: Deploy devN -> Staging
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
 
     environment:
       name: staging
       url: https://ccicrm.in
 
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      DEPLOY_BRANCH: devN
+      PHP_BIN: ${{ vars.PHP_BIN }}
+      COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+
     steps:
-
-      - name: Validate SSH configuration
-        env:
-          SSH_HOST: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+      - name: Validate deploy configuration
         run: |
-          if [[ -z "$SSH_HOST" ]]; then
-            echo "::error::Missing staging SSH host. Configure STAGING_HOST or SSH_HOST in the staging environment."
+          set -euo pipefail
+          echo "==> Validating staging deploy configuration"
+          echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
+          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
+
+          if [[ -z "${DEPLOY_PATH}" ]]; then
+            echo "::error::Missing DEPLOY_PATH. Configure it in the staging environment variables."
             exit 1
           fi
-          if [[ -z "$SSH_PORT" ]]; then
-            echo "::error::Missing staging SSH port. Configure STAGING_PORT or SSH_PORT in the staging environment."
-            exit 1
-          fi
-          if [[ -z "${{ vars.DEPLOY_PATH }}" ]]; then
-            echo "::error::Missing staging deployment path. Configure DEPLOY_PATH in the staging environment."
+          if [[ ! -d "${DEPLOY_PATH}" ]]; then
+            echo "::error::DEPLOY_PATH '${DEPLOY_PATH}' does not exist on the runner host."
             exit 1
           fi
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Deploy locally
+        run: |
+          set -euo pipefail
 
-        env:
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_BRANCH: devN
-          PHP_BIN: ${{ vars.PHP_BIN }}
-          COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
+          PHP_BIN="${PHP_BIN:-php}"
+          COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 
-        with:
-          host: ${{ secrets.STAGING_HOST || secrets.SSH_HOST }}
-          username: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.STAGING_PORT || secrets.SSH_PORT }}
+          echo "=========================================="
+          echo "==> Starting Staging Deployment"
+          echo "=========================================="
 
-          envs: DEPLOY_PATH,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+          echo "==> Deploy branch: $DEPLOY_BRANCH"
+          echo "==> Deploy path: $DEPLOY_PATH"
 
-          script_stop: true
+          echo "==> Changing to application directory"
+          cd "$DEPLOY_PATH"
 
-          timeout: 120s
+          echo "==> Fetching latest code"
+          git fetch --all --prune
 
-          script: |
-            set -euo pipefail
+          echo "==> Resetting to origin/$DEPLOY_BRANCH"
+          git reset --hard "origin/$DEPLOY_BRANCH"
 
-            PHP_BIN="${PHP_BIN:-php}"
-            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+          echo "==> Installing PHP dependencies"
+          $COMPOSER_BIN install \
+            --no-interaction \
+            --prefer-dist \
+            --optimize-autoloader \
+            --no-dev
 
-            echo "=========================================="
-            echo "==> Starting Staging Deployment"
-            echo "=========================================="
+          echo "==> Enabling maintenance mode"
+          $PHP_BIN artisan down --retry=15 || true
 
-            echo "==> Deploy branch: $DEPLOY_BRANCH"
-            echo "==> Deploy path: $DEPLOY_PATH"
+          trap '$PHP_BIN artisan up || true' EXIT
 
-            echo "==> Changing to application directory"
-            cd "$DEPLOY_PATH"
+          echo "==> Running database migrations"
+          $PHP_BIN artisan migrate --force
 
-            echo "==> Fetching latest code"
-            git fetch --all --prune
+          echo "==> Clearing Laravel caches"
+          $PHP_BIN artisan optimize:clear
 
-            echo "==> Resetting to origin/$DEPLOY_BRANCH"
-            git reset --hard "origin/$DEPLOY_BRANCH"
+          echo "==> Caching configuration"
+          $PHP_BIN artisan config:cache
 
-            echo "==> Installing PHP dependencies"
-            $COMPOSER_BIN install \
-              --no-interaction \
-              --prefer-dist \
-              --optimize-autoloader \
-              --no-dev
+          echo "==> Caching events"
+          $PHP_BIN artisan event:cache
 
-            echo "==> Enabling maintenance mode"
-            $PHP_BIN artisan down --retry=15 || true
+          echo "==> Caching views"
+          $PHP_BIN artisan view:cache
 
-            trap '$PHP_BIN artisan up || true' EXIT
+          echo "==> Creating storage link"
+          $PHP_BIN artisan storage:link || true
 
-            echo "==> Running database migrations"
-            $PHP_BIN artisan migrate --force
+          echo "==> Restarting queue workers"
+          $PHP_BIN artisan queue:restart
 
-            echo "==> Clearing Laravel caches"
-            $PHP_BIN artisan optimize:clear
+          echo "==> Disabling maintenance mode"
+          $PHP_BIN artisan up
 
-            echo "==> Caching configuration"
-            $PHP_BIN artisan config:cache
+          trap - EXIT
 
-            echo "==> Caching events"
-            $PHP_BIN artisan event:cache
-
-            echo "==> Caching views"
-            $PHP_BIN artisan view:cache
-
-            echo "==> Creating storage link"
-            $PHP_BIN artisan storage:link || true
-
-            echo "==> Restarting queue workers"
-            $PHP_BIN artisan queue:restart
-
-            echo "==> Disabling maintenance mode"
-            $PHP_BIN artisan up
-
-            trap - EXIT
-
-            echo "=========================================="
-            echo "==> Staging deployment completed"
-            echo "=========================================="
+          echo "=========================================="
+          echo "==> Staging deployment completed"
+          echo "=========================================="

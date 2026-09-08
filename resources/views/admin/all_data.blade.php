@@ -59,35 +59,35 @@
 
                         <ul class="nav nav-tabs nav-tabs-custom nav-justified" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link active" data-bs-toggle="tab" href="#customer" role="tab"
+                                <a class="nav-link {{ $activeTab === 'customer' ? 'active' : '' }}" data-bs-toggle="tab" href="#customer" role="tab"
                                     aria-selected="true">
                                     <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
                                     <span class="d-none d-sm-block">Customer</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#carrier" role="tab"
+                                <a class="nav-link {{ $activeTab === 'carrier' ? 'active' : '' }}" data-bs-toggle="tab" href="#carrier" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
                                     <span class="d-none d-sm-block">Carrier</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#consignee" role="tab"
+                                <a class="nav-link {{ $activeTab === 'consignee' ? 'active' : '' }}" data-bs-toggle="tab" href="#consignee" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-user"></i></span>
                                     <span class="d-none d-sm-block">Consignee</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#shipper" role="tab"
+                                <a class="nav-link {{ $activeTab === 'shipper' ? 'active' : '' }}" data-bs-toggle="tab" href="#shipper" role="tab"
                                     aria-selected="false" tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-envelope"></i></span>
                                     <span class="d-none d-sm-block">Shipper</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link" data-bs-toggle="tab" href="#load" role="tab" aria-selected="false"
+                                <a class="nav-link {{ $activeTab === 'load' ? 'active' : '' }}" data-bs-toggle="tab" href="#load" role="tab" aria-selected="false"
                                     tabindex="-1">
                                     <span class="d-block d-sm-none"><i class="far fa-envelope"></i></span>
                                     <span class="d-none d-sm-block">Loads</span>
@@ -105,7 +105,7 @@
                         </div>
 
                         <div class="tab-content p-3 text-muted">
-                            <div class="tab-pane active" id="customer" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'customer' ? 'active show' : '' }}" id="customer" role="tabpanel">
 
                                 <table id="datatable-buttons-customer"
                                     class="table table-striped table-bordered dt-responsive nowrap"
@@ -139,10 +139,10 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $sortedCustomers->setPageName('customer')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($sortedCustomers->setPageName('customer')) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="carrier" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'carrier' ? 'active show' : '' }}" id="carrier" role="tabpanel">
                                 <table id="datatable-buttons-carrier"
                                     class="table table-striped table-bordered dt-responsive nowrap"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -170,10 +170,10 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $external->setPageName('carrier')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($external->setPageName('carrier')) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="consignee" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'consignee' ? 'active show' : '' }}" id="consignee" role="tabpanel">
                                 <table id="datatable-buttons-consignee"
                                     class="table table-striped table-bordered dt-responsive nowrap"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -199,10 +199,10 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $consignee->setPageName('consignee')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($consignee->setPageName('consignee')) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="shipper" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'shipper' ? 'active show' : '' }}" id="shipper" role="tabpanel">
                                 <table id="datatable-buttons-shipper"
                                     class="table table-striped table-bordered dt-responsive nowrap"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -228,10 +228,10 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $shipper->setPageName('shipper')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($shipper->setPageName('shipper')) !!}
                                 </div>
                             </div>
-                            <div class="tab-pane" id="load" role="tabpanel">
+                            <div class="tab-pane {{ $activeTab === 'load' ? 'active show' : '' }}" id="load" role="tabpanel">
                                 <table id="datatable-buttons-load"
                                     class="table table-striped table-bordered dt-responsive nowrap"
                                     style="border-collapse: collapse; border-spacing: 0; width: 100%;">
@@ -275,7 +275,7 @@
                                     </tbody>
                                 </table>
                                 <div class="custom-pagination">
-                                    {{ $loads->setPageName('loads')->links('pagination::bootstrap-5') }}
+                                    {!! render_pagination_links($loads->setPageName('loads')) !!}
                                 </div>
                             </div>
                         </div>
@@ -293,43 +293,51 @@
     $(document).on('click', '.custom-pagination a', function (e) {
         e.preventDefault();
 
-        let url = $(this).attr('href');
+        let href = $(this).attr('href');
+        if (!href) return;
 
         // Get active tab (without the #)
         let activeTab = $('.nav-link.active').attr('href');
         let resultContainer = '';
         let tableSelector = '';
+        let pageName = '';
 
         if (activeTab === '#customer') {
-            resultContainer = '#customer-search';
+            resultContainer = '#customer-search'; pageName = 'customer';
             tableSelector = '#datatable-buttons-customer';
         } else if (activeTab === '#carrier') {
-            resultContainer = '#carrier-search';
+            resultContainer = '#carrier-search'; pageName = 'carrier';
             tableSelector = '#datatable-buttons-carrier';
         } else if (activeTab === '#consignee') {
-            resultContainer = '#consignee-search';
+            resultContainer = '#consignee-search'; pageName = 'consignee';
             tableSelector = '#datatable-buttons-consignee';
         } else if (activeTab === '#shipper') {
-            resultContainer = '#shipper-search';
+            resultContainer = '#shipper-search'; pageName = 'shipper';
             tableSelector = '#datatable-buttons-shipper';
         } else if (activeTab === '#load') {
-            resultContainer = '#load-search';
+            resultContainer = '#load-search'; pageName = 'loads';
             tableSelector = '#datatable-buttons-load';
         } else {
             return; // Exit if it's not one of the expected tabs
         }
+        const pageUrl = new URL(href, window.location.origin);
+        const pageNumber = pageUrl.searchParams.get(pageName) || '1';
         $.ajax({
-            url: url,
+            url: '/admin/all_data',
             type: 'GET',
             data: {
-                tab: activeTab
+                tab: activeTab,
+                page: pageNumber,
+                [pageName]: pageNumber
             },
             success: function (data) {
                 if ($.fn.DataTable.isDataTable(tableSelector)) {
                     $(tableSelector).DataTable().destroy();
                 }
 
-                $(resultContainer).html(data);
+                $(resultContainer).html(data.html);
+                $(resultContainer).closest('.tab-pane').find('.custom-pagination')
+                    .html(data.pagination || '').show();
 
                 $(tableSelector).DataTable({
                     responsive: true,
@@ -340,8 +348,9 @@
 
                 });
 
-                // Optional: update the browser URL
-                window.history.pushState("", "", url);
+                const urlParams = new URLSearchParams();
+                urlParams.set(pageName, pageNumber);
+                window.history.pushState({}, '', '/admin/all_data?' + urlParams.toString());
             }
         });
     });

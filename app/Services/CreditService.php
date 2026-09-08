@@ -15,15 +15,22 @@ class CreditService
             return 0.0;
         }
 
-        $remainingCredit = (float) ($customer->remaining_credit ?? 0);
+        $remainingCredit      = (float) ($customer->remaining_credit ?? 0);
+        $assignedCreditLimit  = (float) ($customer->adv_customer_credit_limit ?? 0);
+        $invoiceCreditLimit   = (float) ($customer->invoice_credit_limit ?? 0);
 
-        // If remaining_credit has been tracked (> 0 or explicitly set), use it directly.
-        // Fall back to assigned limit only when remaining_credit has never been set.
-        if ($remainingCredit > 0 || $customer->remaining_credit !== null) {
-            return max(0.0, $remainingCredit);
+        // Use remaining_credit only when it is explicitly positive (i.e. credit has
+        // been assigned AND partially consumed). A value of 0 on a brand-new customer
+        // means "never set", so fall through to the assigned limit.
+        if ($remainingCredit > 0) {
+            return $remainingCredit;
         }
 
-        return max(0.0, (float) ($customer->adv_customer_credit_limit ?? $customer->invoice_credit_limit ?? 0));
+        if ($assignedCreditLimit > 0) {
+            return $assignedCreditLimit;
+        }
+
+        return $invoiceCreditLimit;
     }
 
     public function calculateCustomerCreditSummary($customer, float $assignedCreditLimit, float $loadCreateAmount, float $receivingAmount = 0.0): array

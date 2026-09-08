@@ -122,16 +122,12 @@ class AccountController extends Controller
 
     public function accounting(Request $request)
     {
-        $tabs = ['open', 'complete', 'invoiced', 'paid'];
-
-        foreach ($tabs as $tab) {
-            if ($request->has($tab)) {
-                Paginator::currentPageResolver(function () use ($request, $tab) {
-                    return $request->input($tab);
-                });
-                break; // Stop after finding the matching tab
-            }
-        }
+        $activeTab = match (true) {
+            $request->filled('complete') => 'completed',
+            $request->filled('invoiced') => 'invoiced',
+            $request->filled('paid') => 'invoiced_paid',
+            default => 'open',
+        };
 
         // 🔎 Custom search by load_numbers (comma separated)
         $searchNumbers = $request->input('load_numbers');
@@ -149,7 +145,7 @@ class AccountController extends Controller
             $openQuery->whereIn('load_number', $numbersArray);
         }
 
-        $open = $openQuery->paginate(50)->setPageName('open');
+        $open = $openQuery->paginate(50, ['*'], 'open');
 
         // Completed tab query
         $completeQuery = Load::where('load_status', 'Completed')
@@ -164,7 +160,7 @@ class AccountController extends Controller
             $completeQuery->whereIn('load_number', $numbersArray);
         }
 
-        $complete = $completeQuery->paginate(50)->setPageName('complete');
+        $complete = $completeQuery->paginate(50, ['*'], 'complete');
 
         // Invoiced tab query
         $invoicedQuery = Load::where('invoice_status', 'Paid')
@@ -175,7 +171,7 @@ class AccountController extends Controller
             $invoicedQuery->whereIn('load_number', $numbersArray);
         }
 
-        $invoiced = $invoicedQuery->paginate(50)->setPageName('invoiced');
+        $invoiced = $invoicedQuery->paginate(50, ['*'], 'invoiced');
 
         // Paid tab query
         $paidQuery = Load::whereIn('invoice_status', ['Paid', 'Paid Record'])
@@ -186,22 +182,27 @@ class AccountController extends Controller
             $paidQuery->whereIn('load_number', $numbersArray);
         }
 
-        $paid = $paidQuery->paginate(50)->setPageName('paid');
+        $paid = $paidQuery->paginate(50, ['*'], 'paid');
 
-        // Handle AJAX tab switching
+        // Handle AJAX pagination requests with the selected tab's pagination links.
         if ($request->ajax()) {
-            if ($request->input('tab') == '#open') {
-                return view('accounts.partials.accounting_open', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#completed') {
-                return view('accounts.partials.accounting_complete', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#invoiced') {
-                return view('accounts.partials.accounting_invoiced', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            } else if ($request->input('tab') == '#invoiced_paid') {
-                return view('accounts.partials.accounting_paid', compact('open', 'complete', 'invoiced', 'paid'))->render();
-            }
+            $tabConfig = [
+                '#open' => ['view' => 'accounts.partials.accounting_open', 'paginator' => $open],
+                '#completed' => ['view' => 'accounts.partials.accounting_complete', 'paginator' => $complete],
+                '#invoiced' => ['view' => 'accounts.partials.accounting_invoiced', 'paginator' => $invoiced],
+                '#invoiced_paid' => ['view' => 'accounts.partials.accounting_paid', 'paginator' => $paid],
+            ];
+
+            $config = $tabConfig[$request->input('tab')] ?? $tabConfig['#open'];
+            $html = view($config['view'], compact('open', 'complete', 'invoiced', 'paid'))->render();
+
+            return response()->json([
+                'html' => $html,
+                'pagination' => render_pagination_links($config['paginator']),
+            ]);
         }
 
-        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid'));
+        return view('accounts.accounting', compact('open', 'complete', 'invoiced', 'paid', 'activeTab'));
     }
 
 	
@@ -325,21 +326,24 @@ public function loadspi(Request $request)
 
     public function compliance(Request $request)
     {
-        $carriers = External::with('user',)->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50);
-        $loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50);
-        $carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50);
+		$activeTab = $request->filled('cpr') ? 'cpr' : ($request->filled('block_carrier') ? 'block_carrier' : 'mc');
+		$carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50, ['*'], 'mc');
+		$loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50, ['*'], 'cpr');
+		$carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50, ['*'], 'block_carrier');
 		
 		if ($request->ajax()) {
 			
-			if($request->input('tab') == '#cpr'){
-				 return view('accounts.partials.compliance_cpr_table', compact('carriers', 'loads'))->render();
-			}else{
-				 return view('accounts.partials.compliance_mc_table', compact('carriers', 'loads'))->render();
-			}
+            $config = match ($request->input('tab')) {
+                '#cpr' => ['view' => 'accounts.partials.compliance_cpr_table', 'paginator' => $loads],
+                '#block_carrier' => ['view' => 'accounts.partials.compliance_block_carrier_table', 'paginator' => $carrier_blocked],
+                default => ['view' => 'accounts.partials.compliance_mc_table', 'paginator' => $carriers],
+            };
+            $html = view($config['view'], compact('carriers', 'loads', 'carrier_blocked'))->render();
+            return response()->json(['html' => $html, 'pagination' => render_pagination_links($config['paginator'])]);
 			
 		}
 			
-        return view('accounts.compliance', compact('carriers', 'loads','carrier_blocked'));
+        return view('accounts.compliance', compact('carriers', 'loads','carrier_blocked', 'activeTab'));
     }
 
 
@@ -682,9 +686,95 @@ public function carrier_block(Request $request)
     // echo "<pre>"; print_r($vendormanagement); die;
 		 
 		 if ($request->ajax()) {
-				return view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render();
+                return response()->json([
+                    'html' => view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render(),
+                    'modals' => view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render(),
+                    'pagination' => render_pagination_links($vendormanagement),
+                ]);
 			}
         return view('accounts.vendor_system', compact('vendormanagement'));
+    }
+
+    public function vendorSystemExcel()
+    {
+        $loads = Load::with(['user', 'customer'])
+            ->orderByDesc('loads.id')
+            ->get();
+
+        $formatDate = static function ($value): string {
+            if (empty($value) || $value === '0000-00-00') {
+                return '';
+            }
+
+            try {
+                return Carbon::parse($value)->format('m/d/Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $headers = [
+            'Sr No.', 'Load#', 'W/O #', 'Carrier', 'Carrier Invoice Date',
+            'Carrier Due Date', 'Ready to Pay', 'Processed By', 'Documents',
+            'Quick Pay %', 'Carrier Files Upload', 'Carrier Files View',
+            'Payment Method', 'Carrier Payment Status', 'Carrier Payment Date',
+            'Customer Invoice Date', 'Logs Check', 'Vendor Internal Notes',
+        ];
+
+        $rows = [$headers];
+        foreach ($loads as $index => $load) {
+            $carrierFiles = json_decode($load->carrierDoc ?? '', true);
+            $hasCarrierFiles = is_array($carrierFiles) && $carrierFiles !== [];
+            $processedBy = $load->customer?->invoice_through ?: $load->invoice_through;
+            $dueDate = $load->load_carrier_due_date;
+            if (empty($dueDate) && !empty($load->carrier_invoice_date)) {
+                try {
+                    $dueDate = Carbon::parse($load->carrier_invoice_date)->addDays(25);
+                } catch (\Throwable) {
+                    $dueDate = null;
+                }
+            }
+
+            $rows[] = [
+                $index + 1,
+                $load->load_number ?? '',
+                $load->load_workorder ?? '',
+                $load->load_carrier ?? '',
+                $formatDate($load->carrier_invoice_date),
+                $formatDate($dueDate),
+                $load->ready_to_pay ?? '',
+                $processedBy ?? '',
+                $load->carrier_documents ?? '',
+                $load->quick_pay ?? '',
+                $hasCarrierFiles ? 'Yes' : 'No',
+                $hasCarrierFiles ? 'Available' : 'Not available',
+                $load->payment_method ?? '',
+                $load->carrier_mark_as_paid ?? '',
+                $formatDate($load->load_carrier_due_date_on),
+                $formatDate($load->invoice_date ?: $load->invoice_status_date),
+                $load->cpr_check ?? '',
+                $load->vendorInternalNotes ?? '',
+            ];
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Vendor System');
+        $sheet->fromArray($rows, null, 'A1');
+        $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:R1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach (range('A', 'R') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'vendor-system-' . date('Y-m-d') . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function vendor_search(Request $request){
@@ -720,6 +810,8 @@ public function carrier_block(Request $request)
 				->paginate(50);
 		}
 
+        $vendormanagement->appends($request->query());
+
 		// Render the table rows
 		$rowsHtml = view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render();
 
@@ -730,6 +822,7 @@ public function carrier_block(Request $request)
 		return response()->json([
 			'rows' => $rowsHtml,
 			'modals' => $modalsHtml,
+            'pagination' => render_pagination_links($vendormanagement),
 		]);
 		
     }
@@ -2740,7 +2833,10 @@ public function deleteCarrierFile(Request $request)
             
 		
 		if ($request->ajax()) {
-				return view('accounts.partials.remittance_table', compact('allcountry','customers'))->render();
+                return response()->json([
+                    'html' => view('accounts.partials.remittance_table', compact('allcountry', 'customers'))->render(),
+                    'pagination' => render_pagination_links($customers),
+                ]);
 			}
         
         return view('accounts.remittance', compact('allcountry','customers'));
