@@ -1558,7 +1558,8 @@ public function accountupdateCustomer(Request $request, $id)
     }
 
     // Decode existing credit limit logs or initialize an empty array
-    $existingCreditLogs = json_decode($customer->credit_limit_log, true) ?? [];
+    $existingCreditLogs = json_decode($customer->credit_limit_log, true);
+    $existingCreditLogs = is_array($existingCreditLogs) ? $existingCreditLogs : [];
 
     // Prepare new credit limit logs
     $newCreditLimitLogs = [];
@@ -1575,7 +1576,10 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true);
+    $existinginvoiceremaningCreditLogs = is_array($existinginvoiceremaningCreditLogs)
+        ? $existinginvoiceremaningCreditLogs
+        : [];
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
@@ -1590,23 +1594,26 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true);
+    $existingremaningCreditLogs = is_array($existingremaningCreditLogs)
+        ? $existingremaningCreditLogs
+        : [];
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
 
-    if (!empty($remainingcreditLimitLogData) && !empty($creditTimes)) {
+    if (is_array($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
-            if (!empty($creditLimit) && isset($creditTimes[$index])) {
+            if (is_numeric($creditLimit) && (float) $creditLimit > 0) {
                 $newremaningCreditLimitLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => $creditTimes[$index],
+                    'credit_time' => $creditTimes[$index] ?? now()->format('Y-m-d\TH:i'),
                 ];
             }
         }
     }
-    $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLogs);
-    $newRemainingCredit = array_sum(array_column($newremaningCreditLogs, 'credit_limit'));
+    $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
+    $newRemainingCredit = array_sum(array_column($newremaningCreditLimitLogs, 'credit_limit'));
     $existingRemainingCredit = max(
         0.0,
         (float) ($customer->remaining_credit ?? 0),
