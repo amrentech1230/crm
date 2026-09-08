@@ -1725,14 +1725,21 @@ for ($i = 1; $i <= 15; $i++) {
     }
 
     public function fetchConsigneeDetails(Request $request) {
-        $query = $request->input('query');
-        $userId = Auth::id();
+        $query = trim((string) $request->input('query', ''));
+        $user = Auth::user();
 
-        $query = $request->input('query');
-        $consignees = Consignee::where('consignee_name', 'like', '%' . $query . '%')
-        ->where('user_id', $userId)
-        ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
-        ->get();
+        $consigneeQuery = Consignee::query()
+            ->where('consignee_name', 'like', '%' . $query . '%');
+
+        if (!in_array($user?->role_id, [1, 2, 3, 22], true)) {
+            $consigneeQuery->where('user_id', $user?->id);
+        }
+
+        $consignees = $consigneeQuery
+            ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
+            ->orderBy('consignee_name')
+            ->get();
+
         return response()->json($consignees);
     }
     
