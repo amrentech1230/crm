@@ -2276,7 +2276,11 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                                     $('#mc-error-message').text('').fadeOut();
                                 }, 2000); 
                                
-                                $('#shipper_load_final_rate').val(''); 
+                                // Keep the calculated Final Customer Rate visible; only disable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', true).addClass('disabled');
+                            } else {
+                                // Credit OK - re-enable submit
+                                $('#myFormLoad').find('input[type="submit"], button[type="submit"]').prop('disabled', false).removeClass('disabled');
                             }
                                
                         },
@@ -2326,6 +2330,20 @@ const oldRemainingUsed = oldFinalRate - oldInvoiceChargeTotal;
                     updateTotalshipper();
                 });
 
+        });
+
+        // Robust standalone handler to ALWAYS recalculate Final Customer Rate
+        // (independent of any AJAX/credit-check flow) so the base rate always reflects.
+        $(document).on('input keyup change', '#load_shipper_rate, #load_fsc_rate, .shipperchargeAmount', function () {
+            var baseRate = parseFloat($('#load_shipper_rate').val()) || 0;
+            var fscRate = parseFloat($('#load_fsc_rate').val()) || 0;
+            var chargesTotal = 0;
+            $('.shipperchargeAmount').each(function () {
+                chargesTotal += parseFloat($(this).val()) || 0;
+            });
+            var finalRate = baseRate + ((fscRate / 100) * baseRate) + chargesTotal;
+            $('#shipper_load_final_rate').val(finalRate.toFixed(2));
+            $('#totalChargeAmount').val(chargesTotal.toFixed(2));
         });
         
     </script>

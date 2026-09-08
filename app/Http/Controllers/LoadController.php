@@ -250,54 +250,79 @@ if (!empty($term)) {
     public function editload($id)
     {
 
-        try {
+                try {
             $decryptedId = Crypt::decrypt($id);
         } catch (DecryptException $e) {
             abort(404);
         }
 
-
     $post = Load::find($decryptedId);
 
-        if (!$post) {
-            // Record not found, handle the error gracefully
-            return redirect()->back()->withErrors(['msg' => 'Load not found.']);
-        }
-        
-        // Refresh the model to get latest data from database
-        $post->refresh();
-        
-        $user_id = Auth::id();
-        $shipperData = json_decode($post->load_shipperr, true); // Fixed: load_shipperr (with double 'r')
-        $postData = $post->getAttributes();
-
-
-        // $allCustomers = Customer::where('user_id', $user_id)->get();
-        $allCustomers = Customer::where('user_id', $user_id)
-    ->where('status', 'Approved')
-    ->get();
-
-        $invoicechargestotal = 0;
-
-        $shipperCharges = json_decode($post->shipper_load_other_charge, true);
-        if(isset($shipperCharges)){
-            foreach ($shipperCharges as $item) {
-                        if (($item['for_invoice'] ?? 'off') === 'on') {
-                            $invoicechargestotal += (float)$item['amount'];
-                        }
-                    }
-        }
-        $customer = Customer::where('status', 'Approved')->get();
-        $loadCustomer = Customer::find($post->customer_id);
-        $equipmentType = EquipmentType::all();
-        $shipmentType = ShipmentType::all();
-
-        $shipperdata= Shipper::where('user_id', $user_id)->orderBy('shipper_name', 'asc')->get();
-        $consigneedata= Consignee::where('user_id', $user_id)->orderBy('consignee_name', 'asc')->get();
-        
-        //$allCustomers = Customer::where('user_id', $user_id)->get();
-        return view('broker.edit_broker_load', compact('shipperdata', 'consigneedata', 'equipmentType', 'customer', 'shipmentType','post', 'shipperData', 'postData', 'allCustomers', 'invoicechargestotal', 'loadCustomer'));
+    if (!$post) {
+        return redirect()->back()->withErrors([
+            'msg' => 'Load not found.'
+        ]);
     }
+
+    $post->refresh();
+
+    $user_id = Auth::id();
+
+    $shipperData = json_decode($post->load_shipperr, true);
+    $postData = $post->getAttributes();
+
+    $allCustomers = Customer::where('user_id', $user_id)
+        ->where('status', 'Approved')
+        ->get();
+
+    $invoicechargestotal = 0;
+
+    $shipperCharges = json_decode(
+        $post->shipper_load_other_charge,
+        true
+    );
+
+    if (isset($shipperCharges)) {
+        foreach ($shipperCharges as $item) {
+            if (($item['for_invoice'] ?? 'off') === 'on') {
+                $invoicechargestotal += (float) $item['amount'];
+            }
+        }
+    }
+
+    $customer = Customer::where('status', 'Approved')->get();
+
+    $loadCustomer = Customer::find($post->customer_id);
+
+    $equipmentType = EquipmentType::all();
+
+    $shipmentType = ShipmentType::all();
+
+    $shipperdata = Shipper::where('user_id', $user_id)
+        ->orderBy('shipper_name', 'asc')
+        ->get();
+
+    $consigneedata = Consignee::where('user_id', $user_id)
+        ->orderBy('consignee_name', 'asc')
+        ->get();
+
+    return view(
+        'broker.edit_broker_load',
+        compact(
+            'shipperdata',
+            'consigneedata',
+            'equipmentType',
+            'customer',
+            'shipmentType',
+            'post',
+            'shipperData',
+            'postData',
+            'allCustomers',
+            'invoicechargestotal',
+            'loadCustomer'
+        )
+    );
+}
 
     public function broker_open_load(Request $request){
         $q = $request->input('query');
@@ -487,10 +512,14 @@ if (!empty($term)) {
         return view('broker.loads.invoice_paid', compact('invoice_paid'))->render();
     }
 
-    public function cloneLoad($id) 
+    public function cloneLoad(string $id)
     {       
-       
-        $originalLoad = Load::findOrFail($id);
+        try {
+            $decryptedId = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            abort(404);
+        }
+        $originalLoad = Load::findOrFail($decryptedId);
         $newLoad = new Load();
         $newLoad->load_dispatcher = Auth::user()->name;
         $newLoad->user_id = Auth::id();
@@ -575,12 +604,12 @@ if (!empty($term)) {
         $newLoad->save();
 
         //$newData = json_encode($newLoad);
-        $subject = "Broker Clone the Load, loadid:-".$id;
-        addToLog($customerId ='', $id, $subject, $oldData ='', $newData ='');
+        $subject = "Broker Clone the Load, loadid:-".$decryptedId;
+        addToLog($customerId ='', $decryptedId, $subject, $oldData ='', $newData ='');
 		
 		
         // Redirect with success message
-        return redirect()->route('load.editload', $insertedId)->with('success', 'Load has been cloned successfully');
+        return redirect()->route('load.editload',encrypt($insertedId))->with('success', 'Load has been cloned successfully');
 
     }
 

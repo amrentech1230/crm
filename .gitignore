@@ -26,3 +26,18 @@ yarn-error.log
 deploy_key
 deploy_key.pub
 *.pem
+
+# User-uploaded runtime data — NEVER track or delete on deploy.
+# These directories hold live files created by users in production/staging
+# (carrier documents, delivery orders, remittances, profile images, etc.).
+# A `git reset --hard` during deploy must leave them untouched.
+/public/uploads
+/public/carrier_doc
+/public/carrierFiles
+/public/remittances
+/public/images/profile-image
+
+# Loose database dumps / backups that sometimes land in the web root
+/public/*.sql
+/public/bigdump.php
+/*.sql

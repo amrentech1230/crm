@@ -12,9 +12,8 @@
 
 .switch-button {
     /* background color when "off" */
-    background: #FFFFFF;
-
     /* size of switch */
+    background: #FFFFFF;
     width: 43px;
     height: 25px;
     border: 2px solid #E6E6E6;
@@ -243,7 +242,7 @@ $(document).ready(function () {
                                 responsive: true,
                                 dom: 'rtip',
                                 buttons: [],            // Set to empty array instead of false
-                                pageLength: 10,         // Show 50 rows per page
+                                pageLength: 10,         // Show 10 rows per page
                                 lengthMenu: [10, 25, 50, 100] // Dropdown options
                             });
 

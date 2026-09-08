@@ -1,5 +1,4 @@
 @extends('layout.compact.app') <!-- This links to the app.blade.php layout -->
-
 @section('content')
    
 <div class="page-content">
