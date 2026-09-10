@@ -1434,9 +1434,15 @@ public function editCustomer($id)
         ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
-    $remainingCredit = $totalCreditLimit > 0
-        ? max(0.0, $totalCreditLimit - $creditLoadAmount)
-        : max(0.0, (float) ($customer->remaining_credit ?? 0));
+    $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $loggedRemainingCredit = collect($remainingCreditLogs)->sum(function ($credit) {
+        return (float) ($credit['credit_limit'] ?? 0);
+    });
+    $remainingCredit = max(
+        0.0,
+        (float) ($customer->remaining_credit ?? 0),
+        $loggedRemainingCredit
+    );
     $usedAmount = $totalExhaustedLimit;
     $after_used_remaing_amount = $remainingCredit;
     $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
@@ -1552,7 +1558,8 @@ public function accountupdateCustomer(Request $request, $id)
     }
 
     // Decode existing credit limit logs or initialize an empty array
-    $existingCreditLogs = json_decode($customer->credit_limit_log, true) ?? [];
+    $existingCreditLogs = json_decode($customer->credit_limit_log, true);
+    $existingCreditLogs = is_array($existingCreditLogs) ? $existingCreditLogs : [];
 
     // Prepare new credit limit logs
     $newCreditLimitLogs = [];
@@ -1569,7 +1576,10 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true);
+    $existinginvoiceremaningCreditLogs = is_array($existinginvoiceremaningCreditLogs)
+        ? $existinginvoiceremaningCreditLogs
+        : [];
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
@@ -1584,29 +1594,40 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true);
+    $existingremaningCreditLogs = is_array($existingremaningCreditLogs)
+        ? $existingremaningCreditLogs
+        : [];
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
 
-    if (!empty($remainingcreditLimitLogData) && !empty($creditTimes)) {
+    if (is_array($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
-            if (!empty($creditLimit) && isset($creditTimes[$index])) {
+            if (is_numeric($creditLimit) && (float) $creditLimit > 0) {
                 $newremaningCreditLimitLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => $creditTimes[$index],
+                    'credit_time' => $creditTimes[$index] ?? now()->format('Y-m-d\TH:i'),
                 ];
             }
         }
     }
     $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
-    $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-    $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-    $remainingCredit = $totalCreditLimit - $usedAmount;
+    $newRemainingCredit = array_sum(array_column($newremaningCreditLimitLogs, 'credit_limit'));
+    $existingRemainingCredit = max(
+        0.0,
+        (float) ($customer->remaining_credit ?? 0),
+        array_sum(array_column($existingremaningCreditLogs, 'credit_limit'))
+    );
+    $calculatedRemainingCredit = $existingRemainingCredit + $newRemainingCredit;
+    $submittedRemainingCredit = $request->input('remaining_credit');
+    $remainingCredit = is_numeric($submittedRemainingCredit)
+        ? max($calculatedRemainingCredit, (float) $submittedRemainingCredit)
+        : $calculatedRemainingCredit;
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    $customer->remaining_credit = $request->input('remaining_credit'); 
+    $customer->remaining_credit = max(0, $remainingCredit);
     $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
 	$customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');

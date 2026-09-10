@@ -271,8 +271,23 @@ if (!empty($term)) {
     $shipperData = json_decode($post->load_shipperr, true);
     $postData = $post->getAttributes();
 
-    $allCustomers = Customer::where('user_id', $user_id)
-        ->where('status', 'Approved')
+    $shipperNames = collect($shipperData ?: [])
+        ->pluck('name')
+        ->filter()
+        ->unique()
+        ->values();
+    $consigneeNames = collect(json_decode($post->load_consignee, true) ?: [])
+        ->pluck('name')
+        ->filter()
+        ->unique()
+        ->values();
+
+    $allCustomers = Customer::where('status', 'Approved')
+        ->where(function ($query) use ($user_id, $post) {
+            $query->where('user_id', $user_id)
+                ->orWhere('id', $post->customer_id);
+        })
+        ->orderBy('customer_name')
         ->get();
 
     $invoicechargestotal = 0;
@@ -298,11 +313,17 @@ if (!empty($term)) {
 
     $shipmentType = ShipmentType::all();
 
-    $shipperdata = Shipper::where('user_id', $user_id)
+    $shipperdata = Shipper::where(function ($query) use ($user_id, $shipperNames) {
+            $query->where('user_id', $user_id)
+                ->orWhereIn('shipper_name', $shipperNames);
+        })
         ->orderBy('shipper_name', 'asc')
         ->get();
 
-    $consigneedata = Consignee::where('user_id', $user_id)
+    $consigneedata = Consignee::where(function ($query) use ($user_id, $consigneeNames) {
+            $query->where('user_id', $user_id)
+                ->orWhereIn('consignee_name', $consigneeNames);
+        })
         ->orderBy('consignee_name', 'asc')
         ->get();
 
@@ -1754,14 +1775,21 @@ for ($i = 1; $i <= 15; $i++) {
     }
 
     public function fetchConsigneeDetails(Request $request) {
-        $query = $request->input('query');
-        $userId = Auth::id();
+        $query = trim((string) $request->input('query', ''));
+        $user = Auth::user();
 
-        $query = $request->input('query');
-        $consignees = Consignee::where('consignee_name', 'like', '%' . $query . '%')
-        ->where('user_id', $userId)
-        ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
-        ->get();
+        $consigneeQuery = Consignee::query()
+            ->where('consignee_name', 'like', '%' . $query . '%');
+
+        if (!in_array($user?->role_id, [1, 2, 3, 22], true)) {
+            $consigneeQuery->where('user_id', $user?->id);
+        }
+
+        $consignees = $consigneeQuery
+            ->select('consignee_name', 'consignee_address', 'consignee_city', 'consignee_state', 'consignee_country', 'consignee_zip')
+            ->orderBy('consignee_name')
+            ->get();
+
         return response()->json($consignees);
     }
     
