@@ -141,7 +141,7 @@
                                                         @endphp
                                                         <option value="{{ $currentCustomerName }}" 
                                                             data-id="{{ $selectedCustomerId }}"
-                                                            data-available-credit="{{ (float) get_customer_available_credit_limit($currentCustomer ?? $allcustomer->firstWhere('id', $selectedCustomerId)) }}"
+                                                            data-available-credit="{{ (float) ($customerAvailableCredits[$selectedCustomerId] ?? 0) }}"
                                                             data-remaining-credit="{{ (float) ($currentCustomer->remaining_credit ?? 0) }}"
                                                             data-invoice-credit-limit="{{ (float) ($currentCustomer->invoice_credit_limit ?? 0) }}"
                                                             selected>
@@ -160,7 +160,7 @@
                                                         @if(!$isSelected)
                                                             <option value="{{ $cust->customer_name }}" 
                                                                 data-id="{{ $cust->id }}"
-                                                                data-available-credit="{{ (float) get_customer_available_credit_limit($cust) }}"
+                                                                data-available-credit="{{ (float) ($customerAvailableCredits[$cust->id] ?? 0) }}"
                                                                 data-remaining-credit="{{ (float) ($cust->remaining_credit ?? 0) }}"
                                                                 data-invoice-credit-limit="{{ (float) ($cust->invoice_credit_limit ?? 0) }}">
                                                                 {{ $cust->customer_name }}

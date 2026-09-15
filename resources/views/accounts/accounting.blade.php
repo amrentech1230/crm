@@ -56,6 +56,39 @@ table.dataTable tbody > tr.selected td p {
 .mail-document-preview .fa-file-pdf { font-size: 40px; }
 .mail-document-name { display: block; max-width: 100%; padding-right: 26px; font-size: 12px; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
 .remove-mail-document { position: absolute; right: 8px; bottom: 7px; }
+
+#invoiced_paid .accounting-paid-select {
+    height: 32px;
+    min-height: 32px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    line-height: normal;
+}
+
+#invoiced_paid .accounting-paid-select + .select2-container,
+#invoiced_paid .accounting-paid-select + .select2-container > .selection,
+#invoiced_paid .accounting-paid-select + .select2-container > .dropdown-wrapper,
+#invoiced_paid .accounting-paid-select + .select2-container .select2-selection--single {
+    height: 32px;
+    line-height: normal;
+    padding: 0;
+}
+
+#invoiced_paid .accounting-paid-select + .select2-container .select2-selection--single {
+    padding: 6px 32px 6px 12px;
+    display: flex;
+    align-items: center;
+}
+
+#invoiced_paid .accounting-paid-select + .select2-container .select2-selection__rendered {
+    line-height: normal;
+    padding: 0;
+}
+
+#invoiced_paid .accounting-paid-select + .select2-container .select2-selection__arrow {
+    height: 30px;
+    width: 30px;
+}
 </style>
 
 <div id="mc-success-message" style="display: none;"></div>
