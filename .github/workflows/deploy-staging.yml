@@ -66,6 +66,15 @@ jobs:
           echo "==> Changing to application directory"
           cd "$DEPLOY_PATH"
 
+          echo "==> Ensuring directory is a git repository"
+          if [[ ! -d .git ]]; then
+            echo "==> No .git found — initializing repository"
+            git init
+            if ! git remote | grep -q '^origin$'; then
+              git remote add origin "https://github.com/amrentech1230/crm.git"
+            fi
+          fi
+
           echo "==> Fetching latest code"
           git fetch --all --prune
 
