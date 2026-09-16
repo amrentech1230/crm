@@ -45,8 +45,8 @@ jobs:
             exit 1
           fi
           if [[ ! -d "${DEPLOY_PATH}" ]]; then
-            echo "::error::DEPLOY_PATH '${DEPLOY_PATH}' does not exist on the runner host."
-            exit 1
+            echo "Creating deployment directory..."
+            mkdir -p "$DEPLOY_PATH"
           fi
 
       - name: Deploy locally
