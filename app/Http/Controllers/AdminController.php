@@ -2021,12 +2021,13 @@ public function all_search(Request $request)
             ->get();
         $allcustomer = Customer::where('status', 'Approved')->get();
         $users = User::with('role', 'department', 'managers', 'teamleader', 'office')->where('department', 3)->get();
+        $customerAvailableCredits = get_customers_available_credit_limits($allcustomer);
 
         $currentCustomerName = trim((string) ($post->load_bill_to ?? '')) ?: trim((string) ($post->customer?->customer_name ?? ''));
         $post->load_bill_to = $currentCustomerName ?: ($post->load_bill_to ?? '');
         $post->customer_id = $post->customer_id ?: ($post->customer?->id ?? null);
     //   echo "<pre>"; print_r($alllogs); die;
-        return view('admin.load_edit', compact('allcustomer','post', 'shipperdata', 'consigneedata', 'shipmentType','equipmentType','users','alllogs'));
+        return view('admin.load_edit', compact('allcustomer', 'customerAvailableCredits', 'post', 'shipperdata', 'consigneedata', 'shipmentType', 'equipmentType', 'users', 'alllogs'));
     }
 
     public function loadUpdate(Request $request, $id)
