@@ -66,6 +66,15 @@ jobs:
           echo "==> Changing to application directory"
           cd "$DEPLOY_PATH"
 
+          echo "==> Ensuring directory is a git repository"
+          if [[ ! -d .git ]]; then
+            echo "==> No .git found — initializing repository"
+            git init
+            if ! git remote | grep -q '^origin$'; then
+              git remote add origin "https://github.com/amrentech1230/crm.git"
+            fi
+          fi
+
           echo "==> Fetching latest code"
           git fetch --all --prune
 
@@ -100,7 +109,11 @@ jobs:
           $PHP_BIN artisan view:cache
 
           echo "==> Creating storage link"
-          $PHP_BIN artisan storage:link || true
+          # 'php artisan storage:link' uses exec() which is disabled on this
+          # host, so create the symlink directly. Non-fatal if it already exists.
+          if [[ ! -e public/storage ]]; then
+            ln -s ../storage/app/public public/storage || true
+          fi
 
           echo "==> Restarting queue workers"
           $PHP_BIN artisan queue:restart
