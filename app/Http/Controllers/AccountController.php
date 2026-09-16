@@ -327,7 +327,7 @@ public function loadspi(Request $request)
     public function compliance(Request $request)
     {
 		$activeTab = $request->filled('cpr') ? 'cpr' : ($request->filled('block_carrier') ? 'block_carrier' : 'mc');
-		$carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50, ['*'], 'mc');
+        $carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload','doc_upload')->paginate(50, ['*'], 'mc');
 		$loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50, ['*'], 'cpr');
 		$carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50, ['*'], 'block_carrier');
 		
