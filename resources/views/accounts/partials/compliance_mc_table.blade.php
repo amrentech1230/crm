@@ -314,7 +314,7 @@ function deleteCarrierDocument(carrierId, docIndex) {
                 $('.carrier-documents-' + carrierId).html(response.html);
                 $('#doc_upload-' + carrierId).val('');
                 alert('Document deleted successfully.');
-                location.reload();
+                location.reload(); 
             }
         },
         error: function (xhr) {
