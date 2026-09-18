@@ -229,6 +229,8 @@ Route::get('account/carrier-info/{id}', [AccountController::class, 'getCarrierIn
     Route::post('account/update-carrier-invoice-date', [AccountController::class, 'updateCarrierInvoiceDate'])->name('account.update-carrier-invoice-date');
     Route::post('account/update-carrier-documents',[AccountController::class, 'updateCarrierDocuments'])->name('account.update-carrier-documents');
     Route::post('account/uploadCarrierDocs', [AccountController::class, 'uploadCarrierDocs'])->name('uploadCarrierDocs');
+    Route::post('account/carrier/documents/upload', [AccountController::class, 'uploadCarrierDocuments'])->name('carrier.documents.upload');
+    Route::post('account/carrier/documents/delete', [AccountController::class, 'deleteCarrierDocument'])->name('carrier.documents.delete');
     Route::post('account/get-files', [AccountController::class, 'getFiles'])->name('get.files');
     Route::post('account/delete-carrier-doc', [AccountController::class, 'deleteCarrierDoc'])->name('delete.carrier.doc');
 

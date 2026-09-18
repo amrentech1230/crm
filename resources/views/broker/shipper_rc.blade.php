@@ -206,6 +206,34 @@ li{
                         $shipperPoNumber = json_decode($load->load_shipper_po_numbers, true) ?? [];
                         $shipperWeight = json_decode($load->load_shipper_weight, true) ?? [];
                         $shipperQty = json_decode($load->load_shipper_qty, true) ?? [];
+                        $shipperField = static function ($values, $key, $position, array $fieldNames) {
+                            $entry = is_array($values) ? ($values[$key] ?? null) : null;
+
+                            $entries = [];
+                            if ($entry !== null && $entry !== '') {
+                                $entries[] = $entry;
+                            }
+                            if (is_array($values)) {
+                                $entries[] = array_values($values)[$position] ?? null;
+                                $entries = array_merge($entries, array_values($values));
+                            } else {
+                                $entries[] = $entry;
+                            }
+
+                            foreach ($entries as $candidate) {
+                                if (is_array($candidate)) {
+                                    foreach ($fieldNames as $fieldName) {
+                                        if (!empty($candidate[$fieldName])) {
+                                            return $candidate[$fieldName];
+                                        }
+                                    }
+                                } elseif ($candidate !== null && $candidate !== '') {
+                                    return $candidate;
+                                }
+                            }
+
+                            return is_scalar($entry) ? $entry : '';
+                        };
                         
 
                         
@@ -213,6 +241,7 @@ li{
                         
                         @php
                         $counter = 1;
+                        $shipperPosition = 0;
                         @endphp
                         
                         @foreach ($shipper as $key => $shipper)
@@ -224,7 +253,7 @@ li{
                                     <p><b>Name:</b> {{ isset($shipper['name']) ? $shipper['name'] : '' }}</p>
                                 </td>
                                 <td style="width:35% !important">
-                                    <p><b>Type:</b> {{ isset($shipperType[$key]['commodity_type']) ? $shipperType[$key]['commodity_type'] : ($shipperType[$key]['type'] ?? '') }}</p>
+                                    <p><b>Type:</b> {{ $shipperField($shipperType, $key, $shipperPosition, ['commodity_type', 'shipper_type', 'type']) ?: ($load->load_equipment_type ?? '') }}</p>
                                 </td>
                             </tr>
                             <tr>
@@ -232,7 +261,7 @@ li{
                                    <p><b>Contact:</b> {{ $shipperContact[$key]['shipping_contact'] ?? $shipperContact[$key]['contact'] ?? '' }}</p>
                                 </td>
                                 <td style="width:35% !important">
-                                <p><b>PO Numbers :</b> {{ isset($shipperPoNumber[$key]['shipping_po_numbers']) ? $shipperPoNumber[$key]['shipping_po_numbers'] : $shipperPoNumber[$key]['po_number'] ?? '' }}</p> 
+                                <p><b>PO Numbers :</b> {{ $shipperField($shipperPoNumber, $key, $shipperPosition, ['shipping_po_numbers', 'shipper_po_number', 'po_number']) }}</p>
                                 </td>
                             </tr>
                             <tr>
@@ -240,7 +269,7 @@ li{
                                 <p><b>Shipping Address:</b> {{ $shipperLocation[$key]['location'] ?? '' }}"</p> 
                                 </td>
                                 <td style="width:65% !important">
-                                    <p><b>Weight:</b> {{ isset($shipperWeight[$key]['shipper_weight']) ? $shipperWeight[$key]['shipper_weight'] : ($shipperWeight[$key]['weight'] ?? '') }} lbs</p>
+                                    <p><b>Weight:</b> {{ $shipperField($shipperWeight, $key, $shipperPosition, ['shipper_weight', 'weight']) }} lbs</p>
                                 </td>
                             </tr>
                             <tr>
@@ -248,7 +277,7 @@ li{
                                     <p><b>Description</b> {{ isset($shipper_discription[$key]['description']) ? $shipper_discription[$key]['description'] : '' }}</p>
                                 </td>
                                 <td style="width:65% !important">
-                                <p><b>Quantity:</b> {{ isset($shipperQty[$key]['shipper_qty']) ? $shipperQty[$key]['shipper_qty'] : ($shipperQty[$key]['qty'] ?? '') }}</p>
+                                <p><b>Quantity:</b> {{ $shipperField($shipperQty, $key, $shipperPosition, ['shipper_qty', 'qty']) }}</p>
                                 </td>
                                 
                             </tr>
@@ -269,6 +298,7 @@ li{
                             </tr>
                         </table>
                     </div>
+                        @php $shipperPosition++; @endphp
                             @endforeach
                             @php
                              $consignees = json_decode($load->load_consignee, true); // Decode JSON string for consignee names
@@ -288,6 +318,7 @@ li{
                              @endphp
                              @php
                              $counter = 1;
+                             $consigneePosition = 0;
                              @endphp
                              @foreach ($consignees as $key => $consignee)
                 <div class="detail" style="width: 100%;">
@@ -298,7 +329,7 @@ li{
                                 <p><b>Name:</b>{{ $consignee['name'] }}</p>
                             </td>
                             <td style="width:35% !important">
-                                <p><b>Type:</b>{{ isset($consignees_type[$key]['consignee_type']) ? $consignees_type[$key]['consignee_type'] : '' }}</p>
+                                <p><b>Type:</b> {{ $shipperField($consignees_type, $key, $consigneePosition, ['consignee_type', 'commodity_type', 'type']) ?: ($load->load_equipment_type ?? '') }}</p>
                             </td>
                         </tr>
                         <tr>
@@ -349,6 +380,7 @@ li{
                         </tr>
                     </table>
                 </div>
+                @php $consigneePosition++; @endphp
                 @endforeach
 
         <div class="content">

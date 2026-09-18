@@ -759,5 +759,50 @@ $(document).ready(function() {
 
 </script>
 
+<script>
+    $(function () {
+        $(document)
+            .off('change.vendorProcessedBy', '.load_priority')
+            .on('change.vendorProcessedBy', '.load_priority', function () {
+                const $select = $(this);
+                const loadId = $select.data('id');
+                const value = $select.val();
+                const storageKey = 'vendor_processed_by_' + loadId;
+
+                localStorage.setItem(storageKey, value || '');
+
+                $.ajax({
+                    url: "{{ route('update.invoice.through') }}",
+                    type: 'POST',
+                    async: false,
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        id: loadId,
+                        invoice_through: value
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $select.val(response.invoice_through || '').trigger('change.select2');
+                            localStorage.removeItem(storageKey);
+                        }
+                    },
+                    error: function () {
+                        toastr.error('Unable to save Processed By.');
+                    }
+                });
+            });
+
+        $('.load_priority').each(function () {
+            const $select = $(this);
+            const pendingValue = localStorage.getItem('vendor_processed_by_' + $select.data('id'));
+
+            if (pendingValue !== null && $select.find('option[value="' + pendingValue + '"]').length) {
+                $select.val(pendingValue).trigger('change.select2');
+                $select.trigger('change');
+            }
+        });
+    });
+</script>
+
 
 @endsection

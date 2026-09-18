@@ -85,12 +85,6 @@ $rowClass = 'row-completed';
         </select>
     </td>
         <td>
-    @php
-        $selectedValue = !empty($vendor->customer?->invoice_through)
-            ? $vendor->customer->invoice_through
-            : $vendor->invoice_through;
-    @endphp
-
     <select class="form-control vendor-select load_priority"
             name="load_priority"
             data-id="{{ $vendor->id }}">
@@ -98,17 +92,17 @@ $rowClass = 'row-completed';
         <option value="">Please Select Invoice Through</option>
 
         <option value="DIRECT"
-            {{ $selectedValue == 'DIRECT' ? 'selected' : '' }}>
+            {{ $vendor->invoice_through == 'DIRECT' ? 'selected' : '' }}>
             DIRECT
         </option>
 
         <option value="OTR"
-            {{ $selectedValue == 'OTR' ? 'selected' : '' }}>
+            {{ $vendor->invoice_through == 'OTR' ? 'selected' : '' }}>
             OTR
         </option>
 
         <option value="Buyout"
-            {{ $selectedValue == 'Buyout' ? 'selected' : '' }}>
+            {{ $vendor->invoice_through == 'Buyout' ? 'selected' : '' }}>
             Buyout
         </option>
 
@@ -1123,15 +1117,19 @@ $(document).on('change', '.carrier_mark_as_paid', function () {
     </script>
 
     <script>
-        $(document).on('change', '.load_priority', function () {
+        $(document).off('change.vendorProcessedBy', '.load_priority').on('change.vendorProcessedBy', '.load_priority', function () {
 
+            let $select = $(this);
+            let load_id = $select.data('id');
+            let value = $select.val();
+            let storageKey = 'vendor_processed_by_' + load_id;
 
-            let load_id = $(this).data('id');
-            let value = $(this).val();
+            localStorage.setItem(storageKey, value || '');
 
             $.ajax({
                 url: "{{ route('update.invoice.through') }}",
-                type: "POST",
+                type: 'POST',
+                async: false,
                 data: {
                     _token: "{{ csrf_token() }}",
                     id: load_id,
@@ -1139,8 +1137,8 @@ $(document).on('change', '.carrier_mark_as_paid', function () {
                 },
                 success: function (res) {
                     if (res.success) {
-                        alert('Updated successfully!');
-                        // location.reload();   // Only if you want to refresh
+                        $select.val(res.invoice_through || '').trigger('change.select2');
+                        localStorage.removeItem(storageKey);
                     }
                 },
                 error: function () {
@@ -1148,6 +1146,25 @@ $(document).on('change', '.carrier_mark_as_paid', function () {
                 }
             });
 
+        });
+
+        $(function () {
+            if (window.vendorProcessedByRestoreInitialized) {
+                return;
+            }
+
+            window.vendorProcessedByRestoreInitialized = true;
+            $('.load_priority').each(function () {
+                let $select = $(this);
+                let load_id = $select.data('id');
+                let storageKey = 'vendor_processed_by_' + load_id;
+                let pendingValue = localStorage.getItem(storageKey);
+
+                if (pendingValue !== null && $select.find('option[value="' + pendingValue + '"]').length) {
+                    $select.val(pendingValue).trigger('change.select2');
+                    $select.trigger('change');
+                }
+            });
         });
     </script>
     <script>

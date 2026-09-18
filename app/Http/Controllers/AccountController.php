@@ -327,7 +327,7 @@ public function loadspi(Request $request)
     public function compliance(Request $request)
     {
 		$activeTab = $request->filled('cpr') ? 'cpr' : ($request->filled('block_carrier') ? 'block_carrier' : 'mc');
-		$carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload')->paginate(50, ['*'], 'mc');
+        $carriers = External::with('user')->orderBy("id", "desc")->select('id','carrier_mc_ff_input','carrier_dot','carrier_name','user_id','created_at','mc_check','carrier_file_upload','doc_upload')->paginate(50, ['*'], 'mc');
 		$loads = Load::with(['user'])->orderBy("loads.id", "desc")->paginate(50, ['*'], 'cpr');
 		$carrier_blocked = External::with('user')->where('carrier_block', 'Blocked')->paginate(50, ['*'], 'block_carrier');
 		
@@ -415,18 +415,8 @@ public function carrier_block(Request $request)
 
 			// Customer Tab
 			if ($tab == '#customer') {
-				$totalRevenueCustomer = Load::join('users', 'loads.user_id', '=', 'users.id')
-					->join('customers', 'users.id', '=', 'customers.user_id')
-                    ->where('customers.status', 'Approved')
-					->select('loads.load_bill_to', 'users.name as user_name', 'customers.adv_customer_credit_limit')
-					->selectRaw('SUM(loads.shipper_load_final_rate) AS total_revenue')
-					->selectRaw('SUM(loads.shipper_load_final_rate - loads.load_carrier_fee) AS revenue_difference')
-					->selectRaw('COUNT(loads.id) AS load_count')
-					->selectRaw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count')
-					->selectRaw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS deliverd_load_count')
-					->selectRaw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count')
-					->groupBy('loads.load_bill_to', 'users.name', 'customers.adv_customer_credit_limit')
-					->paginate(50, ['*'], 'customer');
+                $totalRevenueCustomer = $this->customerReportQuery()
+                    ->paginate(50, ['*'], 'customer');
 
 				return view('accounts.reporting.customers', compact('totalRevenueCustomer'))->render();
 			}
@@ -504,26 +494,7 @@ public function carrier_block(Request $request)
         ->groupBy('loads.load_carrier', 'users.name')
         ->paginate(50, ['*'], 'carrier'); 
 
-        $totalRevenueCustomer = DB::table('customers')
-        ->join('loads', 'customers.id', '=', 'loads.customer_id')
-        ->where('customers.status', 'Approved')
-
-        ->select(
-            'customers.id as customer_id',
-            'customers.customer_name',
-            'customers.status',
-
-            DB::raw('SUM(loads.shipper_load_final_rate) AS total_revenue'),
-            DB::raw('SUM(loads.load_carrier_fee) AS total_carrier_cost'),
-            DB::raw('SUM(loads.shipper_load_final_rate - loads.load_carrier_fee) AS margin'),
-
-            DB::raw('COUNT(loads.id) AS load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS delivered_load_count'),
-            DB::raw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count'),
-            DB::raw('MAX(customers.remaining_credit_logs) AS remaining_credit_logs')
-        )
-        ->groupBy('customers.id', 'customers.customer_name', 'customers.status')
+        $totalRevenueCustomer = $this->customerReportQuery()
         ->paginate(50, ['*'], 'customer');
 
         $totalRevenueCarrier = Load::join('users', 'loads.user_id', '=', 'users.id')
@@ -690,9 +661,11 @@ public function carrier_block(Request $request)
                     'html' => view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render(),
                     'modals' => view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render(),
                     'pagination' => render_pagination_links($vendormanagement),
-                ]);
+                ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 			}
-        return view('accounts.vendor_system', compact('vendormanagement'));
+        return response()
+            ->view('accounts.vendor_system', compact('vendormanagement'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function vendorSystemExcel()
@@ -725,7 +698,7 @@ public function carrier_block(Request $request)
         foreach ($loads as $index => $load) {
             $carrierFiles = json_decode($load->carrierDoc ?? '', true);
             $hasCarrierFiles = is_array($carrierFiles) && $carrierFiles !== [];
-            $processedBy = $load->customer?->invoice_through ?: $load->invoice_through;
+            $processedBy = $load->invoice_through;
             $dueDate = $load->load_carrier_due_date;
             if (empty($dueDate) && !empty($load->carrier_invoice_date)) {
                 try {
@@ -787,7 +760,7 @@ public function carrier_block(Request $request)
 			});
 
 			if (count($searchTerms) > 0) {
-				$vendormanagement = Load::with(['user'])
+                $vendormanagement = Load::with(['user', 'customer'])
 					->where(function($query) use ($searchTerms) {
 						foreach ($searchTerms as $term) {
 							$query->orWhere('load_number', 'like', "%$term%")
@@ -805,7 +778,7 @@ public function carrier_block(Request $request)
 				$vendormanagement = collect();
 			}
 		} else {
-			$vendormanagement = Load::with(['user'])
+            $vendormanagement = Load::with(['user', 'customer'])
 				->orderBy('loads.id', 'desc')
 				->paginate(50);
 		}
@@ -819,11 +792,11 @@ public function carrier_block(Request $request)
 		$modalsHtml = view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render();
 
 		// Return JSON
-		return response()->json([
+        return response()->json([
 			'rows' => $rowsHtml,
 			'modals' => $modalsHtml,
             'pagination' => render_pagination_links($vendormanagement),
-		]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 		
     }
 
@@ -1434,9 +1407,15 @@ public function editCustomer($id)
         ->sum('receiving_amount'));
 
     $totalExhaustedLimit = max(0.0, $loadcreateamount - $receiving_amount);
-    $remainingCredit = $totalCreditLimit > 0
-        ? max(0.0, $totalCreditLimit - $creditLoadAmount)
-        : max(0.0, (float) ($customer->remaining_credit ?? 0));
+    $remainingCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $loggedRemainingCredit = collect($remainingCreditLogs)->sum(function ($credit) {
+        return (float) ($credit['credit_limit'] ?? 0);
+    });
+    $remainingCredit = max(
+        0.0,
+        (float) ($customer->remaining_credit ?? 0),
+        $loggedRemainingCredit
+    );
     $usedAmount = $totalExhaustedLimit;
     $after_used_remaing_amount = $remainingCredit;
     $afterpaymentremaingamount = max(0.0, $after_used_remaing_amount + $receiving_amount);
@@ -1552,7 +1531,8 @@ public function accountupdateCustomer(Request $request, $id)
     }
 
     // Decode existing credit limit logs or initialize an empty array
-    $existingCreditLogs = json_decode($customer->credit_limit_log, true) ?? [];
+    $existingCreditLogs = json_decode($customer->credit_limit_log, true);
+    $existingCreditLogs = is_array($existingCreditLogs) ? $existingCreditLogs : [];
 
     // Prepare new credit limit logs
     $newCreditLimitLogs = [];
@@ -1569,7 +1549,10 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedCreditLogs = array_merge($existingCreditLogs, $newCreditLimitLogs);
-    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true) ?? [];
+    $existinginvoiceremaningCreditLogs = json_decode($customer->invoice_credit_limit_log, true);
+    $existinginvoiceremaningCreditLogs = is_array($existinginvoiceremaningCreditLogs)
+        ? $existinginvoiceremaningCreditLogs
+        : [];
     $newinvoiceCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('invoice_credit_limits', []);
     $invoicecreditTimes = $request->input('invoice_credit_time', []);
@@ -1584,29 +1567,40 @@ public function accountupdateCustomer(Request $request, $id)
         }
     }
     $updatedinvoiceremaingCreditLogs = array_merge($existinginvoiceremaningCreditLogs, $newinvoiceCreditLimitLogs);
-    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true) ?? [];
+    $existingremaningCreditLogs = json_decode($customer->remaining_credit_logs, true);
+    $existingremaningCreditLogs = is_array($existingremaningCreditLogs)
+        ? $existingremaningCreditLogs
+        : [];
     $newremaningCreditLimitLogs = [];
     $remainingcreditLimitLogData = $request->input('new_remaing_credit_limit', []);
     $creditTimes = $request->input('new_remaing_credit_time', []);
 
-    if (!empty($remainingcreditLimitLogData) && !empty($creditTimes)) {
+    if (is_array($remainingcreditLimitLogData)) {
         foreach ($remainingcreditLimitLogData as $index => $creditLimit) {
-            if (!empty($creditLimit) && isset($creditTimes[$index])) {
+            if (is_numeric($creditLimit) && (float) $creditLimit > 0) {
                 $newremaningCreditLimitLogs[] = [
                     'credit_limit' => $creditLimit,
-                    'credit_time' => $creditTimes[$index],
+                    'credit_time' => $creditTimes[$index] ?? now()->format('Y-m-d\TH:i'),
                 ];
             }
         }
     }
     $updatedremaingCreditLogs = array_merge($existingremaningCreditLogs, $newremaningCreditLimitLogs);
-    $totalremaingCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-    $totalCreditLimit = array_sum(array_column($updatedremaingCreditLogs, 'credit_limit'));
-    $remainingCredit = $totalCreditLimit - $usedAmount;
+    $newRemainingCredit = array_sum(array_column($newremaningCreditLimitLogs, 'credit_limit'));
+    $existingRemainingCredit = max(
+        0.0,
+        (float) ($customer->remaining_credit ?? 0),
+        array_sum(array_column($existingremaningCreditLogs, 'credit_limit'))
+    );
+    $calculatedRemainingCredit = $existingRemainingCredit + $newRemainingCredit;
+    $submittedRemainingCredit = $request->input('remaining_credit');
+    $remainingCredit = is_numeric($submittedRemainingCredit)
+        ? max($calculatedRemainingCredit, (float) $submittedRemainingCredit)
+        : $calculatedRemainingCredit;
     $customer->credit_limit_log = json_encode($updatedCreditLogs);
     $customer->remaining_credit_logs = json_encode($updatedremaingCreditLogs);
 	$customer->invoice_credit_limit_log = json_encode($updatedinvoiceremaingCreditLogs);
-    $customer->remaining_credit = $request->input('remaining_credit'); 
+    $customer->remaining_credit = max(0, $remainingCredit);
     $customer->invoice_credit_limit = $request->input('invoice_credit_limit');
 	$customer->customer_country = $request->input('customer_country');
     $customer->customer_state = $request->input('customer_state');
@@ -2299,71 +2293,44 @@ $searchTerms = array_filter(
         return view('accounts.reporting.carrier', compact('totalRevenueloadcarrier'))->render();
     }
 
+    private function customerReportQuery()
+    {
+        return DB::table('customers')
+            ->join('loads', 'customers.id', '=', 'loads.customer_id')
+            ->where('customers.status', 'Approved')
+            ->select(
+                'customers.id as customer_id',
+                'customers.customer_name',
+                'customers.status',
+                DB::raw('SUM(loads.shipper_load_final_rate) AS total_revenue'),
+                DB::raw('SUM(loads.load_final_carrier_fee) AS total_carrier_cost'),
+                DB::raw('SUM(loads.shipper_load_final_rate - loads.load_final_carrier_fee) AS margin'),
+                DB::raw('COUNT(DISTINCT loads.id) AS load_count'),
+                DB::raw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count'),
+                DB::raw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS delivered_load_count'),
+                DB::raw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count'),
+                DB::raw('MAX(customers.remaining_credit_logs) AS remaining_credit_logs')
+            )
+            ->groupBy('customers.id', 'customers.customer_name', 'customers.status');
+    }
+
     public function report_customer_search(Request $request){
-        $q = $request->input('query');
-        if (!empty($q)) {
-            // Split the query by commas to get multiple terms
-            $searchTerms = array_filter(explode(',', $q), function($term) {
-                return !empty(trim($term)); // Only keep non-empty terms
+        $searchTerms = array_filter(explode(',', (string) $request->input('query')), function ($term) {
+            return trim($term) !== '';
+        });
+
+        $query = $this->customerReportQuery();
+        if ($searchTerms) {
+            $query->where(function ($query) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $query->orWhere('customers.customer_name', 'like', '%' . trim($term) . '%');
+                }
             });
-
-            if (count($searchTerms) > 0) {
-                // Search for non-empty terms with 'orWhere'
-
-        $totalRevenueCustomer = DB::table('customers')
-        ->join('loads', 'customers.id', '=', 'loads.customer_id')
-        ->where('customers.status', 'Approved')
-
-        ->select(
-            'customers.id as customer_id',
-            'customers.customer_name',
-            'customers.status',
-
-            DB::raw('SUM(loads.shipper_load_final_rate) AS total_revenue'),
-            DB::raw('SUM(loads.load_carrier_fee) AS total_carrier_cost'),
-            DB::raw('SUM(loads.shipper_load_final_rate - loads.load_carrier_fee) AS margin'),
-
-            DB::raw('COUNT(loads.id) AS load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS delivered_load_count'),
-            DB::raw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count'),
-            DB::raw('MAX(customers.remaining_credit_logs) AS remaining_credit_logs')
-        )
-        ->groupBy('customers.id', 'customers.customer_name', 'customers.status')
-        ->paginate(50, ['*'], 'customer');
-            } else {
-                // If no valid terms, return an empty collection or handle accordingly
-                $totalRevenueCustomer = collect();
-            }
-        } else {
-            // If query is empty, return a paginated result without any filter
-            
-        $totalRevenueCustomer = DB::table('customers')
-        ->join('loads', 'customers.id', '=', 'loads.customer_id')
-        ->where('customers.status', 'Approved')
-
-        ->select(
-            'customers.id as customer_id',
-            'customers.customer_name',
-            'customers.status',
-
-            DB::raw('SUM(loads.shipper_load_final_rate) AS total_revenue'),
-            DB::raw('SUM(loads.load_carrier_fee) AS total_carrier_cost'),
-            DB::raw('SUM(loads.shipper_load_final_rate - loads.load_carrier_fee) AS margin'),
-
-            DB::raw('COUNT(loads.id) AS load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS delivered_load_count'),
-            DB::raw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count'),
-            DB::raw('MAX(customers.remaining_credit_logs) AS remaining_credit_logs')
-        )
-        ->groupBy('customers.id', 'customers.customer_name', 'customers.status')
-        ->paginate(50, ['*'], 'customer');
-  
         }
-        
-        return view('accounts.reporting.customers', compact('totalRevenueCustomer'))->render();$q = $request->input('query');
-        
+
+        $totalRevenueCustomer = $query->paginate(50, ['*'], 'customer');
+
+        return view('accounts.reporting.customers', compact('totalRevenueCustomer'))->render();
     }
 
     public function report_customer_detail_search(Request $request){
@@ -4979,39 +4946,7 @@ public function deleteCarrierFile(Request $request)
 
 public function customerReportingExcell()
 {
-    $data = DB::table('customers')
-        ->join('loads', 'customers.id', '=', 'loads.customer_id')
-
-        // explode JSON array
-        ->leftJoin(DB::raw("
-            JSON_TABLE(
-                customers.remaining_credit_logs,
-                '$[*]' COLUMNS (
-                    credit_limit DECIMAL(15,2) PATH '$.credit_limit'
-                )
-            ) AS credit_logs
-        "), DB::raw('1'), '=', DB::raw('1'))
-
-        ->where('customers.status', 'Approved')
-        ->select(
-            'customers.id as customer_id',
-            'customers.customer_name',
-            'customers.status',
-
-            DB::raw('SUM(loads.shipper_load_final_rate) AS total_revenue'),
-            DB::raw('SUM(loads.load_carrier_fee) AS total_carrier_cost'),
-            DB::raw('SUM(loads.shipper_load_final_rate - loads.load_carrier_fee) AS margin'),
-
-            DB::raw('COUNT(DISTINCT loads.id) AS load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Open" THEN 1 ELSE 0 END) AS open_load_count'),
-            DB::raw('SUM(CASE WHEN loads.load_status = "Delivered" THEN 1 ELSE 0 END) AS delivered_load_count'),
-            DB::raw('SUM(CASE WHEN loads.invoice_status = "Completed" THEN 1 ELSE 0 END) AS completed_load_count'),
-
-            // ✅ TOTAL of all credit_limit values
-            DB::raw('SUM(credit_logs.credit_limit) AS total_credit_limit')
-        )
-        ->groupBy('customers.id', 'customers.customer_name', 'customers.status')
-        ->get();
+    $data = $this->customerReportQuery()->get();
 
 
         $headers = [
@@ -6083,13 +6018,22 @@ public function uploadmailDocument(Request $request)
 
 public function carrierupdateInvoiceThrough(Request $request)
 {
+    $request->validate([
+        'id' => 'required|integer|exists:loads,id',
+        'invoice_through' => 'nullable|in:DIRECT,OTR,Buyout',
+    ]);
+
     $update = Load::find($request->id);
 
     if($update){
         $update->invoice_through = $request->invoice_through;
         $update->save();
 
-        return response()->json(['status' => 'success']);
+        return response()->json([
+            'status' => 'success',
+            'success' => true,
+            'invoice_through' => $update->invoice_through,
+        ]);
     }
 
     return response()->json(['status' => 'error'], 404);
