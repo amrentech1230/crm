@@ -37,8 +37,9 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.STAGING_USERNAME || secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ secrets.SSH_PORT || 65002 }}
           key: ${{ secrets.STAGING_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
           command_timeout: 30m
           envs: DEPLOY_PATH,WEB_ROOT,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
           script: |
