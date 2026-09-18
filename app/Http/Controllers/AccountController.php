@@ -661,9 +661,11 @@ public function carrier_block(Request $request)
                     'html' => view('accounts.partials.vendor_system_table', compact('vendormanagement'))->render(),
                     'modals' => view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render(),
                     'pagination' => render_pagination_links($vendormanagement),
-                ]);
+                ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 			}
-        return view('accounts.vendor_system', compact('vendormanagement'));
+        return response()
+            ->view('accounts.vendor_system', compact('vendormanagement'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function vendorSystemExcel()
@@ -696,7 +698,7 @@ public function carrier_block(Request $request)
         foreach ($loads as $index => $load) {
             $carrierFiles = json_decode($load->carrierDoc ?? '', true);
             $hasCarrierFiles = is_array($carrierFiles) && $carrierFiles !== [];
-            $processedBy = $load->customer?->invoice_through ?: $load->invoice_through;
+            $processedBy = $load->invoice_through;
             $dueDate = $load->load_carrier_due_date;
             if (empty($dueDate) && !empty($load->carrier_invoice_date)) {
                 try {
@@ -758,7 +760,7 @@ public function carrier_block(Request $request)
 			});
 
 			if (count($searchTerms) > 0) {
-				$vendormanagement = Load::with(['user'])
+                $vendormanagement = Load::with(['user', 'customer'])
 					->where(function($query) use ($searchTerms) {
 						foreach ($searchTerms as $term) {
 							$query->orWhere('load_number', 'like', "%$term%")
@@ -776,7 +778,7 @@ public function carrier_block(Request $request)
 				$vendormanagement = collect();
 			}
 		} else {
-			$vendormanagement = Load::with(['user'])
+            $vendormanagement = Load::with(['user', 'customer'])
 				->orderBy('loads.id', 'desc')
 				->paginate(50);
 		}
@@ -790,11 +792,11 @@ public function carrier_block(Request $request)
 		$modalsHtml = view('accounts.partials.vendor_system_modals', compact('vendormanagement'))->render();
 
 		// Return JSON
-		return response()->json([
+        return response()->json([
 			'rows' => $rowsHtml,
 			'modals' => $modalsHtml,
             'pagination' => render_pagination_links($vendormanagement),
-		]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 		
     }
 
@@ -6016,13 +6018,22 @@ public function uploadmailDocument(Request $request)
 
 public function carrierupdateInvoiceThrough(Request $request)
 {
+    $request->validate([
+        'id' => 'required|integer|exists:loads,id',
+        'invoice_through' => 'nullable|in:DIRECT,OTR,Buyout',
+    ]);
+
     $update = Load::find($request->id);
 
     if($update){
         $update->invoice_through = $request->invoice_through;
         $update->save();
 
-        return response()->json(['status' => 'success']);
+        return response()->json([
+            'status' => 'success',
+            'success' => true,
+            'invoice_through' => $update->invoice_through,
+        ]);
     }
 
     return response()->json(['status' => 'error'], 404);
