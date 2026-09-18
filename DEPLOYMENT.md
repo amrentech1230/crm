@@ -16,7 +16,7 @@ Hostinger KVM VPS.
                     (deploy-production.yml)
 ```
 
-- **`devN`** → **Staging** — https://ccicrm.in (auto-deploy on merge, for team testing).
+- **`devN`** → **Staging** — https://stagingcci.in (auto-deploy on merge, for team testing).
 - **`main`** → **Production** — https://crmcargoconvoy.co (deploys after a manual
   approval in GitHub, for added safety).
 
@@ -59,7 +59,7 @@ Create two environments under `Settings → Environments`: **`staging`** and
 | Variable       | Staging value                  | Production value                  | Required |
 |----------------|--------------------------------|-----------------------------------|----------|
 | `DEPLOY_PATH`  | `/var/www/crm-staging`         | `/var/www/crm-production`         | ✅ yes   |
-| `DEPLOY_URL`   | `https://ccicrm.in`            | `https://crmcargoconvoy.co`      | optional |
+| `DEPLOY_URL`   | `https://stagingcci.in`        | `https://crmcargoconvoy.co`      | optional |
 | `PHP_BIN`      | `php` (or `php8.2`)            | `php` (or `php8.2`)              | optional |
 | `COMPOSER_BIN` | `composer`                     | `composer`                        | optional |
 

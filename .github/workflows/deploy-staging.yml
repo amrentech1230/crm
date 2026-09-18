@@ -24,7 +24,7 @@ jobs:
 
     environment:
       name: staging
-      url: https://ccicrm.in
+      url: https://stagingcci.in
 
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
