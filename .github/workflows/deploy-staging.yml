@@ -28,6 +28,7 @@ jobs:
 
     env:
       DEPLOY_PATH: ${{ secrets.STAGING_PATH || vars.DEPLOY_PATH }}
+      WEB_ROOT: ${{ vars.WEB_ROOT || format('{0}/public', secrets.STAGING_PATH || vars.DEPLOY_PATH) }}
       DEPLOY_BRANCH: devN
       PHP_BIN: ${{ vars.PHP_BIN }}
       COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
@@ -38,6 +39,7 @@ jobs:
           set -euo pipefail
           echo "==> Validating staging deploy configuration"
           echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
+          echo "WEB_ROOT=${WEB_ROOT:-<unset>}"
           echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
 
           if [[ -z "${DEPLOY_PATH}" ]]; then
@@ -80,6 +82,11 @@ jobs:
 
           echo "==> Resetting to origin/$DEPLOY_BRANCH"
           git reset --hard "origin/$DEPLOY_BRANCH"
+          echo "==> Deployed commit: $(git rev-parse HEAD)"
+          if [[ ! -f "${WEB_ROOT}/index.php" ]]; then
+            echo "::error::WEB_ROOT does not contain public/index.php: ${WEB_ROOT}"
+            exit 1
+          fi
 
           echo "==> Installing PHP dependencies"
           $COMPOSER_BIN install \
