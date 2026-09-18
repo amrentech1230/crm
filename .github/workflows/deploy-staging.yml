@@ -2,9 +2,7 @@ name: Deploy to Staging
 
 # Deploys the devN branch to Staging on every push.
 #
-# This job runs on a SELF-HOSTED runner installed on the production/staging
-# VPS. Because the runner executes ON the server, no inbound SSH is required
-# (no port 2222, no firewall dependency). The deploy commands run locally.
+# This job connects to the staging server using the configured SSH secrets.
 on:
   push:
     branches: [devN]
@@ -20,7 +18,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy devN -> Staging
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
 
     environment:
       name: staging
@@ -34,108 +32,50 @@ jobs:
       COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
 
     steps:
-      - name: Validate deploy configuration
-        run: |
-          set -euo pipefail
-          echo "==> Validating staging deploy configuration"
-          echo "DEPLOY_PATH=${DEPLOY_PATH:-<unset>}"
-          echo "WEB_ROOT=${WEB_ROOT:-<unset>}"
-          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH:-<unset>}"
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER || secrets.STAGING_USERNAME }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.STAGING_SSH_KEY }}
+          script_stop: true
+          envs: DEPLOY_PATH,WEB_ROOT,DEPLOY_BRANCH,PHP_BIN,COMPOSER_BIN
+          script: |
+            set -euo pipefail
 
-          if [[ -z "${DEPLOY_PATH}" ]]; then
-            echo "::error::Missing DEPLOY_PATH. Configure it in the staging environment variables."
-            exit 1
-          fi
-          if [[ ! -d "${DEPLOY_PATH}" ]]; then
-            echo "Creating deployment directory..."
+            PHP_BIN="${PHP_BIN:-php}"
+            COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/home/u698476407/domains/stagingcci.in/crm_app}"
+            WEB_ROOT="${WEB_ROOT:-${DEPLOY_PATH}/public}"
+            DEPLOY_BRANCH="${DEPLOY_BRANCH:-devN}"
+
             mkdir -p "$DEPLOY_PATH"
-          fi
+            cd "$DEPLOY_PATH"
 
-      - name: Deploy locally
-        run: |
-          set -euo pipefail
-
-          PHP_BIN="${PHP_BIN:-php}"
-          COMPOSER_BIN="${COMPOSER_BIN:-composer}"
-
-          echo "=========================================="
-          echo "==> Starting Staging Deployment"
-          echo "=========================================="
-
-          echo "==> Deploy branch: $DEPLOY_BRANCH"
-          echo "==> Deploy path: $DEPLOY_PATH"
-
-          echo "==> Changing to application directory"
-          cd "$DEPLOY_PATH"
-
-          echo "==> Ensuring directory is a git repository"
-          if [[ ! -d .git ]]; then
-            echo "==> No .git found — initializing repository"
-            git init
-            if ! git remote | grep -q '^origin$'; then
+            if [[ ! -d .git ]]; then
+              git init
               git remote add origin "https://github.com/amrentech1230/crm.git"
             fi
-          fi
 
-          echo "==> Fetching latest code"
-          git fetch --all --prune
+            git fetch --all --prune
+            git reset --hard "origin/$DEPLOY_BRANCH"
+            echo "Deployed commit: $(git rev-parse HEAD)"
 
-          echo "==> Resetting to origin/$DEPLOY_BRANCH"
-          git reset --hard "origin/$DEPLOY_BRANCH"
-          echo "==> Deployed commit: $(git rev-parse HEAD)"
-          if [[ ! -f "${WEB_ROOT}/index.php" ]]; then
-            echo "::error::WEB_ROOT does not contain public/index.php: ${WEB_ROOT}"
-            exit 1
-          fi
-          printf '%s\n' "$(git rev-parse HEAD)" > "${WEB_ROOT}/deploy-sha.txt"
-          printf '%s\n' "$(git rev-parse HEAD)" > "${DEPLOY_PATH}/deploy-sha.txt"
-          DOMAIN_ROOT="$(dirname "${DEPLOY_PATH}")"
-          if [[ -d "${DOMAIN_ROOT}/public_html" ]]; then
-            printf '%s\n' "$(git rev-parse HEAD)" > "${DOMAIN_ROOT}/public_html/deploy-sha.txt"
-          fi
+            $COMPOSER_BIN install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            $PHP_BIN artisan down --retry=15 || true
+            trap '$PHP_BIN artisan up || true' EXIT
+            $PHP_BIN artisan migrate --force
+            $PHP_BIN artisan optimize:clear
+            $PHP_BIN artisan config:cache
+            $PHP_BIN artisan event:cache
+            $PHP_BIN artisan view:cache
 
-          echo "==> Installing PHP dependencies"
-          $COMPOSER_BIN install \
-            --no-interaction \
-            --prefer-dist \
-            --optimize-autoloader \
-            --no-dev
+            if [[ ! -f "${WEB_ROOT}/index.php" ]]; then
+              echo "WEB_ROOT does not contain public/index.php: ${WEB_ROOT}"
+              exit 1
+            fi
 
-          echo "==> Enabling maintenance mode"
-          $PHP_BIN artisan down --retry=15 || true
-
-          trap '$PHP_BIN artisan up || true' EXIT
-
-          echo "==> Running database migrations"
-          $PHP_BIN artisan migrate --force
-
-          echo "==> Clearing Laravel caches"
-          $PHP_BIN artisan optimize:clear
-
-          echo "==> Caching configuration"
-          $PHP_BIN artisan config:cache
-
-          echo "==> Caching events"
-          $PHP_BIN artisan event:cache
-
-          echo "==> Caching views"
-          $PHP_BIN artisan view:cache
-
-          echo "==> Creating storage link"
-          # 'php artisan storage:link' uses exec() which is disabled on this
-          # host, so create the symlink directly. Non-fatal if it already exists.
-          if [[ ! -e public/storage ]]; then
-            ln -s ../storage/app/public public/storage || true
-          fi
-
-          echo "==> Restarting queue workers"
-          $PHP_BIN artisan queue:restart
-
-          echo "==> Disabling maintenance mode"
-          $PHP_BIN artisan up
-
-          trap - EXIT
-
-          echo "=========================================="
-          echo "==> Staging deployment completed"
-          echo "=========================================="
+            printf '%s\n' "$(git rev-parse HEAD)" > "${WEB_ROOT}/deploy-sha.txt"
+            $PHP_BIN artisan up
+            trap - EXIT
