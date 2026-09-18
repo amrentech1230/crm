@@ -87,6 +87,7 @@ jobs:
             echo "::error::WEB_ROOT does not contain public/index.php: ${WEB_ROOT}"
             exit 1
           fi
+          printf '%s\n' "$(git rev-parse HEAD)" > "${WEB_ROOT}/deploy-sha.txt"
 
           echo "==> Installing PHP dependencies"
           $COMPOSER_BIN install \
