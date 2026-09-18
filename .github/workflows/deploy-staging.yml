@@ -27,7 +27,7 @@ jobs:
       url: https://stagingcci.in
 
     env:
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      DEPLOY_PATH: ${{ secrets.STAGING_PATH || vars.DEPLOY_PATH }}
       DEPLOY_BRANCH: devN
       PHP_BIN: ${{ vars.PHP_BIN }}
       COMPOSER_BIN: ${{ vars.COMPOSER_BIN }}
