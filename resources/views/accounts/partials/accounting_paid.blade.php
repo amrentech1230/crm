@@ -32,7 +32,7 @@
                     @endif
                 </td>
                 <td class="dynamic-data">
-                    <select class="form-control ar-aging-close" data-id="{{ $record->id }}">
+                    <select class="form-control accounting-paid-select ar-aging-close" data-id="{{ $record->id }}">
                         <option value="">Select</option>
                         <option value="Bank Charges Adjusted" {{ $record->ar_aging_close == 'Bank Charges Adjusted' ? 'selected' : '' }}>Bank Charges Adjusted </option>
                         <option value="Short Pay Adjusted Internally " {{ $record->ar_aging_close == 'Short Pay Adjusted Internally' ? 'selected' : '' }}>Short Pay Adjusted Internally </option>

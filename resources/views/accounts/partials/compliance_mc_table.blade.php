@@ -24,6 +24,45 @@
     <td class="status-{{ $carrier->id }}">{{$carrier->mc_check}}</td>
 	<td class="setup-{{ $carrier->id }}">{{$carrier->setup}}</td>
     <td>
+        <input type="file"
+               id="doc_upload-{{ $carrier->id }}"
+               name="doc_upload[]"
+               class="form-control"
+               multiple
+               onchange="uploadCarrierDocuments({{ $carrier->id }})">
+    </td>
+    <td>
+        <div class="carrier-documents-{{ $carrier->id }}">
+            @php
+                $documents = json_decode($carrier->doc_upload, true) ?? [];
+            @endphp
+
+            @if(count($documents))
+                @foreach($documents as $index => $doc)
+                    <div class="mb-1" id="doc-row-{{ $carrier->id }}-{{ $index }}">
+                        <span class="trim-file-name" data-title="{{ $doc['original_name'] }}">
+                            {{ $doc['original_name'] }}
+                        </span>
+
+                        <a href="{{ asset($doc['file_path']) }}"
+                           target="_blank"
+                           class="btn btn-sm btn-primary btn-xs">
+                            View
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-sm btn-danger btn-xs"
+                                onclick="deleteCarrierDocument({{ $carrier->id }}, {{ $index }})">
+                            Delete
+                        </button>
+                    </div>
+                @endforeach
+            @else
+                <span class="text-muted">No documents uploaded.</span>
+            @endif
+        </div>
+    </td>
+    <td>
         <span data-bs-toggle="modal" style="color: #0c7ce6; cursor:pointer" data-bs-target="#view-documents-{{ $carrier->id }}"> View Documents</span>
     </td>
     @if($carrier->carrier_block == 'Blocked')
@@ -212,6 +251,75 @@ function carrier_block(el) {
                 title: 'Error',
                 text: 'Failed to update status'
             });
+        }
+    });
+}
+</script>
+
+<script>
+function uploadCarrierDocuments(carrierId) {
+    let input = document.getElementById('doc_upload-' + carrierId);
+    let files = input.files;
+
+    if (!files.length) {
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    formData.append('carrier_id', carrierId);
+
+    for (let i = 0; i < files.length; i++) {
+        formData.append('doc_upload[]', files[i]);
+    }
+
+    $.ajax({
+        url: '{{ route("carrier.documents.upload") }}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function () {
+            $('.setup-' + carrierId).html('<span style="color:blue;">Uploading...</span>');
+        },
+        success: function (response) {
+            if (response.success) {
+                $('.carrier-documents-' + carrierId).html(response.html);
+                alert('Documents uploaded successfully.');
+                location.reload(); // Reload the page to reflect changes
+            }
+        },
+        error: function (xhr) {
+            console.log(xhr.responseText);
+            alert('Something went wrong while uploading documents.');
+        }
+    });
+}
+
+function deleteCarrierDocument(carrierId, docIndex) {
+    if (!confirm('Are you sure you want to delete this document?')) {
+        return;
+    }
+
+    $.ajax({
+        url: '{{ route("carrier.documents.delete") }}',
+        type: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            carrier_id: carrierId,
+            doc_index: docIndex
+        },
+        success: function (response) {
+            if (response.success) {
+                $('.carrier-documents-' + carrierId).html(response.html);
+                $('#doc_upload-' + carrierId).val('');
+                alert('Document deleted successfully.');
+                location.reload(); 
+            }
+        },
+        error: function (xhr) {
+            console.log(xhr.responseText);
+            alert('Something went wrong while deleting the document.');
         }
     });
 }
